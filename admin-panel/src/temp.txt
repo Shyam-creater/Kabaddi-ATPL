@@ -1,0 +1,8 @@
+import { Trash2 } from 'lucide-react';
+import api from '../api';
+
+// This is a minimal Gallery Component to be used inside ContentManager or standalone
+// Since I decided to integrate it into ContentManager as a tab, I need to update ContentManager.tsx LOGIC to handle 'gallery' endpoint.
+// The existing ContentManager uses a generic 'endpoint' state.
+// BUT, my Gallery route is /gallery, while others are /content/news etc.
+// I need to adjust ContentManager to handle this deviation OR just map 'gallery' -> '/gallery'

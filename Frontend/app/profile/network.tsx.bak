@@ -1,0 +1,194 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator, SafeAreaView, TextInput } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { userService } from '../../services/api';
+
+export default function NetworkPage() {
+    const router = useRouter();
+    const params = useLocalSearchParams();
+    const { type, userId, userName } = params; // type: 'followers' | 'following'
+
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        fetchNetwork();
+    }, [type, userId]);
+
+    const fetchNetwork = async () => {
+        setLoading(true);
+        try {
+            let res;
+            if (type === 'followers') {
+                res = await userService.getFollowers(userId as string);
+            } else {
+                res = await userService.getFollowing(userId as string);
+            }
+            if (res.data.success) {
+                setUsers(res.data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch network', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredUsers = users.filter(u =>
+        u.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const renderItem = ({ item }: { item: any }) => (
+        <View style={styles.userCard}>
+            <TouchableOpacity onPress={() => router.push(`/profile/view/${item._id}` as any)} style={styles.userInfo}>
+                <Image source={{ uri: item.image || 'https://via.placeholder.com/50' }} style={styles.avatar} />
+                <View style={styles.textContainer}>
+                    <Text style={styles.name}>{item.name}</Text>
+                    <Text style={styles.role}>{item.role}</Text>
+                </View>
+            </TouchableOpacity>
+
+            {/* Optional: Follow/Unfollow button could go here */}
+            <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>{item.status === 'pending' ? 'Pending' : ''}</Text>
+            </View>
+        </View>
+    );
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>
+                    {userName ? `${userName}'s ` : ''}{type === 'followers' ? 'Followers' : 'Following'}
+                </Text>
+            </View>
+
+            <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="#666" style={{ marginRight: 8 }} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search..."
+                    placeholderTextColor="#666"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+            </View>
+
+            {loading ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color="#E31C25" />
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredUsers}
+                    renderItem={renderItem}
+                    keyExtractor={item => item._id}
+                    contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={
+                        <View style={styles.center}>
+                            <Text style={styles.emptyText}>No users found</Text>
+                        </View>
+                    }
+                />
+            )}
+        </SafeAreaView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#121212',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#222',
+    },
+    backButton: {
+        marginRight: 16,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#fff',
+        textTransform: 'capitalize',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#222',
+        margin: 16,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        height: 40,
+    },
+    searchInput: {
+        flex: 1,
+        color: '#fff',
+        height: '100%',
+    },
+    listContent: {
+        padding: 16,
+    },
+    userCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#1E1E1E',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    userInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    avatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: 12,
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    textContainer: {
+        justifyContent: 'center',
+    },
+    name: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    role: {
+        fontSize: 12,
+        color: '#aaa',
+        marginTop: 2,
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 50,
+    },
+    emptyText: {
+        color: '#666',
+        fontSize: 16,
+    },
+    statusBadge: {
+
+    },
+    statusText: {
+        color: '#aaa',
+        fontSize: 10,
+        fontStyle: 'italic'
+    }
+});

@@ -1,0 +1,46 @@
+[33mc917d292[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-local-work[m[33m)[m HEAD@{0}: checkout: moving from lokesh-dev to backup-local-work
+[33mc41625b7[m[33m ([m[1;31morigin/lokesh-dev[m[33m, [m[1;32mlokesh-dev[m[33m)[m HEAD@{1}: commit (merge): Restore local working code after git conflict
+[33m79a3edfb[m HEAD@{2}: checkout: moving from backup-local-work to lokesh-dev
+[33mc917d292[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-local-work[m[33m)[m HEAD@{3}: rebase (abort): returning to refs/heads/backup-local-work
+[33m79a3edfb[m HEAD@{4}: checkout: moving from backup-local-work to lokesh-dev
+[33mf492b44e[m HEAD@{5}: commit: Updated frontend and backend files
+[33mc917d292[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-local-work[m[33m)[m HEAD@{6}: reset: moving to c917d292
+[33mc917d292[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackup-local-work[m[33m)[m HEAD@{7}: commit: Added frontend and backend structure
+[33m0b67df3a[m HEAD@{8}: reset: moving to 0b67df3a
+[33m8e74a611[m[33m ([m[1;32mshyam-temp[m[33m)[m HEAD@{9}: checkout: moving from shyam-temp to backup-local-work
+[33m8e74a611[m[33m ([m[1;32mshyam-temp[m[33m)[m HEAD@{10}: commit: Restore deleted files and backup changes
+[33mf2984205[m HEAD@{11}: checkout: moving from lokesh-dev to shyam-temp
+[33m79a3edfb[m HEAD@{12}: checkout: moving from lokesh-dev to lokesh-dev
+[33m79a3edfb[m HEAD@{13}: commit: Work in progress / backup local changes
+[33m98d2bcaf[m HEAD@{14}: checkout: moving from lokesh-dev to lokesh-dev
+[33m98d2bcaf[m HEAD@{15}: checkout: moving from lokesh-dev to lokesh-dev
+[33m98d2bcaf[m HEAD@{16}: checkout: moving from lokesh-dev to lokesh-dev
+[33m98d2bcaf[m HEAD@{17}: checkout: moving from shyam-dev to lokesh-dev
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{18}: checkout: moving from lokesh-dev to shyam-dev
+[33m98d2bcaf[m HEAD@{19}: commit (merge): Add Frontend application (Expo/React Native)
+[33m0b67df3a[m HEAD@{20}: commit: Frontend and backend updates
+[33m37e9036d[m[33m ([m[1;32mmain[m[33m)[m HEAD@{21}: reset: moving to 37e9036d
+[33m1a51a33d[m HEAD@{22}: reset: moving to origin/lokesh-dev
+[33m1a51a33d[m HEAD@{23}: checkout: moving from main to lokesh-dev
+[33m37e9036d[m[33m ([m[1;32mmain[m[33m)[m HEAD@{24}: commit: feat: implement authentication system with hamburger menu and profile drawer
+[33mc990a330[m HEAD@{25}: checkout: moving from shyam-dev to main
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{26}: checkout: moving from lokesh-dev to shyam-dev
+[33m1a51a33d[m HEAD@{27}: checkout: moving from main to lokesh-dev
+[33mc990a330[m HEAD@{28}: commit: Remove node_modules and update gitignore
+[33m85ecf686[m HEAD@{29}: checkout: moving from main to main
+[33m85ecf686[m HEAD@{30}: commit: Initial project setup for AattumTPL Score mobile app
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{31}: checkout: moving from shyam to main
+[33mc6bb902b[m[33m ([m[1;31morigin/shyam[m[33m, [m[1;32mshyam[m[33m)[m HEAD@{32}: commit: Fix Frontend folder to normal folder
+[33m0bd2df44[m HEAD@{33}: commit: Fix Frontend folder to push as normal folder
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{34}: checkout: moving from lokesh to shyam
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{35}: checkout: moving from lokesh to lokesh
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{36}: checkout: moving from lokesh to lokesh
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{37}: checkout: moving from lokesh to lokesh
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{38}: checkout: moving from main to lokesh
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{39}: checkout: moving from lokesh-dev to main
+[33m6101f35a[m HEAD@{40}: commit: Fix: remove frontend submodule and track as normal folder
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{41}: checkout: moving from main to lokesh-dev
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{42}: checkout: moving from shyam-dev to main
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{43}: checkout: moving from lokesh-dev to shyam-dev
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{44}: checkout: moving from main to lokesh-dev
+[33m7bd6235c[m[33m ([m[1;31morigin/lokesh[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mshyam-dev[m[33m, [m[1;32mlokesh[m[33m)[m HEAD@{45}: commit (initial): Initial project structure with frontend and backend
