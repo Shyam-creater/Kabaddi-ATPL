@@ -123,13 +123,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
     };
 
     const confirmLogout = () => {
+        const userRole = user?.role;
         dispatch(logout());
-        navigate('/login');
+        if (userRole === 'TH' || userRole === 'scorer') {
+            navigate('/th-login');
+        } else {
+            navigate('/login');
+        }
     };
 
     return (
-        <header className="sticky top-0 z-40 px-6 md:px-8 py-5">
-            <div className="flex items-center justify-between bg-white/60 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[2rem] px-8 py-4 transition-all">
+        <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200/50 px-6 md:px-8 py-3.5 transition-all">
+            <div className="flex items-center justify-between w-full max-w-[1920px] mx-auto">
                 {/* Welcome Message */}
                 <div className="flex items-center gap-4 md:gap-6">
                     {/* Mobile Menu Toggle */}

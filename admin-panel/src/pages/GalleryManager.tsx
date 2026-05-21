@@ -111,11 +111,11 @@ export default function GalleryManager() {
 
             {showModal && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
                     onClick={() => setShowModal(false)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-scale-in overflow-hidden my-10 flex flex-col"
+                        className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">

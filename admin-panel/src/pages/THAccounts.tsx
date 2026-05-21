@@ -235,7 +235,7 @@ export default function THAccounts() {
 
             {/* Modal for TH Details */}
             {selectedTH && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[9999] p-4" onClick={() => setSelectedTH(null)}>
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[9999] p-4" onClick={() => setSelectedTH(null)}>
                     <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">

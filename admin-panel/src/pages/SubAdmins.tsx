@@ -232,8 +232,8 @@ export default function SubAdmins() {
 
             {/* Modal Dialog */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in">
-                    <div className="w-full max-w-lg bg-white rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-gray-100 overflow-hidden relative animate-slide-up">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center md:pl-72 p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-xl bg-white rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-gray-100 overflow-hidden relative animate-slide-up">
                         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <UserPlus className="text-gray-900" size={20} />

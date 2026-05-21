@@ -135,7 +135,7 @@ export default function Tournaments() {
     };
 
     return (
-        <div className="space-y-8 px-4 md:px-8 xl:px-12 pb-20">
+        <div className="space-y-6 pb-16">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
                 <div>
@@ -181,7 +181,7 @@ export default function Tournaments() {
                         <div
                             key={tournament._id}
                             style={{ animationDelay: `${idx * 0.1}s` }}
-                            className="bg-white rounded-2xl p-0 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
+                            className="bg-white rounded-2xl p-0 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden group flex flex-col h-full"
                         >
                             {/* High Fidelity Banner Section */}
                             <div className="h-32 w-full relative overflow-hidden bg-gray-900">
@@ -210,24 +210,27 @@ export default function Tournaments() {
                                 </div>
                             </div>
 
-                            <div className="p-6 relative">
-                                {/* Status Chip */}
-                                <div className="absolute -top-3 right-6">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm border ${tournament.status === 'ONGOING' ? 'bg-red-50 text-red-500 border-red-100 animate-pulse' :
-                                        tournament.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                            'bg-blue-50 text-blue-600 border-blue-100'
-                                        }`}>
-                                        {tournament.status}
-                                    </span>
+                            <div className="p-6 relative flex-1 flex flex-col justify-between">
+                                {/* Top Section: Title & Description */}
+                                <div>
+                                    {/* Status Chip */}
+                                    <div className="absolute -top-3 right-6">
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm border ${tournament.status === 'ONGOING' ? 'bg-red-50 text-red-500 border-red-100 animate-pulse' :
+                                            tournament.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                'bg-blue-50 text-blue-600 border-blue-100'
+                                            }`}>
+                                            {tournament.status}
+                                        </span>
+                                    </div>
+
+                                    <h3 className="text-lg font-black text-gray-900 mb-1.5 pr-20 line-clamp-1">{tournament.name}</h3>
+                                    <p className="text-xs text-gray-500 font-medium leading-relaxed mb-4 line-clamp-2 min-h-[2.5rem]">
+                                        {tournament.description || "No description provided for this league."}
+                                    </p>
                                 </div>
 
-                                <h3 className="text-lg font-black text-gray-900 mb-1">{tournament.name}</h3>
-                                {tournament.description && (
-                                    <p className="text-xs text-gray-500 font-medium leading-relaxed mb-4 line-clamp-2">{tournament.description}</p>
-                                )}
-                                {!tournament.description && <div className="mb-4" />}
-
-                                <div className="space-y-3">
+                                {/* Bottom Section: Details & Footer */}
+                                <div className="space-y-4">
                                     <div className="flex items-center gap-3 text-sm text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
                                         <div className="bg-white p-2 rounded-lg shadow-sm">
                                             <Calendar size={14} className="text-indigo-500" />
@@ -235,33 +238,23 @@ export default function Tournaments() {
                                         <div>
                                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</p>
                                             <p className="font-semibold text-gray-900 text-xs mt-0.5">
-                                                {(() => {
-                                                    const start = new Date(tournament.startDate);
-                                                    const end = new Date(tournament.endDate);
-
-                                                    return (
-                                                        <>
-                                                            {start.toLocaleDateString('en-GB', {
-                                                                day: '2-digit',
-                                                                month: 'short',
-                                                                year: 'numeric',
-                                                            })}{" "}
-                                                            to
-                                                            <br />
-                                                            {end.toLocaleDateString('en-GB', {
-                                                                day: '2-digit',
-                                                                month: 'short',
-                                                                year: 'numeric',
-                                                            })}
-                                                        </>
-                                                    );
-                                                })()}
+                                                {new Date(tournament.startDate).toLocaleDateString('en-GB', {
+                                                    day: '2-digit',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                })}{" "}
+                                                to{" "}
+                                                {new Date(tournament.endDate).toLocaleDateString('en-GB', {
+                                                    day: '2-digit',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                })}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Footer: Registrations + Venue + Payment indicators */}
-                                    <div className="flex items-center justify-between mt-4 border-t border-gray-50 pt-4">
+                                    <div className="flex items-center justify-between mt-4 border-t border-gray-100 pt-4">
                                         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 uppercase">
                                             <Users size={12} />
                                             {tournament.registrationCount || 0} Registered
@@ -285,11 +278,11 @@ export default function Tournaments() {
             {/* Modal */}
             {isModalOpen && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
                     onClick={() => setIsModalOpen(false)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-scale-in overflow-hidden my-10 flex flex-col"
+                        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50">
@@ -305,7 +298,7 @@ export default function Tournaments() {
                                 <input
                                     type="text"
                                     required
-                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400"
+                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400"
                                     placeholder="Ex: TPL Season 5"
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -315,7 +308,7 @@ export default function Tournaments() {
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Description</label>
                                 <textarea
-                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400 resize-none"
+                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400 resize-none"
                                     placeholder="Ex: The premier league for senior players above 30 years..."
                                     rows={2}
                                     maxLength={200}
@@ -376,7 +369,7 @@ export default function Tournaments() {
                                     <input
                                         type="date"
                                         required
-                                        className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 outline-none text-sm font-semibold text-gray-900"
+                                        className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none text-sm font-semibold text-gray-900"
                                         value={formData.startDate}
                                         onChange={e => setFormData({ ...formData, startDate: e.target.value })}
                                     />
@@ -386,7 +379,7 @@ export default function Tournaments() {
                                     <input
                                         type="date"
                                         required
-                                        className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 outline-none text-sm font-semibold text-gray-900"
+                                        className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none text-sm font-semibold text-gray-900"
                                         value={formData.endDate}
                                         onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                                     />
@@ -397,7 +390,7 @@ export default function Tournaments() {
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Venue</label>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400"
+                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400"
                                     placeholder="Ex: Dubai International Stadium"
                                     value={formData.venue}
                                     onChange={e => setFormData({ ...formData, venue: e.target.value })}
@@ -407,7 +400,7 @@ export default function Tournaments() {
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">League Status</label>
                                 <select
-                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 outline-none transition-all text-sm font-semibold text-gray-900"
+                                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all text-sm font-semibold text-gray-900"
                                     value={formData.status}
                                     onChange={e => setFormData({ ...formData, status: e.target.value as any })}
                                 >

@@ -410,11 +410,11 @@ export default function Users() {
             {/* --- PREMIUM USER PASSPORT MODAL --- */}
             {selectedUser && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
                     onClick={() => setSelectedUser(null)}
                 >
                     <div
-                        className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-[0_30px_60px_rgba(0,0,0,0.35)] animate-scale-in overflow-hidden relative border-2 border-white my-8"
+                        className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-[0_30px_60px_rgba(0,0,0,0.35)] animate-scale-in overflow-y-auto max-h-[90vh] relative border-2 border-white"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header Background */}

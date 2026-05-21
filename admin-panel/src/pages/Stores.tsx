@@ -148,17 +148,17 @@ export default function Store() {
             {/* CREATE / UPDATE MODAL */}
             {isModalOpen && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
                     onClick={() => {
                         setIsModalOpen(false);
                         setEditingProduct(null);
                     }}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden my-10 animate-scale-in"
+                        className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-scale-in"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="p-6 border-b flex justify-between items-center bg-gray-50/50">
+                        <div className="p-6 border-b flex justify-between items-center bg-gray-50/50 flex-shrink-0">
                             <h2 className="font-black text-lg">
                                 {editingProduct ? 'Edit Product' : 'Create Product'}
                             </h2>
@@ -172,7 +172,7 @@ export default function Store() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                        <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto flex-1">
 
 
                             {/* Image Upload */}

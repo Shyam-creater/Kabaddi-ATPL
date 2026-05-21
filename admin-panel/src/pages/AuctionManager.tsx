@@ -268,10 +268,10 @@ export default function AuctionManager() {
             {/* LIVE AUCTION MODAL - DARK MODE */}
             {liveAuctionPlayer && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/90 backdrop-blur-xl flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/90 backdrop-blur-xl flex justify-center items-center md:pl-72 z-[999] p-4"
                 >
                     <div
-                        className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-gray-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 relative my-10 animate-scale-in"
+                        className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-gray-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 relative max-h-[90vh] overflow-y-auto animate-scale-in"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Left: Player Visual */}
@@ -359,19 +359,19 @@ export default function AuctionManager() {
             {/* ADD/EDIT PLAYER MODAL */}
             {showAddModal && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
                     onClick={() => setShowAddModal(false)}
                 >
                     <div
-                        className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-scale-in overflow-hidden my-10 "
+                        className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-scale-in overflow-hidden flex flex-col max-h-[90vh]"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="p-6 border-b border-gray-100 bg-gray-50/80 flex justify-between items-center">
+                        <div className="p-6 border-b border-gray-100 bg-gray-50/80 flex justify-between items-center flex-shrink-0">
                             <h2 className="text-lg font-black text-gray-900 tracking-tight">{editingId ? 'Edit Player' : 'Add New Player'}</h2>
                             <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-2 hover:bg-gray-200 rounded-full"><XCircle size={20} /></button>
                         </div>
 
-                        <div className="p-8 max-h-[80vh]">
+                        <div className="p-8 overflow-y-auto flex-1">
                            <form onSubmit={handleAddPlayer} className="space-y-6 pb-[5px]">
                                 {/* Image Upload */}
                                 <div className="flex justify-center">

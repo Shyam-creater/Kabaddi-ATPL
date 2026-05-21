@@ -653,14 +653,14 @@ export default function Registrations() {
             {/* Registration Details Modal */}
             {selectedReg && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/20 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
                     onClick={() => setSelectedReg(null)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col my-10 animate-scale-in"
+                        className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] animate-scale-in"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
                             <div>
                                 <h2 className="text-xl font-black text-gray-900">Registration Details</h2>
                                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest break-all">ID: {selectedReg._id}</p>
@@ -670,7 +670,7 @@ export default function Registrations() {
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 max-h-[70vh]">
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden p-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {/* Left: Payment Proof */}
                                 <div className="space-y-6">
@@ -754,7 +754,7 @@ export default function Registrations() {
             {/* Image Fullscreen Modal - Rendered LAST with highest z-index */}
             {imageModal && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[1100] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center md:pl-72 z-[1100] p-4"
                     onClick={() => setImageModal(null)}
                 >
                     {/* Top Right Cancel Button */}
@@ -766,13 +766,13 @@ export default function Registrations() {
                     </button>
 
                     <div
-                        className="relative max-w-4xl py-10"
+                        className="relative max-w-4xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <img
                             src={imageModal}
                             alt="Payment Proof"
-                            className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl border-4 border-white mt-20"
+                            className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl border-4 border-white"
                         />
 
                         <div className="mt-6 flex justify-center">

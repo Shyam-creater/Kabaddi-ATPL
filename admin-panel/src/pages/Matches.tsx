@@ -400,34 +400,44 @@ export default function Matches() {
     };
 
     return (
-        <div className="space-y-6 px-4 md:px-8 xl:px-12 pb-20">
+        <div className="space-y-6 pb-16">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        Matches <Trophy className="text-yellow-500 fill-yellow-100" size={24} />
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
+                        Matches <Trophy className="text-amber-500 fill-amber-100" size={22} />
                     </h1>
-                    <p className="text-xs font-medium text-gray-500">Live games & schedule</p>
+                    <p className="text-xs font-medium text-gray-500 mt-0.5">Live games & schedule</p>
                 </div>
-                <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-black shadow-lg shadow-gray-900/10 transition-all active:scale-95">
-                    <Plus size={16} /> New Match
+                <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]">
+                    <Plus size={14} /> New Match
                 </button>
             </div>
 
             {/* Matches Grid */}
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                    <Trophy size={48} className="text-gray-200 mb-4" />
-                    <div className="text-xs font-bold text-gray-400">Loading matches...</div>
+                <div className="flex flex-col items-center justify-center py-24">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 animate-pulse">
+                        <Trophy size={24} className="text-gray-300" />
+                    </div>
+                    <div className="text-xs font-bold text-gray-400">Loading matches…</div>
+                </div>
+            ) : matches.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                        <Trophy size={28} className="text-gray-300" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-400 mb-1">No matches yet</p>
+                    <p className="text-xs text-gray-400">Create your first match to get started.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-slide-in-right">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {matches.map((match, idx) => (
                         <div
                             key={match._id}
                             onClick={() => openScorer(match)}
-                            style={{ animationDelay: `${idx * 0.05}s` }}
-                            className="group cursor-pointer glass-card rounded-2xl border-transparent hover:border-indigo-200/50 shadow-sm hover:shadow-xl transition-all relative overflow-hidden"
+                            className="group cursor-pointer bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
+                            style={{ animation: `fadeSlideUp 0.4s cubic-bezier(0.16,1,0.3,1) ${idx * 0.04}s both` }}
                         >
                             {/* Status Badge + Video Badge */}
                             <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5">
@@ -505,92 +515,109 @@ export default function Matches() {
             {/* CREATE MODAL */}
             {showCreate && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center md:pl-72 z-[999] p-4"
                     onClick={() => setShowCreate(false)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-scale-in overflow-hidden my-10"
+                        className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col"
                         onClick={e => e.stopPropagation()}
+                        style={{ animation: 'modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
                     >
-                        <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                            <h2 className="text-lg font-black text-gray-900">Create New Match</h2>
-                            <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} className="text-gray-500" /></button>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                            <div>
+                                <h2 className="text-base font-black text-gray-900">New Match</h2>
+                                <p className="text-[11px] text-gray-500 mt-0.5">Set up teams and venue</p>
+                            </div>
+                            <button onClick={() => setShowCreate(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"><X size={16} className="text-gray-500" /></button>
                         </div>
 
-                        <form onSubmit={handleCreate} className="p-6 space-y-4">
-                            <div className="grid grid-cols-3 gap-2 p-1 bg-gray-100 rounded-xl">
+                        <form onSubmit={handleCreate} className="flex-1 overflow-y-auto">
+                          <div className="p-6 space-y-5">
+                            {/* Sport Tabs */}
+                            <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-100 rounded-xl">
                                 {['cricket', 'kabaddi', 'football'].map(s => (
-                                    <div
+                                    <button
+                                        type="button"
                                         key={s}
                                         onClick={() => setFormData({ ...formData, sport: s })}
-                                        className={`cursor-pointer text-center py-2 rounded-lg text-xs font-bold capitalize transition-all ${formData.sport === s
+                                        className={`py-2 rounded-lg text-[11px] font-bold capitalize transition-all duration-200 ${formData.sport === s
                                             ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
-                                            : 'text-gray-500 hover:text-gray-700'
+                                            : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
                                             }`}
                                     >
                                         {s}
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
 
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Match Details</label>
-                                <div className="space-y-3">
-                                    <input placeholder="Match Title (e.g. Final)" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" required />
-                                    <input placeholder="Venue" value={formData.venue} onChange={e => setFormData({ ...formData, venue: e.target.value })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" required />
+                            {/* Title + Venue side by side */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Match Title</label>
+                                    <input placeholder="e.g. Final" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400" required />
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Venue</label>
+                                    <input placeholder="Stadium name" value={formData.venue} onChange={e => setFormData({ ...formData, venue: e.target.value })} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400" required />
                                 </div>
                             </div>
 
+                            {/* Teams side by side */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team A</label>
-                                    <div className="space-y-2">
-                                        <select value={selectedTeamAId} onChange={e => selectExistingTeam('A', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none">
-                                            <option value="">Manual entry</option>
-                                            {teams.length > 0 ? teams.map(team => (
-                                                <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
-                                            )) : <option value="">No existing teams found</option>}
-                                        </select>
-                                        <input placeholder="Full Name" value={formData.teamA.name} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
-                                        <input placeholder="Code (AAA)" value={formData.teamA.code} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, code: e.target.value } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
-                                        {selectedTeamAId && (
-                                            <div className="mt-2 text-xs text-gray-600">
-                                                <div className="font-bold text-[11px] mb-1">Preview players ({teams.find(t => t._id === selectedTeamAId)?.players?.length || 0})</div>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {teams.find(t => t._id === selectedTeamAId)?.players?.slice(0,6).map((p: any) => (
-                                                        <div key={p.user || p._id} className="px-2 py-1 bg-gray-100 rounded-full text-[11px]">{p.name || p.fullName || p.displayName || 'Player'}</div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                {/* Team A */}
+                                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/30 space-y-2.5">
+                                    <label className="text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1 block">Team A</label>
+                                    <select value={selectedTeamAId} onChange={e => selectExistingTeam('A', e.target.value)} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all">
+                                        <option value="">Select or enter manually</option>
+                                        {teams.length > 0 ? teams.map(team => (
+                                            <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
+                                        )) : <option value="">No existing teams found</option>}
+                                    </select>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <input placeholder="Full Name" value={formData.teamA.name} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="col-span-2 w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-gray-400" required />
+                                        <input placeholder="Code" value={formData.teamA.code} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, code: e.target.value } }); }} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-gray-400 uppercase" required />
                                     </div>
+                                    {selectedTeamAId && (
+                                        <div className="pt-1">
+                                            <div className="text-[10px] font-bold text-gray-500 mb-1">Squad ({teams.find(t => t._id === selectedTeamAId)?.players?.length || 0})</div>
+                                            <div className="flex gap-1.5 flex-wrap">
+                                                {teams.find(t => t._id === selectedTeamAId)?.players?.slice(0,6).map((p: any) => (
+                                                    <span key={p.user || p._id} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-medium">{p.name || p.fullName || p.displayName || 'Player'}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team B</label>
-                                    <div className="space-y-2">
-                                        <select value={selectedTeamBId} onChange={e => selectExistingTeam('B', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none">
-                                            <option value="">Manual entry</option>
-                                            {teams.length > 0 ? teams.map(team => (
-                                                <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
-                                            )) : <option value="">No existing teams found</option>}
-                                        </select>
-                                        <input placeholder="Full Name" value={formData.teamB.name} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
-                                        <input placeholder="Code (BBB)" value={formData.teamB.code} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, code: e.target.value } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
-                                        {selectedTeamBId && (
-                                            <div className="mt-2 text-xs text-gray-600">
-                                                <div className="font-bold text-[11px] mb-1">Preview players ({teams.find(t => t._id === selectedTeamBId)?.players?.length || 0})</div>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {teams.find(t => t._id === selectedTeamBId)?.players?.slice(0,6).map((p: any) => (
-                                                        <div key={p.user || p._id} className="px-2 py-1 bg-gray-100 rounded-full text-[11px]">{p.name || p.fullName || p.displayName || 'Player'}</div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                {/* Team B */}
+                                <div className="p-4 rounded-xl border border-orange-100 bg-orange-50/30 space-y-2.5">
+                                    <label className="text-[11px] font-bold text-orange-700 uppercase tracking-wider mb-1 block">Team B</label>
+                                    <select value={selectedTeamBId} onChange={e => selectExistingTeam('B', e.target.value)} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+                                        <option value="">Select or enter manually</option>
+                                        {teams.length > 0 ? teams.map(team => (
+                                            <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
+                                        )) : <option value="">No existing teams found</option>}
+                                    </select>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <input placeholder="Full Name" value={formData.teamB.name} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="col-span-2 w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-gray-400" required />
+                                        <input placeholder="Code" value={formData.teamB.code} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, code: e.target.value } }); }} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-gray-400 uppercase" required />
                                     </div>
+                                    {selectedTeamBId && (
+                                        <div className="pt-1">
+                                            <div className="text-[10px] font-bold text-gray-500 mb-1">Squad ({teams.find(t => t._id === selectedTeamBId)?.players?.length || 0})</div>
+                                            <div className="flex gap-1.5 flex-wrap">
+                                                {teams.find(t => t._id === selectedTeamBId)?.players?.slice(0,6).map((p: any) => (
+                                                    <span key={p.user || p._id} className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-medium">{p.name || p.fullName || p.displayName || 'Player'}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <button type="submit" className="w-full bg-gray-900 text-white py-3 rounded-xl text-xs font-bold hover:bg-black mt-2 transition-transform active:scale-[0.98]">Create Match</button>
+                          </div>
+                          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex-shrink-0">
+                            <button type="submit" className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-black transition-all duration-200 shadow-lg shadow-gray-900/15 active:scale-[0.98]">Create Match</button>
+                          </div>
                         </form>
                     </div>
                 </div>
@@ -599,15 +626,16 @@ export default function Matches() {
             {/* SCORER UI - Compact */}
             {selectedMatch && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center md:pl-72 z-[999] p-4"
                     onClick={() => setSelectedMatch(null)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-scale-in my-10 flex flex-col"
+                        className="bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden animate-scale-in max-h-[90vh] flex flex-col"
                         onClick={e => e.stopPropagation()}
+                        style={{ animation: 'modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
                     >
                         {/* Scorer Header */}
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-start bg-gray-50/50">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-start flex-shrink-0">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-[10px] font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-gray-500 uppercase shadow-sm">{selectedMatch.sport || 'Cricket'}</span>
@@ -643,8 +671,8 @@ export default function Matches() {
                             </div>
                         </div>
 
-                        <div className="p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="p-6 overflow-y-auto flex-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 {/* TEAM A */}
                                 <div className="space-y-4">
                                     <div className="p-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-inner">
@@ -654,7 +682,7 @@ export default function Matches() {
                                         </div>
                                         {selectedMatch.sport === 'cricket' && <div className="text-sm text-blue-400 font-mono mt-2 font-bold bg-blue-100/50 inline-block px-2 py-1 rounded">Over: {selectedMatch.scoreA?.overs}</div>}
                                     </div>
-                                    <div className="grid grid-cols-4 gap-2">
+                                    <div className={`grid ${selectedMatch.sport === 'cricket' ? 'grid-cols-5' : 'grid-cols-3'} gap-2`}>
                                         {selectedMatch.sport === 'cricket' ? (
                                             <>
                                                 <ScoreBtn onClick={() => updateCricketScore('A', 0, false, true)} label="0" />
@@ -695,7 +723,7 @@ export default function Matches() {
                                         </div>
                                         {selectedMatch.sport === 'cricket' && <div className="text-sm text-orange-400 font-mono mt-2 font-bold bg-orange-100/50 inline-block px-2 py-1 rounded">Over: {selectedMatch.scoreB?.overs}</div>}
                                     </div>
-                                    <div className="grid grid-cols-4 gap-2">
+                                    <div className={`grid ${selectedMatch.sport === 'cricket' ? 'grid-cols-5' : 'grid-cols-3'} gap-2`}>
                                         {selectedMatch.sport === 'cricket' ? (
                                             <>
                                                 <ScoreBtn onClick={() => updateCricketScore('B', 0, false, true)} label="0" />
@@ -787,49 +815,75 @@ export default function Matches() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {(selectedMatch.sport === 'cricket') ? (
                                                         <>
-                                                            <div className="space-y-3">
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Runs</label>
-                                                                <input value={playerStatForm.runs} onChange={(e) => handlePlayerStatChange('runs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Wickets</label>
-                                                                <input value={playerStatForm.wickets} onChange={(e) => handlePlayerStatChange('wickets', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Catches</label>
-                                                                <input value={playerStatForm.catches} onChange={(e) => handlePlayerStatChange('catches', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            <div className="space-y-4">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Runs</label>
+                                                                    <input value={playerStatForm.runs} onChange={(e) => handlePlayerStatChange('runs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Wickets</label>
+                                                                    <input value={playerStatForm.wickets} onChange={(e) => handlePlayerStatChange('wickets', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Catches</label>
+                                                                    <input value={playerStatForm.catches} onChange={(e) => handlePlayerStatChange('catches', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
                                                             </div>
-                                                            <div className="space-y-3">
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Overs</label>
-                                                                <input value={playerStatForm.overs} onChange={(e) => handlePlayerStatChange('overs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" step="0.1" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Balls</label>
-                                                                <input value={playerStatForm.balls} onChange={(e) => handlePlayerStatChange('balls', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Run Outs</label>
-                                                                <input value={playerStatForm.runOuts} onChange={(e) => handlePlayerStatChange('runOuts', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            <div className="space-y-4">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Overs</label>
+                                                                    <input value={playerStatForm.overs} onChange={(e) => handlePlayerStatChange('overs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" step="0.1" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Balls</label>
+                                                                    <input value={playerStatForm.balls} onChange={(e) => handlePlayerStatChange('balls', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Run Outs</label>
+                                                                    <input value={playerStatForm.runOuts} onChange={(e) => handlePlayerStatChange('runOuts', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
                                                             </div>
                                                         </>
                                                     ) : selectedMatch.sport === 'football' ? (
                                                         <>
-                                                            <div className="space-y-3">
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Goals</label>
-                                                                <input value={playerStatForm.goals} onChange={(e) => handlePlayerStatChange('goals', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Assists</label>
-                                                                <input value={playerStatForm.assists} onChange={(e) => handlePlayerStatChange('assists', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            <div className="space-y-4">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Goals</label>
+                                                                    <input value={playerStatForm.goals} onChange={(e) => handlePlayerStatChange('goals', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Assists</label>
+                                                                    <input value={playerStatForm.assists} onChange={(e) => handlePlayerStatChange('assists', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
                                                             </div>
-                                                            <div className="space-y-3">
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Minutes</label>
-                                                                <input value={playerStatForm.minutes} onChange={(e) => handlePlayerStatChange('minutes', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Total Points</label>
-                                                                <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            <div className="space-y-4">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Minutes</label>
+                                                                    <input value={playerStatForm.minutes} onChange={(e) => handlePlayerStatChange('minutes', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Total Points</label>
+                                                                    <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
                                                             </div>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <div className="space-y-3">
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Raid Points</label>
-                                                                <input value={playerStatForm.raidPoints} onChange={(e) => handlePlayerStatChange('raidPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Tackle Points</label>
-                                                                <input value={playerStatForm.tacklePoints} onChange={(e) => handlePlayerStatChange('tacklePoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            <div className="space-y-4">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Raid Points</label>
+                                                                    <input value={playerStatForm.raidPoints} onChange={(e) => handlePlayerStatChange('raidPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Tackle Points</label>
+                                                                    <input value={playerStatForm.tacklePoints} onChange={(e) => handlePlayerStatChange('tacklePoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
                                                             </div>
-                                                            <div className="space-y-3">
-                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Total Points</label>
-                                                                <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            <div className="space-y-4">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Total Points</label>
+                                                                    <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                </div>
                                                             </div>
                                                         </>
                                                     )}
@@ -969,11 +1023,11 @@ export default function Matches() {
             {/* VIDEO PLAYER MODAL */}
             {videoMatch && getActiveVideoUrl(videoMatch) && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/90 backdrop-blur-md flex justify-center items-start z-[1000] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center md:pl-72 z-[1000] p-4"
                     onClick={() => setVideoMatch(null)}
                 >
                     <div
-                        className="w-full max-w-4xl my-10 animate-scale-in"
+                        className="w-full max-w-4xl animate-scale-in"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -1034,6 +1088,17 @@ export default function Matches() {
                     </div>
                 </div>
             )}
+            {/* Keyframes */}
+            <style>{`
+                @keyframes fadeSlideUp {
+                    from { opacity: 0; transform: translateY(12px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes modalSlideUp {
+                    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+                    to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+            `}</style>
         </div>
     );
 }

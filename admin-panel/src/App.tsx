@@ -30,7 +30,7 @@ function App() {
     <Provider store={store}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/login-choice" replace />} />
           <Route path="/login-choice" element={<LoginChoice />} />
           <Route path="/login" element={<Login />} />
           <Route path="/th-login" element={<THLogin />} />
@@ -177,7 +177,7 @@ function App() {
             }
           />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/login-choice" replace />} />
         </Routes>
       </BrowserRouter>
     </Provider>

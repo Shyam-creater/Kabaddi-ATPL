@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Plus, Edit2, Trash2, Shield, X, Upload, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Shield, X, Upload, Check, Users, MapPin } from 'lucide-react';
 
 export default function Teams() {
     const [teams, setTeams] = useState<any[]>([]);
@@ -22,6 +22,14 @@ export default function Teams() {
         owner: '',
         sport: 'cricket'
     });
+
+    const sportConfig: Record<string, { color: string; bg: string; border: string; glow: string; ring: string }> = {
+        cricket: { color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', glow: 'shadow-indigo-500/20', ring: 'ring-indigo-500/20' },
+        kabaddi: { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', glow: 'shadow-orange-500/20', ring: 'ring-orange-500/20' },
+        football: { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', glow: 'shadow-emerald-500/20', ring: 'ring-emerald-500/20' },
+    };
+
+    const sport = sportConfig[selectedSport] || sportConfig.cricket;
 
     useEffect(() => {
         loadTeams();
@@ -108,80 +116,108 @@ export default function Teams() {
         setIsEditing(false);
     };
 
+    /* ────────────────── label helper ────────────────── */
+    const InputLabel = ({ children }: { children: React.ReactNode }) => (
+        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">{children}</label>
+    );
+
+    const inputCls =
+        'w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400';
+
     return (
-        <div className="space-y-6 px-4 md:px-8 xl:px-12 pb-20">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
+        <div className="space-y-6 pb-16">
+            {/* ═══════ Header ═══════ */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        Teams <Shield className="text-indigo-500 fill-indigo-100" size={24} />
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
+                        Teams <Shield className="text-indigo-500 fill-indigo-100" size={22} />
                     </h1>
-                    <p className="text-xs font-medium text-gray-500">Manage league franchises and squads</p>
+                    <p className="text-xs font-medium text-gray-500 mt-0.5">Manage league franchises and squads</p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-white/50 backdrop-blur p-1 rounded-xl border border-white/60 shadow-sm">
+                <div className="flex items-center gap-2 bg-white/70 backdrop-blur-lg p-1 rounded-xl border border-white/60 shadow-sm">
                     {['cricket', 'kabaddi', 'football'].map(s => (
                         <button
                             key={s}
                             onClick={() => setSelectedSport(s)}
-                            className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${selectedSport === s
+                            className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${selectedSport === s
                                 ? 'bg-gray-900 text-white shadow-md'
-                                : 'text-gray-500 hover:bg-white/50'
+                                : 'text-gray-500 hover:bg-white/60'
                                 }`}
                         >
                             {s}
                         </button>
                     ))}
-                    <div className="w-px h-6 bg-gray-200 mx-1" />
-                    <button onClick={() => { resetForm(); setShowModal(true); }} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all">
-                        <Plus size={14} /> New Team
+                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="flex items-center gap-1.5 bg-indigo-600 text-white px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all"
+                    >
+                        <Plus size={13} /> New
                     </button>
                 </div>
             </div>
 
-            {/* Grid */}
+            {/* ═══════ Team Grid ═══════ */}
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-                    <Shield size={48} className="text-gray-200 mb-4" />
-                    <div className="text-xs font-bold text-gray-400">Loading teams...</div>
+                <div className="flex flex-col items-center justify-center py-24">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 animate-pulse">
+                        <Shield size={24} className="text-gray-300" />
+                    </div>
+                    <div className="text-xs font-bold text-gray-400">Loading teams…</div>
+                </div>
+            ) : teams.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                        <Shield size={28} className="text-gray-300" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-400 mb-1">No teams yet</p>
+                    <p className="text-xs text-gray-400">Create your first {selectedSport} team to get started.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 animate-slide-in-right">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {teams.map((team, idx) => (
                         <div
                             key={team._id}
-                            style={{ animationDelay: `${idx * 0.05}s` }}
-                            className="group glass-card rounded-2xl p-5 relative overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border-transparent hover:border-indigo-100"
+                            className="group relative bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-100 hover:border-gray-200 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5"
+                            style={{ animation: `fadeSlideUp 0.4s cubic-bezier(0.16,1,0.3,1) ${idx * 0.04}s both` }}
                         >
-                            {/* Decorative Background */}
-                            <div className={`absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-2xl -mr-10 -mt-10 transition-all group-hover:opacity-10 ${selectedSport === 'kabaddi' ? 'bg-orange-600' : selectedSport === 'football' ? 'bg-emerald-600' : 'bg-indigo-600'
-                                }`} />
-
-                            <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-2xl font-black text-gray-300 shadow-inner border border-white">
-                                        {team.logo ? <img src={team.logo} className="w-full h-full object-cover rounded-2xl" /> : team.code[0]}
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => { setFormData(team); setTeamPlayers(Array.isArray(team.players) ? team.players : []); setIsEditing(true); setShowModal(true); }} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit2 size={14} /></button>
-                                        <button onClick={() => handleDelete(team._id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
-                                    </div>
+                            {/* Top row: Logo + Actions */}
+                            <div className="flex items-start justify-between mb-3.5">
+                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-xl font-black text-gray-300 border border-gray-100 overflow-hidden flex-shrink-0">
+                                    {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : team.code?.[0] || '?'}
                                 </div>
-
-                                <h3 className="font-bold text-lg text-gray-900 truncate tracking-tight">{team.name}</h3>
-                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-500 bg-indigo-50 inline-block px-2 py-0.5 rounded-md mb-4 mt-1">
-                                    <Shield size={10} /> {team.code}
+                                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <button
+                                        onClick={() => { setFormData(team); setTeamPlayers(Array.isArray(team.players) ? team.players : []); setIsEditing(true); setShowModal(true); }}
+                                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                    >
+                                        <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(team._id)}
+                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
                                 </div>
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100/50">
-                                    <div>
-                                        <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">City</span>
-                                        <span className="text-xs font-semibold text-gray-700 block truncate">{team.city || '-'}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Squad</span>
-                                        <span className="text-xs font-semibold text-gray-700 block">{team.players?.length || 0} Players</span>
-                                    </div>
+                            {/* Name + Code badge */}
+                            <h3 className="font-bold text-[15px] text-gray-900 truncate leading-tight">{team.name}</h3>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${sport.color} ${sport.bg} px-2 py-0.5 rounded-md mt-1.5`}>
+                                <Shield size={9} /> {team.code}
+                            </span>
+
+                            {/* Meta row */}
+                            <div className="flex items-center gap-4 mt-4 pt-3.5 border-t border-gray-100">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                                    <span className="text-[11px] font-semibold text-gray-600 truncate">{team.city || '—'}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                                    <Users size={11} className="text-gray-400" />
+                                    <span className="text-[11px] font-semibold text-gray-600">{team.players?.length || 0}</span>
                                 </div>
                             </div>
                         </div>
@@ -189,177 +225,196 @@ export default function Teams() {
                 </div>
             )}
 
-            {/* Modal - keeping wrapper but improving inner design */}
+            {/* ═══════ Modal ═══════ */}
             {showModal && (
                 <div
-                    className="fixed top-[73px] left-0 md:left-72 right-0 bottom-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-[999] p-4 overflow-y-auto"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center md:pl-72 z-[999] p-4"
                     onClick={() => setShowModal(false)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col my-10 animate-scale-in overflow-hidden"
+                        className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col"
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                            <h2 className="text-xl font-black text-gray-900">{isEditing ? 'Edit Team' : 'Create New Team'}</h2>
-                            <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} className="text-gray-500" /></button>
+                        {/* ── Header ── */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                            <div>
+                                <h2 className="text-base font-black text-gray-900">{isEditing ? 'Edit Team' : 'New Team'}</h2>
+                                <p className="text-[11px] text-gray-500 mt-0.5">Fill in the details below</p>
+                            </div>
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                                <X size={16} className="text-gray-500" />
+                            </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1.5fr] gap-6 items-start">
-                                <div className="space-y-5 rounded-3xl border border-gray-100 bg-gray-50/80 p-5">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* ── Body (scrollable) ── */}
+                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+                            <div className="p-6">
+                                {/* Horizontal two-column layout */}
+                                <div className="grid grid-cols-2 gap-6">
+
+                                    {/* ─── LEFT: Team Details ─── */}
+                                    <div className="space-y-4">
                                         <div>
-                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team Name</label>
+                                            <InputLabel>Team Name</InputLabel>
                                             <input
                                                 value={formData.name}
                                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                                placeholder="ex. Mumbai Indians"
+                                                className={inputCls}
+                                                placeholder="Mumbai Indians"
                                                 required
                                             />
                                         </div>
-                                        <div>
-                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team Code</label>
-                                            <input
-                                                value={formData.code}
-                                                onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                                placeholder="ex. MI"
-                                                maxLength={3}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">City</label>
-                                            <input
-                                                value={formData.city}
-                                                onChange={e => setFormData({ ...formData, city: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                                placeholder="City"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Captain</label>
-                                            <input
-                                                value={formData.captain}
-                                                onChange={e => setFormData({ ...formData, captain: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                                placeholder="Captain Name"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Coach</label>
-                                        <input
-                                            value={formData.coach}
-                                            onChange={e => setFormData({ ...formData, coach: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                                            placeholder="Coach Name"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Team Logo</label>
-                                        <div className="flex items-center gap-4 p-4 border border-dashed border-gray-300 rounded-3xl bg-white">
-                                            <div className="relative w-20 h-20 rounded-3xl bg-gray-100 shadow-sm flex items-center justify-center overflow-hidden border border-gray-200 flex-shrink-0">
-                                                {formData.logo ? (
-                                                    <img src={formData.logo} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <Upload size={24} className="text-gray-300" />
-                                                )}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <InputLabel>Code</InputLabel>
                                                 <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            const reader = new FileReader();
-                                                            reader.onloadend = () => setFormData({ ...formData, logo: reader.result as string });
-                                                            reader.readAsDataURL(file);
-                                                        }
-                                                    }}
+                                                    value={formData.code}
+                                                    onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                                                    className={inputCls}
+                                                    placeholder="MI"
+                                                    maxLength={3}
+                                                    required
                                                 />
                                             </div>
-                                            <div className="flex-1">
-                                                <h4 className="text-sm font-black text-gray-900">Upload Logo</h4>
-                                                <p className="text-xs text-gray-500 mt-1">SVG, PNG, JPG or GIF. Recommended 800x400px.</p>
+                                            <div>
+                                                <InputLabel>City</InputLabel>
+                                                <input
+                                                    value={formData.city}
+                                                    onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                                    className={inputCls}
+                                                    placeholder="Mumbai"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <InputLabel>Captain</InputLabel>
+                                                <input
+                                                    value={formData.captain}
+                                                    onChange={e => setFormData({ ...formData, captain: e.target.value })}
+                                                    className={inputCls}
+                                                    placeholder="Captain name"
+                                                />
+                                            </div>
+                                            <div>
+                                                <InputLabel>Coach</InputLabel>
+                                                <input
+                                                    value={formData.coach}
+                                                    onChange={e => setFormData({ ...formData, coach: e.target.value })}
+                                                    className={inputCls}
+                                                    placeholder="Coach name"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Logo — inline compact */}
+                                        <div>
+                                            <InputLabel>Team Logo</InputLabel>
+                                            <div className="flex items-center gap-3 p-3 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                                                <div className="relative w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                    {formData.logo ? (
+                                                        <img src={formData.logo} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Upload size={14} className="text-gray-300" />
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                const reader = new FileReader();
+                                                                reader.onloadend = () => setFormData({ ...formData, logo: reader.result as string });
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-gray-700">Upload image</p>
+                                                    <p className="text-[10px] text-gray-400">PNG, JPG or SVG</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-5 rounded-3xl border border-gray-100 bg-white p-5">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
-                                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em]">Players</h3>
-                                            <p className="text-xs text-gray-400">Select players to add to this team.</p>
+                                    {/* ─── RIGHT: Players ─── */}
+                                    <div className="flex flex-col min-h-0">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <InputLabel>Players</InputLabel>
+                                            <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                                {teamPlayers.length} selected
+                                            </span>
                                         </div>
-                                        <span className="text-[10px] uppercase tracking-wider font-black text-gray-400">{teamPlayers.length} selected</span>
-                                    </div>
 
-                                    <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-gray-200 bg-gray-50 p-3 min-h-[5rem]">
-                                        {teamPlayers.length === 0 ? (
-                                            <div className="text-xs text-gray-500">No players selected yet.</div>
-                                        ) : (
-                                            teamPlayers.map((player) => (
-                                                <button
-                                                    key={player.user || player.name}
-                                                    type="button"
-                                                    onClick={() => removeTeamPlayer(player.user)}
-                                                    className="flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                                                >
-                                                    <span>{player.name}</span>
-                                                    <X size={14} />
-                                                </button>
-                                            ))
+                                        {/* Selected chips */}
+                                        {teamPlayers.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mb-2.5">
+                                                {teamPlayers.map((p) => (
+                                                    <button
+                                                        key={p.user || p.name}
+                                                        type="button"
+                                                        onClick={() => removeTeamPlayer(p.user)}
+                                                        className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 pl-2.5 pr-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                                                    >
+                                                        {p.name}
+                                                        <X size={10} />
+                                                    </button>
+                                                ))}
+                                            </div>
                                         )}
-                                    </div>
 
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Available Players</span>
-                                            <span className="text-[10px] uppercase tracking-wider font-black text-gray-400">{players.length} players</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[26rem] overflow-y-auto pr-1">
-                                            {players.length === 0 ? (
-                                                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-xs font-semibold text-gray-500">
-                                                    No players available for this sport.
-                                                </div>
-                                            ) : (
-                                                players.map((player) => {
-                                                    const selected = teamPlayers.some((item) => item.user === player._id);
-                                                    return (
-                                                        <button
-                                                            key={player._id}
-                                                            type="button"
-                                                            onClick={() => togglePlayerSelection(player)}
-                                                            className={`flex w-full items-center gap-3 rounded-3xl border px-4 py-3 text-left transition-all ${selected ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm'}`}
-                                                        >
-                                                            <div className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden text-sm font-black text-gray-500">
-                                                                {player.image ? <img src={player.image} alt={player.name} className="w-full h-full object-cover" /> : player.name?.[0] || 'P'}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <div className="text-sm font-semibold text-gray-900 truncate">{player.name || 'Unnamed'}</div>
-                                                                <div className="text-[10px] uppercase tracking-wider text-gray-400">{player.role || player.category || 'Player'}</div>
-                                                            </div>
-                                                            {selected && <Check size={18} className="text-indigo-600 ml-auto" />}
-                                                        </button>
-                                                    );
-                                                })
-                                            )}
+                                        {/* Available players list */}
+                                        <div className="border border-gray-100 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
+                                            <div className="px-3 py-2 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Available</span>
+                                                <span className="text-[10px] font-bold text-gray-400">{players.length}</span>
+                                            </div>
+                                            <div className="max-h-56 overflow-y-auto">
+                                                {players.length === 0 ? (
+                                                    <div className="px-4 py-8 text-center text-xs text-gray-400">No players available</div>
+                                                ) : (
+                                                    players.map((player) => {
+                                                        const selected = teamPlayers.some((item) => item.user === player._id);
+                                                        return (
+                                                            <button
+                                                                key={player._id}
+                                                                type="button"
+                                                                onClick={() => togglePlayerSelection(player)}
+                                                                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors border-b border-gray-50 last:border-b-0 ${selected ? 'bg-indigo-50/50' : 'hover:bg-gray-50/80'}`}
+                                                            >
+                                                                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden text-[10px] font-bold text-gray-400 flex-shrink-0">
+                                                                    {player.image
+                                                                        ? <img src={player.image} alt={player.name} className="w-full h-full object-cover" />
+                                                                        : player.name?.[0] || 'P'}
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="text-[11px] font-semibold text-gray-900 truncate leading-tight">{player.name || 'Unnamed'}</div>
+                                                                    <div className="text-[9px] text-gray-400 leading-tight">{player.role || player.category || 'Player'}</div>
+                                                                </div>
+                                                                <div className={`w-4 h-4 rounded border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                                                                    {selected && <Check size={10} className="text-white" />}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="pt-4">
-                                <button type="submit" className="w-full bg-gray-900 text-white py-3.5 rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-xl shadow-gray-900/20 active:scale-[0.98]">
+                            {/* ── Footer ── */}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
+                                <button
+                                    type="submit"
+                                    className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-black transition-all shadow-lg shadow-gray-900/15 active:scale-[0.98]"
+                                >
                                     {isEditing ? 'Save Changes' : 'Create Team'}
                                 </button>
                             </div>
@@ -367,6 +422,14 @@ export default function Teams() {
                     </div>
                 </div>
             )}
+
+            {/* Keyframe for card entrance */}
+            <style>{`
+                @keyframes fadeSlideUp {
+                    from { opacity: 0; transform: translateY(12px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
         </div>
     );
 }
