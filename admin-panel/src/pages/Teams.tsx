@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Plus, Edit2, Trash2, Shield, X, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, Shield, X, Upload, Check } from 'lucide-react';
 
 export default function Teams() {
     const [teams, setTeams] = useState<any[]>([]);
+    const [players, setPlayers] = useState<any[]>([]);
+    const [teamPlayers, setTeamPlayers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -23,6 +25,7 @@ export default function Teams() {
 
     useEffect(() => {
         loadTeams();
+        loadPlayers();
     }, [selectedSport]);
 
     const loadTeams = async () => {
@@ -37,13 +40,48 @@ export default function Teams() {
         }
     };
 
+    const loadPlayers = async () => {
+        try {
+            const res = await api.get(`/players?sport=${selectedSport}`);
+            setPlayers(Array.isArray(res.data) ? res.data : []);
+        } catch (error) {
+            console.error('Failed to load players', error);
+            setPlayers([]);
+        }
+    };
+
+    const togglePlayerSelection = (player: any) => {
+        setTeamPlayers((prev) => {
+            const exists = prev.some((item) => item.user === player._id);
+            if (exists) return prev.filter((item) => item.user !== player._id);
+            return [
+                ...prev,
+                {
+                    user: player._id,
+                    name: player.name,
+                    role: player.role || player.category || 'Player',
+                    image: player.image || player.profilePicture || '',
+                },
+            ];
+        });
+    };
+
+    const removeTeamPlayer = (userId: string) => {
+        setTeamPlayers((prev) => prev.filter((item) => item.user !== userId));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const payload = {
+                ...formData,
+                players: teamPlayers,
+            };
+
             if (isEditing) {
-                await api.put(`/teams/${formData._id}`, formData);
+                await api.put(`/teams/${formData._id}`, payload);
             } else {
-                const { _id, ...createData } = formData;
+                const { _id, ...createData } = payload;
                 await api.post('/teams', createData);
             }
             setShowModal(false);
@@ -66,6 +104,7 @@ export default function Teams() {
 
     const resetForm = () => {
         setFormData({ _id: '', name: '', code: '', logo: '', city: '', captain: '', coach: '', owner: '', sport: selectedSport });
+        setTeamPlayers([]);
         setIsEditing(false);
     };
 
@@ -124,7 +163,7 @@ export default function Teams() {
                                         {team.logo ? <img src={team.logo} className="w-full h-full object-cover rounded-2xl" /> : team.code[0]}
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => { setFormData(team); setIsEditing(true); setShowModal(true); }} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                                        <button onClick={() => { setFormData(team); setTeamPlayers(Array.isArray(team.players) ? team.players : []); setIsEditing(true); setShowModal(true); }} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Edit2 size={14} /></button>
                                         <button onClick={() => handleDelete(team._id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
                                     </div>
                                 </div>
@@ -157,7 +196,7 @@ export default function Teams() {
                     onClick={() => setShowModal(false)}
                 >
                     <div
-                        className="bg-white rounded-3xl w-full max-w-lg shadow-2xl flex flex-col my-10 animate-scale-in overflow-hidden"
+                        className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col my-10 animate-scale-in overflow-hidden"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -165,67 +204,162 @@ export default function Teams() {
                             <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} className="text-gray-500" /></button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-                            {/* ... (Existing form fields with enhanced styles) ... */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team Name</label>
-                                    <input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" placeholder="ex. Mumbai Indians" required />
-                                </div>
-                                <div>
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team Code</label>
-                                    <input value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" placeholder="ex. MI" maxLength={3} required />
-                                </div>
-                            </div>
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1.5fr] gap-6 items-start">
+                                <div className="space-y-5 rounded-3xl border border-gray-100 bg-gray-50/80 p-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team Name</label>
+                                            <input
+                                                value={formData.name}
+                                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                                placeholder="ex. Mumbai Indians"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team Code</label>
+                                            <input
+                                                value={formData.code}
+                                                onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                                placeholder="ex. MI"
+                                                maxLength={3}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
 
-                            <div>
-                                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Team Logo</label>
-                                <div className="flex items-center gap-4 p-4 border border-dashed border-gray-300 rounded-2xl bg-gray-50/30 hover:bg-gray-50 transition-colors">
-                                    <div className="relative w-16 h-16 rounded-xl bg-white shadow-sm flex items-center justify-center overflow-hidden border border-gray-100 flex-shrink-0">
-                                        {formData.logo ? (
-                                            <img src={formData.logo} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <Upload size={20} className="text-gray-300" />
-                                        )}
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">City</label>
+                                            <input
+                                                value={formData.city}
+                                                onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                                placeholder="City"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Captain</label>
+                                            <input
+                                                value={formData.captain}
+                                                onChange={e => setFormData({ ...formData, captain: e.target.value })}
+                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                                placeholder="Captain Name"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Coach</label>
                                         <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onloadend = () => setFormData({ ...formData, logo: reader.result as string });
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            }}
+                                            value={formData.coach}
+                                            onChange={e => setFormData({ ...formData, coach: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                            placeholder="Coach Name"
                                         />
                                     </div>
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-bold text-gray-900">Upload Logo</h4>
-                                        <p className="text-xs text-gray-400 mt-0.5">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+
+                                    <div>
+                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Team Logo</label>
+                                        <div className="flex items-center gap-4 p-4 border border-dashed border-gray-300 rounded-3xl bg-white">
+                                            <div className="relative w-20 h-20 rounded-3xl bg-gray-100 shadow-sm flex items-center justify-center overflow-hidden border border-gray-200 flex-shrink-0">
+                                                {formData.logo ? (
+                                                    <img src={formData.logo} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <Upload size={24} className="text-gray-300" />
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onloadend = () => setFormData({ ...formData, logo: reader.result as string });
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-black text-gray-900">Upload Logo</h4>
+                                                <p className="text-xs text-gray-500 mt-1">SVG, PNG, JPG or GIF. Recommended 800x400px.</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">City</label>
-                                    <input value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" placeholder="City" />
-                                </div>
-                                <div>
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Captain</label>
-                                    <input value={formData.captain} onChange={e => setFormData({ ...formData, captain: e.target.value })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" placeholder="Captain Name" />
-                                </div>
-                            </div>
+                                <div className="space-y-5 rounded-3xl border border-gray-100 bg-white p-5">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em]">Players</h3>
+                                            <p className="text-xs text-gray-400">Select players to add to this team.</p>
+                                        </div>
+                                        <span className="text-[10px] uppercase tracking-wider font-black text-gray-400">{teamPlayers.length} selected</span>
+                                    </div>
 
-                            <div>
-                                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Coach</label>
-                                <input value={formData.coach} onChange={e => setFormData({ ...formData, coach: e.target.value })} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none focus:bg-white focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all" placeholder="Coach Name" />
+                                    <div className="flex flex-wrap items-center gap-2 rounded-3xl border border-gray-200 bg-gray-50 p-3 min-h-[5rem]">
+                                        {teamPlayers.length === 0 ? (
+                                            <div className="text-xs text-gray-500">No players selected yet.</div>
+                                        ) : (
+                                            teamPlayers.map((player) => (
+                                                <button
+                                                    key={player.user || player.name}
+                                                    type="button"
+                                                    onClick={() => removeTeamPlayer(player.user)}
+                                                    className="flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                                >
+                                                    <span>{player.name}</span>
+                                                    <X size={14} />
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Available Players</span>
+                                            <span className="text-[10px] uppercase tracking-wider font-black text-gray-400">{players.length} players</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[26rem] overflow-y-auto pr-1">
+                                            {players.length === 0 ? (
+                                                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-xs font-semibold text-gray-500">
+                                                    No players available for this sport.
+                                                </div>
+                                            ) : (
+                                                players.map((player) => {
+                                                    const selected = teamPlayers.some((item) => item.user === player._id);
+                                                    return (
+                                                        <button
+                                                            key={player._id}
+                                                            type="button"
+                                                            onClick={() => togglePlayerSelection(player)}
+                                                            className={`flex w-full items-center gap-3 rounded-3xl border px-4 py-3 text-left transition-all ${selected ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm'}`}
+                                                        >
+                                                            <div className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden text-sm font-black text-gray-500">
+                                                                {player.image ? <img src={player.image} alt={player.name} className="w-full h-full object-cover" /> : player.name?.[0] || 'P'}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <div className="text-sm font-semibold text-gray-900 truncate">{player.name || 'Unnamed'}</div>
+                                                                <div className="text-[10px] uppercase tracking-wider text-gray-400">{player.role || player.category || 'Player'}</div>
+                                                            </div>
+                                                            {selected && <Check size={18} className="text-indigo-600 ml-auto" />}
+                                                        </button>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="pt-4">
-                                <button type="submit" className="w-full bg-gray-900 text-white py-3.5 rounded-xl text-sm font-bold hover:bg-black transition-all shadow-xl shadow-gray-900/20 active:scale-[0.98]">
+                                <button type="submit" className="w-full bg-gray-900 text-white py-3.5 rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-xl shadow-gray-900/20 active:scale-[0.98]">
                                     {isEditing ? 'Save Changes' : 'Create Team'}
                                 </button>
                             </div>

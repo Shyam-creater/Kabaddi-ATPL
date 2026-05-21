@@ -1,5 +1,8 @@
 const PlayerRegistration = require('../models/PlayerRegistration.model');
 const User = require('../models/User.model');
+const CricketTournament = require('../models/cricket/Tournament.model');
+const FootballTournament = require('../models/football/Tournament.model');
+const KabaddiTournament = require('../models/kabaddi/Tournament.model');
 const fs = require('fs');
 const path = require('path');
 
@@ -109,7 +112,33 @@ exports.getAllRegistrations = async (req, res) => {
         const { sport, tournamentId } = req.query;
         const query = {};
         if (sport) query.sport = sport;
-        if (tournamentId) query.tournamentId = tournamentId;
+        
+        if (req.user && req.user.role === 'TH') {
+            const [cricket, kabaddi, football] = await Promise.all([
+                CricketTournament.find({ createdBy: req.user._id }).select('_id'),
+                KabaddiTournament.find({ createdBy: req.user._id }).select('_id'),
+                FootballTournament.find({ createdBy: req.user._id }).select('_id')
+            ]);
+            const tournamentIds = [
+                ...cricket.map(t => t._id),
+                ...kabaddi.map(t => t._id),
+                ...football.map(t => t._id)
+            ];
+            
+            if (tournamentId) {
+                // If specific tournament requested, ensure TH owns it
+                if (tournamentIds.map(id => id.toString()).includes(tournamentId.toString())) {
+                    query.tournamentId = tournamentId;
+                } else {
+                    // TH doesn't own this tournament, return empty
+                    return res.status(200).json({ success: true, data: [] });
+                }
+            } else {
+                query.tournamentId = { $in: tournamentIds };
+            }
+        } else if (tournamentId) {
+            query.tournamentId = tournamentId;
+        }
 
         const registrations = await PlayerRegistration.find(query)
             .populate('userId', 'name phone email profilePicture')
@@ -134,11 +163,28 @@ exports.updateRegistrationStatus = async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        const registration = await PlayerRegistration.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
+        const registration = await PlayerRegistration.findById(id);
+        if (!registration) {
+            return res.status(404).json({ success: false, message: 'Registration not found' });
+        }
+
+        if (req.user && req.user.role === 'TH') {
+            let Model;
+            const s = registration.sport.toLowerCase();
+            if (s === 'cricket') Model = CricketTournament;
+            else if (s === 'football') Model = FootballTournament;
+            else if (s === 'kabaddi') Model = KabaddiTournament;
+
+            if (Model) {
+                const tournament = await Model.findById(registration.tournamentId);
+                if (!tournament || tournament.createdBy?.toString() !== req.user._id.toString()) {
+                    return res.status(403).json({ success: false, message: 'Not authorized to manage this registration' });
+                }
+            }
+        }
+
+        registration.status = status;
+        await registration.save();
 
         res.status(200).json({
             success: true,

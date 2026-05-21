@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Download, Search, CheckCircle, XCircle, Clock, Eye, Calendar, Filter, Image as ImageIcon, X, Trash2, Trophy } from 'lucide-react';
 import api from '../services/api';
 import { jsPDF } from 'jspdf';
 
 // Build correct image URL from stored path
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://back.aattumtpl.com/api').replace('/api', '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:6899/api').replace('/api', '');
 const getImageUrl = (url: string) => {
     if (!url) return '';
     // If it's a data: URI, return as-is
@@ -37,6 +38,7 @@ interface Registration {
 }
 
 export default function Registrations() {
+    const user = useSelector((state: any) => state.auth.user);
     const [registrations, setRegistrations] = useState<Registration[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedSport, setSelectedSport] = useState('all');
@@ -87,19 +89,35 @@ export default function Registrations() {
 
     const fetchTournaments = async () => {
         try {
-            const sports = ['cricket', 'football', 'kabaddi'];
-            let all: any[] = [];
-
-            if (selectedSport === 'all') {
-                const results = await Promise.all(
-                    sports.map(s => api.get(`/tournaments/${s}/all`))
-                );
-                results.forEach(res => all.push(...res.data));
+            if (user?.role === 'TH') {
+                const response = await api.get('/th/leagues');
+                const thData = response.data.data;
+                let all: any[] = [];
+                if (selectedSport === 'all') {
+                    all = [
+                        ...(thData.cricket || []).map((t: any) => ({ ...t, sport: 'cricket' })),
+                        ...(thData.football || []).map((t: any) => ({ ...t, sport: 'football' })),
+                        ...(thData.kabaddi || []).map((t: any) => ({ ...t, sport: 'kabaddi' }))
+                    ];
+                } else {
+                    all = (thData[selectedSport] || []).map((t: any) => ({ ...t, sport: selectedSport }));
+                }
+                setAllTournaments(all);
             } else {
-                const res = await api.get(`/tournaments/${selectedSport}/all`);
-                all = res.data;
+                const sports = ['cricket', 'football', 'kabaddi'];
+                let all: any[] = [];
+
+                if (selectedSport === 'all') {
+                    const results = await Promise.all(
+                        sports.map(s => api.get(`/tournaments/${s}/all`))
+                    );
+                    results.forEach(res => all.push(...res.data));
+                } else {
+                    const res = await api.get(`/tournaments/${selectedSport}/all`);
+                    all = res.data;
+                }
+                setAllTournaments(all);
             }
-            setAllTournaments(all);
         } catch (error) {
             console.error('Error fetching tournaments:', error);
         }
@@ -131,6 +149,29 @@ export default function Registrations() {
             fetchRegistrations();
             if (selectedReg?._id === id) setSelectedReg(null);
         } catch { alert('Failed to delete registration'); }
+    };
+
+    const isDeletableLeague = (sport?: string) => ['cricket', 'football', 'kabaddi'].includes(sport || '');
+
+    const handleDeleteLeague = async (id: string, sport: string | undefined, name: string) => {
+        if (!isDeletableLeague(sport)) {
+            return alert('This entry cannot be deleted. Only actual leagues may be removed.');
+        }
+
+        const leagueSport = sport || selectedSport;
+        if (!leagueSport) {
+            return alert('Unable to determine league sport for deletion. Please refresh and try again.');
+        }
+
+        if (!confirm(`Are you sure you want to delete league '${name}'? This will remove its registration requests.`)) return;
+        try {
+            await api.delete(`/tournaments/${leagueSport}/${id}`);
+            fetchTournaments();
+            if (viewMode === 'details' && selectedTournament?._id === id) {
+                setViewMode('leagues');
+                setSelectedTournament(null);
+            }
+        } catch { alert('Failed to delete league'); }
     };
 
     const getTournamentName = (reg: Registration) => {
@@ -483,12 +524,23 @@ export default function Registrations() {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => { setSelectedTournament(tournament); setViewMode('details'); }}
-                                className="w-full py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-                            >
-                                <Eye size={16} /> View Registrations
-                            </button>
+                            <div className="mt-4 flex items-center gap-2">
+                                <button
+                                    onClick={() => { setSelectedTournament(tournament); setViewMode('details'); }}
+                                    className="flex-1 py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02]"
+                                >
+                                    <Eye size={16} /> View Registrations
+                                </button>
+                                {isDeletableLeague(tournament.sport) && (
+                                    <button
+                                        onClick={() => handleDeleteLeague(tournament._id, tournament.sport, tournament.name)}
+                                        className="p-3 bg-white text-red-600 rounded-2xl border border-red-100 hover:bg-red-50 transition-all"
+                                        title="Delete League"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     ))}
                     {tournamentSummaries.length === 0 && (
@@ -681,7 +733,11 @@ export default function Registrations() {
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 flex gap-4">
+                        <div className="p-6 border-t border-gray-100 flex flex-col gap-3 md:flex-row">
+                            <button onClick={() => handleDelete(selectedReg._id, selectedReg.fullName)}
+                                className="w-full md:w-auto px-4 py-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2">
+                                <Trash2 size={16} /> Delete Registration
+                            </button>
                             <button onClick={() => handleStatusUpdate(selectedReg._id, 'APPROVED')}
                                 className="flex-1 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
                                 <CheckCircle size={16} /> Approve Registration

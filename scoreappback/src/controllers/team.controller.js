@@ -1,6 +1,57 @@
 const CricketTeam = require('../models/cricket/Team.model');
 const FootballTeam = require('../models/football/Team.model');
 const KabaddiTeam = require('../models/kabaddi/Team.model');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User.model');
+
+const getTHUserFromToken = async (req) => {
+    try {
+        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+            const token = req.headers.authorization.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const user = await User.findById(decoded.id).select('role createdBy');
+            if (!user) return null;
+            if (user.role === 'TH') return user;
+            if (user.role === 'scorer' && user.createdBy) {
+                const thUser = await User.findById(user.createdBy).select('role');
+                if (thUser && thUser.role === 'TH') return thUser;
+            }
+        }
+    } catch (e) {}
+    return null;
+};
+
+const getOwnerId = (user) => {
+    if (!user) return null;
+    if (user.role === 'scorer') return user.createdBy || user._id;
+    return user._id;
+};
+
+const teamSizeLimits = {
+    cricket: 11,
+    football: 11,
+    kabaddi: 7
+};
+
+const normalizePlayers = async (players = [], sport) => {
+    if (!Array.isArray(players)) return [];
+    return Promise.all(players.map(async (player) => {
+        if (player?.user) {
+            const user = await User.findById(player.user).select('name profilePicture playerProfile');
+            if (user) {
+                const profileSport = sport?.toLowerCase();
+                const legacyRole = user.playerProfile?.[profileSport]?.role || user.role || 'Player';
+                return {
+                    ...player,
+                    name: player.name || user.name,
+                    role: player.role || legacyRole,
+                    image: player.image || user.profilePicture || '',
+                };
+            }
+        }
+        return player;
+    }));
+};
 
 // Helper to select model based on sport
 const getModel = (sport) => {
@@ -15,8 +66,6 @@ const getModel = (sport) => {
 const validateLogo = (logo) => {
     if (!logo) return null;
     if (logo.startsWith('data:image')) {
-        // Base64 validation (approx size check)
-        // 5MB is roughly 6.7M characters in Base64
         if (logo.length > 7000000) {
             throw new Error('Image too large! Max 5MB allowed.');
         }
@@ -28,18 +77,20 @@ const validateLogo = (logo) => {
 exports.getTeams = async (req, res) => {
     try {
         const { sport } = req.query;
+        const thUser = await getTHUserFromToken(req);
+        const query = thUser ? { createdBy: thUser._id } : {};
 
         if (sport && sport !== 'all') {
             const Model = getModel(sport);
-            const teams = await Model.find().sort({ points: -1, name: 1 });
+            const teams = await Model.find(query).sort({ points: -1, name: 1 });
             return res.json(teams);
         }
 
         // Return all sports teams keyed or flat list
         const [cricket, kabaddi, football] = await Promise.all([
-            CricketTeam.find().sort({ points: -1, name: 1 }).lean(),
-            KabaddiTeam.find().sort({ points: -1, name: 1 }).lean(),
-            FootballTeam.find().sort({ points: -1, name: 1 }).lean()
+            CricketTeam.find(query).sort({ points: -1, name: 1 }).lean(),
+            KabaddiTeam.find(query).sort({ points: -1, name: 1 }).lean(),
+            FootballTeam.find(query).sort({ points: -1, name: 1 }).lean()
         ]);
 
         const all = [
@@ -81,12 +132,36 @@ exports.getTeamById = async (req, res) => {
 // Create Team
 exports.createTeam = async (req, res) => {
     try {
-        const { sport, logo } = req.body;
+        const { sport, logo, players, captainId } = req.body;
 
         if (logo) validateLogo(logo);
 
         const Model = getModel(sport);
-        const team = new Model(req.body);
+        const teamData = { ...req.body };
+
+        if (Array.isArray(players)) {
+            const normalizedPlayers = await normalizePlayers(players, sport);
+            const maxPlayers = teamSizeLimits[sport?.toLowerCase() || 'cricket'] || 11;
+            if (normalizedPlayers.length > maxPlayers) {
+                throw new Error(`Team size cannot exceed ${maxPlayers} players for ${sport || 'cricket'}`);
+            }
+            teamData.players = normalizedPlayers;
+            teamData.playerCount = normalizedPlayers.length;
+        }
+
+        if (captainId) {
+            const captainUser = await User.findById(captainId).select('name');
+            if (captainUser) {
+                teamData.captainId = captainId;
+                teamData.captain = teamData.captain || captainUser.name;
+            }
+        }
+
+        if (req.user) {
+            teamData.createdBy = getOwnerId(req.user);
+        }
+
+        const team = new Model(teamData);
         await team.save();
         res.status(201).json(team);
     } catch (error) {
@@ -97,13 +172,41 @@ exports.createTeam = async (req, res) => {
 // Update Team
 exports.updateTeam = async (req, res) => {
     try {
-        const { sport, logo } = req.body;
+        const { sport, logo, players, captainId } = req.body;
 
         if (logo) validateLogo(logo);
 
         const Model = getModel(sport);
-        const team = await Model.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        let team = await Model.findById(req.params.id);
         if (!team) return res.status(404).json({ message: 'Team not found' });
+
+        if (req.user) {
+            const ownerId = getOwnerId(req.user);
+            if (team.createdBy?.toString() !== ownerId?.toString()) {
+                return res.status(403).json({ message: 'Not authorized to update this team' });
+            }
+        }
+
+        const updateData = { ...req.body };
+        if (Array.isArray(players)) {
+            const normalizedPlayers = await normalizePlayers(players, sport);
+            const maxPlayers = teamSizeLimits[sport?.toLowerCase() || 'cricket'] || 11;
+            if (normalizedPlayers.length > maxPlayers) {
+                throw new Error(`Team size cannot exceed ${maxPlayers} players for ${sport || 'cricket'}`);
+            }
+            updateData.players = normalizedPlayers;
+            updateData.playerCount = updateData.players.length;
+        }
+
+        if (captainId) {
+            const captainUser = await User.findById(captainId).select('name');
+            if (captainUser) {
+                updateData.captainId = captainId;
+                updateData.captain = updateData.captain || captainUser.name;
+            }
+        }
+
+        team = await Model.findByIdAndUpdate(req.params.id, updateData, { new: true });
         res.json(team);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -115,8 +218,17 @@ exports.deleteTeam = async (req, res) => {
     try {
         const { sport } = req.query;
         const Model = getModel(sport);
-        const team = await Model.findByIdAndDelete(req.params.id);
+        let team = await Model.findById(req.params.id);
         if (!team) return res.status(404).json({ message: 'Team not found' });
+
+        if (req.user) {
+            const ownerId = getOwnerId(req.user);
+            if (team.createdBy?.toString() !== ownerId?.toString()) {
+                return res.status(403).json({ message: 'Not authorized to delete this team' });
+            }
+        }
+
+        await Model.findByIdAndDelete(req.params.id);
         res.json({ message: 'Team deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });

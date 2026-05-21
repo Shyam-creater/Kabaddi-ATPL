@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const matchSchema = new mongoose.Schema({
     title: {
         type: String,
-        required: true, // e.g., "Asia Cup Final"
+        required: true,
     },
     series: {
         type: String,
@@ -19,30 +19,63 @@ const matchSchema = new mongoose.Schema({
         enum: ['UPCOMING', 'LIVE', 'COMPLETED', 'ABANDONED'],
         default: 'UPCOMING'
     },
-
     sport: {
         type: String,
-        default: 'cricket',
-        enum: ['cricket', 'football', 'kabaddi']
+        enum: ['cricket'],
+        default: 'cricket'
     },
-    // Teams
+    matchType: {
+        type: String,
+        enum: ['League', 'Knockout', 'Friendly'],
+        default: 'League'
+    },
+    tournamentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CricketTournament' },
+    teamAId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
+    teamBId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
     teamA: {
         name: { type: String, required: true },
-        code: { type: String, required: true }, // e.g. "IND"
+        code: { type: String, required: true },
         logo: String,
     },
     teamB: {
         name: { type: String, required: true },
-        code: { type: String, required: true }, // e.g. "PAK"
+        code: { type: String, required: true },
         logo: String,
     },
-
-    // Scores (Mixed to support {runs, wickets} OR simple Number)
-    scoreA: { type: mongoose.Schema.Types.Mixed, default: 0 },
-    scoreB: { type: mongoose.Schema.Types.Mixed, default: 0 },
-
-    // Match Context
+    teamAPlayers: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        name: String,
+        role: String,
+        position: String,
+        jerseyNumber: Number,
+        image: String
+    }],
+    teamBPlayers: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        name: String,
+        role: String,
+        position: String,
+        jerseyNumber: Number,
+        image: String
+    }],
+    assignedScorer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    scoreA: { type: mongoose.Schema.Types.Mixed, default: { runs: 0, wickets: 0, overs: 0 } },
+    scoreB: { type: mongoose.Schema.Types.Mixed, default: { runs: 0, wickets: 0, overs: 0 } },
     target: Number,
+    battingLineup: [{
+        name: String,
+        position: String,
+        runs: Number,
+        balls: Number,
+        status: String
+    }],
+    bowlingLineup: [{
+        name: String,
+        overs: Number,
+        maidens: Number,
+        runs: Number,
+        wickets: Number
+    }],
     currentBatters: [
         { name: String, runs: Number, balls: Number, isStriker: Boolean }
     ],
@@ -53,18 +86,25 @@ const matchSchema = new mongoose.Schema({
         runs: Number,
         wickets: Number
     },
-    statusText: String, // "India need 33 runs in 34 balls"
-
-    // Result
-    winner: { type: String, default: null }, // Team Code or 'DRAW'
-
-    // Video URLs (context-aware per status)
-    liveStreamUrl: { type: String, default: null }, // Used when status = LIVE
-    youtubeId: { type: String, default: null }, // YouTube Video/Stream ID
-    hlsUrl: { type: String, default: null }, // HLS Stream URL (.m3u8)
-    previewVideoUrl: { type: String, default: null }, // Used when status = UPCOMING
-    recordedVideoUrl: { type: String, default: null }, // Used when status = COMPLETED
-
+    playerStats: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        name: String,
+        team: String,
+        role: String,
+        runs: Number,
+        wickets: Number,
+        catches: Number,
+        runOuts: Number,
+        overs: Number
+    }],
+    statusText: String,
+    winner: { type: String, default: null },
+    liveStreamUrl: { type: String, default: null },
+    youtubeId: { type: String, default: null },
+    hlsUrl: { type: String, default: null },
+    previewVideoUrl: { type: String, default: null },
+    recordedVideoUrl: { type: String, default: null },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('CricketMatch', matchSchema);

@@ -28,6 +28,7 @@ app.use('/public', express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/th', require('./routes/th.routes'));
 app.use('/api/messages', messageRoutes);
 app.use('/api/cricket', cricketMatchRoutes);
 app.use('/api/kabaddi', require('./routes/kabaddi/match.routes'));

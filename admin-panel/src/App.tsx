@@ -2,9 +2,16 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import Login from './pages/Login';
+import LoginChoice from './pages/LoginChoice';
 import Dashboard from './pages/Dashboard';
+
 import Users from './pages/Users';
+import THAccounts from './pages/THAccounts';
+import SubAdmins from './pages/SubAdmins';
+import THLogin from './pages/THLogin';
+import THSignup from './pages/THSignup';
 import Matches from './pages/Matches';
+import Scorers from './pages/Scorers';
 import Tournaments from './pages/Tournaments';
 import Registrations from './pages/Registrations';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,13 +30,38 @@ function App() {
     <Provider store={store}>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login-choice" element={<LoginChoice />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/th-login" element={<THLogin />} />
+
+          <Route path="/th-signup" element={<THSignup />} />
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/th-accounts"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <THAccounts />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sub-admins"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubAdmins />
                 </Layout>
               </ProtectedRoute>
             }
@@ -50,6 +82,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Matches />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/scorers"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Scorers />
                 </Layout>
               </ProtectedRoute>
             }

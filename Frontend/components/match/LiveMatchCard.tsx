@@ -28,6 +28,26 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = ({ match, onPress }) => {
 
     const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
+    const formatScoreDisplay = (score: any) => {
+        if (score === null || score === undefined) return '-';
+        if (typeof score === 'object') {
+            const runs = score.runs ?? score.score ?? null;
+            const wickets = score.wickets ?? null;
+            if (runs !== null || wickets !== null) {
+                return `${runs ?? 0}/${wickets ?? 0}`;
+            }
+            return String(score);
+        }
+        return String(score);
+    };
+
+    const formatOversDisplay = (score: any) => {
+        if (typeof score === 'object' && score.overs !== undefined && score.overs !== null) {
+            return `(${score.overs})`;
+        }
+        return '';
+    };
+
     // Determine which video URL to show based on status
     const getVideoInfo = () => {
         if (match.status === 'LIVE') {
@@ -89,31 +109,18 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = ({ match, onPress }) => {
                         <View style={styles.scoreBoard}>
                             <View style={styles.teamContainer}>
                                 <Text style={styles.teamCode}>{match.teamA?.code}</Text>
-                                <Text style={styles.scoreMain}>
-                                    {typeof match.scoreA === 'object' && match.scoreA?.runs
-                                        ? `${match.scoreA.runs}/${match.scoreA.wickets}`
-                                        : match.scoreA || '-'}
-                                </Text>
-                                <Text style={styles.scoreSub}>
-                                    {typeof match.scoreA === 'object' && match.scoreA?.overs ? `(${match.scoreA.overs})` : ''}
-                                </Text>
+                                <Text style={styles.scoreMain}>{formatScoreDisplay(match.scoreA)}</Text>
+                                <Text style={styles.scoreSub}>{formatOversDisplay(match.scoreA)}</Text>
                             </View>
 
                             <Text style={styles.vsText}>VS</Text>
 
-                            <View style={[styles.teamContainer, { alignItems: 'flex-end' }]}>
+                            <View style={[styles.teamContainer, { alignItems: 'flex-end' }]}> 
                                 <Text style={styles.teamCode}>{match.teamB?.code}</Text>
-                                <Text style={styles.scoreMain}>
-                                    {typeof match.scoreB === 'object' && match.scoreB?.runs
-                                        ? `${match.scoreB.runs}/${match.scoreB.wickets}`
-                                        : match.scoreB || '-'}
-                                </Text>
-                                <Text style={styles.scoreSub}>
-                                    {typeof match.scoreB === 'object' && match.scoreB?.overs ? `(${match.scoreB.overs})` : ''}
-                                </Text>
+                                <Text style={styles.scoreMain}>{formatScoreDisplay(match.scoreB)}</Text>
+                                <Text style={styles.scoreSub}>{formatOversDisplay(match.scoreB)}</Text>
                             </View>
                         </View>
-
                         {/* Footer: Status + Video Button Row */}
                         <View style={styles.footerRow}>
                             <Text style={styles.matchStatusText} numberOfLines={1}>

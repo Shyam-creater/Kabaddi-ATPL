@@ -2,11 +2,11 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { login, clearError } from '../store/authSlice';
+import { thLogin, clearError } from '../store/authSlice';
 import logo from '../assets/images/ATPL-LOGO.jpeg';
 import { ArrowRight, Lock, Mail, ShieldCheck } from 'lucide-react';
 
-export default function Login() {
+export default function THLogin() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const dispatch = useDispatch();
@@ -17,12 +17,12 @@ export default function Login() {
         e.preventDefault();
         dispatch(clearError());
 
-        const result: any = await dispatch(login({ email, password }) as any);
-        if (result.type === 'auth/login/fulfilled') {
-            if (result.payload.user.role === 'admin' || result.payload.user.role === 'super_admin') {
+        const result: any = await dispatch(thLogin({ email, password }) as any);
+        if (result.type === 'auth/thLogin/fulfilled') {
+            if (['TH', 'admin', 'scorer'].includes(result.payload.user.role)) {
                 navigate('/dashboard');
             } else {
-                alert('Access denied. Admin privileges required.');
+                alert('Access denied. Tournament Head or Scorer privileges required.');
                 dispatch(clearError());
             }
         }
@@ -68,8 +68,8 @@ export default function Login() {
                 <div className="p-8 md:p-12 flex flex-col justify-center bg-white/80 backdrop-blur-xl">
                     <div className="mb-8 text-center md:text-left">
                         <img src={logo} alt="ATPL" className="w-16 h-16 rounded-2xl shadow-md mb-6 mx-auto md:mx-0 object-cover" />
-                        <h1 className="text-2xl font-black text-gray-900 mb-2">Admin Login</h1>
-                        <p className="text-sm text-gray-500">Super Admin / Sub Admin: enter your credentials to manage users, teams, matches.</p>
+                        <h1 className="text-2xl font-black text-gray-900 mb-2">Tournament Head Login</h1>
+                        <p className="text-sm text-gray-500">TH / Scorer: enter your credentials to manage leagues and matches.</p>
 
                     </div>
 
@@ -126,8 +126,18 @@ export default function Login() {
                         </button>
                     </form>
 
-                    <div className="mt-8 text-center md:text-left">
-                        <p className="text-xs text-gray-400 font-medium">Protected by AattumTPL Security</p>
+                    <div className="mt-6 text-center md:text-left flex flex-col gap-2">
+                        <p className="text-xs text-gray-500 font-medium">
+                            Don't have a Tournament Head account?{' '}
+                            <button
+                                type="button"
+                                onClick={() => navigate('/th-signup')}
+                                className="text-indigo-600 font-bold hover:underline"
+                            >
+                                Register here
+                            </button>
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium mt-1">Protected by AattumTPL Security</p>
                     </div>
                 </div>
             </div>

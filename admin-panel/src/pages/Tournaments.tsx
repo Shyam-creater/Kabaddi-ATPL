@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { Plus, Calendar, Trophy, Edit2, Trash2, Users, IndianRupee, QrCode } from 'lucide-react';
 import api from '../services/api';
 
@@ -44,15 +45,23 @@ export default function Tournaments() {
     // Form State
     const [formData, setFormData] = useState({ ...defaultForm });
 
+    const { user } = useSelector((state: any) => state.auth);
+
     useEffect(() => {
         fetchTournaments();
-    }, [selectedSport]);
+    }, [selectedSport, user]);
 
     const fetchTournaments = async () => {
         setLoading(true);
         try {
-            const response = await api.get(`/tournaments/${selectedSport}/all`);
-            setTournaments(response.data);
+            if (user?.role === 'TH') {
+                const response = await api.get('/th/leagues');
+                // The backend returns { cricket, football, kabaddi } lists
+                setTournaments(response.data.data[selectedSport] || []);
+            } else {
+                const response = await api.get(`/tournaments/${selectedSport}/all`);
+                setTournaments(response.data);
+            }
         } catch (error) {
             console.error('Error fetching tournaments:', error);
             alert('Failed to load tournaments');

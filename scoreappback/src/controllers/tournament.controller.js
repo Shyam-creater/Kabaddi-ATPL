@@ -44,6 +44,7 @@ exports.createTournament = async (req, res) => {
         // Explicitly extract allowed fields
         const { name, description, registrationFee, qrCodeImage, upiId, startDate, endDate, venue, status, logo, banner, rules, format } = req.body;
         const tournamentData = {
+            sport,
             name,
             description: description ? description.trim().substring(0, 200) : undefined,
             registrationFee: registrationFee || 500,
@@ -57,7 +58,23 @@ exports.createTournament = async (req, res) => {
             banner,
             ...(rules && { rules }),
             ...(format && { format }),
+            createdBy: req.user._id
         };
+
+        if (req.user.role === 'TH') {
+            const createdBy = req.user._id;
+            const [cricketLeagues, footballLeagues, kabaddiLeagues] = await Promise.all([
+                CricketTournament.countDocuments({ createdBy }),
+                FootballTournament.countDocuments({ createdBy }),
+                KabaddiTournament.countDocuments({ createdBy })
+            ]);
+            const totalLeagues = cricketLeagues + footballLeagues + kabaddiLeagues;
+            const leagueLimit = req.user.leagueLimit || 5;
+
+            if (totalLeagues >= leagueLimit) {
+                return res.status(403).json({ message: `League creation limit reached. Current limit is ${leagueLimit}. Please extend the limit to create more leagues.` });
+            }
+        }
 
         const tournament = new Model(tournamentData);
         await tournament.save();
@@ -115,7 +132,7 @@ exports.getTournamentById = async (req, res) => {
         const Model = getModel(sport);
         if (!Model) return res.status(400).json({ message: 'Invalid sport' });
 
-        const tournament = await Model.findById(id).populate('teams').lean();
+        const tournament = await Model.findById(id).populate('teams matches').lean();
         if (!tournament) return res.status(404).json({ message: 'Tournament not found' });
 
         const count = await PlayerRegistration.countDocuments({ tournamentId: tournament._id });
@@ -143,8 +160,14 @@ exports.updateTournament = async (req, res) => {
             updateData.upiId = updateData.upiId ? updateData.upiId.trim() : '';
         }
 
-        const tournament = await Model.findByIdAndUpdate(id, updateData, { new: true });
+        let tournament = await Model.findById(id);
         if (!tournament) return res.status(404).json({ message: 'Tournament not found' });
+
+        if (req.user.role === 'TH' && tournament.createdBy?.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to update this tournament' });
+        }
+
+        tournament = await Model.findByIdAndUpdate(id, updateData, { new: true });
 
         // Socket Emit
         const io = req.app.get('io');
@@ -164,8 +187,14 @@ exports.deleteTournament = async (req, res) => {
         const Model = getModel(sport);
         if (!Model) return res.status(400).json({ message: 'Invalid sport' });
 
-        const tournament = await Model.findByIdAndDelete(id);
+        let tournament = await Model.findById(id);
         if (!tournament) return res.status(404).json({ message: 'Tournament not found' });
+
+        if (req.user.role === 'TH' && tournament.createdBy?.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to delete this tournament' });
+        }
+
+        await Model.findByIdAndDelete(id);
 
         // Socket Emit
         const io = req.app.get('io');

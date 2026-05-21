@@ -30,3 +30,19 @@ exports.adminOnly = (req, res, next) => {
         return next(new ApiError(403, 'Administrator access required'));
     }
 };
+
+exports.thOnly = (req, res, next) => {
+    if (req.user && req.user.role === 'TH') {
+        next();
+    } else {
+        return next(new ApiError(403, 'Tournament Head access required'));
+    }
+};
+
+exports.adminOrTH = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'TH' || req.user.role === 'scorer')) {
+        next();
+    } else {
+        return next(new ApiError(403, 'Administrator, Tournament Head, or Scorer access required'));
+    }
+};

@@ -111,19 +111,30 @@ exports.getUserProfile = async (req, res, next) => {
 
 exports.getAllUsers = async (req, res, next) => {
     try {
-        const { sport, page = 1, limit = 20 } = req.query;
+        const { sport, role, page = 1, limit = 20 } = req.query;
         let query = {
-            role: { $ne: 'admin' }  // Exclude admin users from public lists
+            role: { $ne: 'admin' }
         };
+
+        if (role) {
+            query.role = role;
+        }
 
         if (sport && sport !== 'All') {
             query.sports = { $in: [sport] };
         }
 
-        // Filter out current user and blocked users if logged in
+        if (req.query.search) {
+            const searchTerm = req.query.search.toString();
+            query.$or = [
+                { name: { $regex: searchTerm, $options: 'i' } },
+                { email: { $regex: searchTerm, $options: 'i' } }
+            ];
+        }
+
         if (req.user) {
             const currentUser = await User.findById(req.user.id);
-            let excludeIds = [req.user.id]; // Exclude current user
+            let excludeIds = [req.user.id];
 
             if (currentUser && currentUser.blockedUsers && currentUser.blockedUsers.length > 0) {
                 excludeIds = [...excludeIds, ...currentUser.blockedUsers];

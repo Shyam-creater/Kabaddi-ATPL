@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminService } from '../services/admin';
+import { thService } from '../services/th';
+import { useSelector } from 'react-redux';
 import {
     Users, Trophy, Calendar, Activity, ArrowUpRight,
     Shirt, Gamepad2, UserPlus, Sparkles, Zap, Target,
@@ -15,14 +17,36 @@ export default function Dashboard() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    const { user } = useSelector((state: any) => state.auth);
+
     useEffect(() => {
         loadStats();
-    }, []);
+    }, [user]);
 
     const loadStats = async () => {
         try {
             setLoading(true);
-            const data = await adminService.getDashboardStats();
+            let data;
+            if (user?.role === 'TH') {
+                data = await thService.getDashboardStats();
+                // Map the TH data format to the expected Dashboard format to minimize changes
+                data = {
+                    users: { total: 0, male: 0, female: 0, recent: [] },
+                    counts: { 
+                        tournaments: data.stats.totalLeagues,
+                        teams: 0, // Update when TH teams API is ready
+                        activeMatches: 0, // Update when TH matches API is ready
+                        players: 0
+                    },
+                    categories: {
+                        cricket: { tournaments: data.stats.cricketLeagues },
+                        kabaddi: { tournaments: data.stats.kabaddiLeagues },
+                        football: { tournaments: data.stats.footballLeagues }
+                    }
+                };
+            } else {
+                data = await adminService.getDashboardStats();
+            }
             setStats(data);
         } catch (error) {
             console.error('Failed to load stats:', error);

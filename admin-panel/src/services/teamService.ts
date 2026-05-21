@@ -11,8 +11,9 @@ export interface Team {
     points: number;
 }
 
-export const getTeams = async () => {
-    const response = await api.get('/teams');
+export const getTeams = async (sport?: string) => {
+    const query = sport ? `?sport=${sport}` : '';
+    const response = await api.get(`/teams${query}`);
     return response.data;
 };
 

@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router(); // Fixed lowercase 'r'
 const tournamentController = require('../controllers/tournament.controller');
+const { protect, adminOrTH } = require('../middlewares/auth.middleware');
 
 // Controller methods expect req.params.sport
 // Routes mapped to /api/tournaments in app.js
 
 // Create: POST /api/tournaments/:sport
-router.post('/:sport', tournamentController.createTournament);
+router.post('/:sport', protect, adminOrTH, tournamentController.createTournament);
 
 // List: GET /api/tournaments/:sport
 router.get('/:sport', tournamentController.getTournaments);
@@ -18,9 +19,9 @@ router.get('/:sport/all', tournamentController.getTournaments);
 router.get('/:sport/:id', tournamentController.getTournamentById);
 
 // Update: PUT /api/tournaments/:sport/:id
-router.put('/:sport/:id', tournamentController.updateTournament);
+router.put('/:sport/:id', protect, adminOrTH, tournamentController.updateTournament);
 
 // Delete: DELETE /api/tournaments/:sport/:id
-router.delete('/:sport/:id', tournamentController.deleteTournament);
+router.delete('/:sport/:id', protect, adminOrTH, tournamentController.deleteTournament);
 
 module.exports = router;

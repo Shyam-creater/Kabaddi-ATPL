@@ -1,7 +1,7 @@
 import io, { Socket } from 'socket.io-client';
 import api from './api';
 
-const SOCKET_URL = 'https://back.aattumtpl.com';
+const SOCKET_URL = 'http://192.168.31.253:6899';
 
 class SocketService {
     socket: Socket | null = null;

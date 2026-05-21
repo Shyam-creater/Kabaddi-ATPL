@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { adminService } from '../services/admin';
 import {
     Shield, X, MapPin, Search, Calendar, Phone, Mail,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 
 export default function Users() {
+    const { user: currentUser } = useSelector((state: any) => state.auth);
     const [users, setUsers] = useState<any[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -143,6 +145,7 @@ export default function Users() {
         total: users.length,
         active: users.filter(u => u.status !== 'suspended' && u.status !== 'pending').length,
         admins: users.filter(u => u.role === 'admin').length,
+        thAccounts: users.filter(u => u.role === 'TH').length,
         newToday: users.filter(u => {
             const today = new Date();
             const joinDate = new Date(u.createdAt);
@@ -190,7 +193,11 @@ export default function Users() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full xl:w-auto">
                     <StatBox label="Total" value={stats.total} icon={UsersIcon} color="bg-gray-900" />
                     <StatBox label="Active" value={stats.active} icon={UserCheck} color="bg-emerald-500" />
-                    <StatBox label="Admins" value={stats.admins} icon={ShieldCheck} color="bg-orange-500" />
+                    {currentUser?.role === 'super_admin' ? (
+                        <StatBox label="Admins" value={stats.admins} icon={ShieldCheck} color="bg-orange-500" />
+                    ) : (
+                        <StatBox label="TH Accounts" value={stats.thAccounts} icon={ShieldCheck} color="bg-orange-500" />
+                    )}
                     <StatBox label="New" value={stats.newToday} icon={UserPlus} color="bg-blue-600" />
                 </div>
             </div>
@@ -209,9 +216,11 @@ export default function Users() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full xl:w-auto">
-                    {/* Role Quick Filter */}
                     <div className="flex p-1.5 bg-gray-100/80 backdrop-blur-md border border-gray-200 rounded-[1.5rem] w-full xl:w-auto overflow-x-auto no-scrollbar">
-                        {['all', 'player', 'scorer', 'admin'].map(r => (
+                        {(currentUser?.role === 'super_admin' 
+                            ? ['all', 'player', 'scorer', 'admin'] 
+                            : ['all', 'player', 'scorer', 'TH']
+                        ).map(r => (
                             <button
                                 key={r}
                                 onClick={() => setFilterRole(r)}
@@ -332,6 +341,11 @@ export default function Users() {
                                                 <div className="font-extrabold text-base text-gray-900 flex items-center gap-2 group-hover:text-red-600 transition-colors">
                                                     {user.name}
                                                     {user.gender === 'female' && <span className="text-pink-400 text-lg">♀</span>}
+                                                    {user.atplId && (
+                                                        <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-700 text-[9px] font-black uppercase font-mono rounded-full tracking-wider border border-red-100/50">
+                                                            {user.atplId}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="text-[11px] font-bold text-gray-500 mt-0.5 tracking-tight">{user.email}</div>
                                             </div>
@@ -350,9 +364,10 @@ export default function Users() {
                                     </td>
                                     <td className="px-6 py-6 font-black">
                                         <div className={`inline-flex items-center gap-2 text-[10px] uppercase tracking-widest font-black ${user.role === 'admin' ? 'text-orange-600' :
+                                            user.role === 'TH' ? 'text-indigo-600' :
                                             user.role === 'scorer' ? 'text-blue-600' : 'text-gray-600'
                                             }`}>
-                                            {user.role === 'admin' ? <Shield size={14} /> : user.role === 'scorer' ? <UserIcon size={14} /> : <UserIcon size={14} />}
+                                            {user.role === 'admin' ? <Shield size={14} /> : user.role === 'TH' ? <ShieldCheck size={14} /> : user.role === 'scorer' ? <UserIcon size={14} /> : <UserIcon size={14} />}
                                             {user.role}
                                         </div>
                                     </td>
@@ -456,7 +471,7 @@ export default function Users() {
                                             </span>
 
                                             <span className="text-[10px] font-bold text-gray-400 uppercase">
-                                                ID: {selectedUser._id?.slice(-8).toUpperCase()}
+                                                ATPL ID: {selectedUser.atplId || selectedUser._id?.slice(-8).toUpperCase()}
                                             </span>
                                         </div>
 
@@ -515,34 +530,34 @@ export default function Users() {
 
                                     {/* ACTION SECTION */}
                                     <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100 space-y-8">
-
                                         {/* ROLE SWITCH */}
-                                        <div className="space-y-3">
+                                        {currentUser?.role === 'super_admin' && (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Shield size={15} className="text-gray-600" />
+                                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                                        Clearance Level
+                                                    </span>
+                                                </div>
 
-                                            <div className="flex items-center gap-2">
-                                                <Shield size={15} className="text-gray-600" />
-                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                                                    Clearance Level
-                                                </span>
+                                                <div className="flex flex-wrap gap-2 p-2 bg-white border border-gray-100 rounded-2xl">
+                                                    {['player', 'scorer', 'admin'].map(r => (
+                                                        <button
+                                                            key={r}
+                                                            onClick={() => handleUpdateRole(r)}
+                                                            disabled={actionLoading}
+                                                            className={`flex-1 min-w-[90px] py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
+                                                 ${selectedUser.role === r
+                                                                    ? 'bg-primary text-white shadow-lg'
+                                                                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'
+                                                                }`}
+                                                        >
+                                                            {r}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-
-                                            <div className="flex flex-wrap gap-2 p-2 bg-white border border-gray-100 rounded-2xl">
-                                                {['player', 'scorer', 'admin'].map(r => (
-                                                    <button
-                                                        key={r}
-                                                        onClick={() => handleUpdateRole(r)}
-                                                        disabled={actionLoading}
-                                                        className={`flex-1 min-w-[90px] py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
-                                            ${selectedUser.role === r
-                                                                ? 'bg-primary text-white shadow-lg'
-                                                                : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'
-                                                            }`}
-                                                    >
-                                                        {r}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        )}
 
                                         {/* ACTION BUTTONS */}
                                         <div className="space-y-3">
@@ -554,13 +569,13 @@ export default function Users() {
                                                 </span>
                                             </div>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className={`grid gap-4 ${currentUser?.role === 'super_admin' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
 
                                                 {selectedUser.status === 'suspended' ? (
                                                     <button
                                                         onClick={() => handleStatusChange('active')}
                                                         disabled={actionLoading}
-                                                        className="group py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all"
+                                                        className="group py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all animate-fade-in"
                                                     >
                                                         <CheckCircle size={18} />
                                                         Restore
@@ -569,21 +584,23 @@ export default function Users() {
                                                     <button
                                                         onClick={() => handleStatusChange('suspended')}
                                                         disabled={actionLoading}
-                                                        className="group py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all"
+                                                        className="group py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all animate-fade-in"
                                                     >
                                                         <Ban size={18} />
                                                         Suspend
                                                     </button>
                                                 )}
 
-                                                <button
-                                                    onClick={handleDelete}
-                                                    disabled={actionLoading}
-                                                    className="group py-4 bg-white border-2 border-red-100 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
-                                                >
-                                                    <Trash2 size={18} />
-                                                    Delete
-                                                </button>
+                                                {currentUser?.role === 'super_admin' && (
+                                                    <button
+                                                        onClick={handleDelete}
+                                                        disabled={actionLoading}
+                                                        className="group py-4 bg-white border-2 border-red-100 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-50 transition-all animate-fade-in"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
 

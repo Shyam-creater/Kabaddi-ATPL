@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const teamSchema = new mongoose.Schema({
+    sport: {
+        type: String,
+        enum: ['kabaddi'],
+        default: 'kabaddi'
+    },
     name: {
         type: String,
         required: true,
@@ -24,6 +29,7 @@ const teamSchema = new mongoose.Schema({
         type: String,
         default: 'TBA'
     },
+    captainId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     coach: String,
 
     // Stats
@@ -37,11 +43,16 @@ const teamSchema = new mongoose.Schema({
     scoreDiff: { type: Number, default: 0 },
 
     players: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         name: String,
-        position: String, // Raider, Defender
+        position: String, // Raider, Defender, All-Rounder
+        role: String,
         number: Number,
+        isCaptain: { type: Boolean, default: false },
         image: String
-    }]
+    }],
+    playerCount: { type: Number, default: 0 },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('KabaddiTeam', teamSchema);

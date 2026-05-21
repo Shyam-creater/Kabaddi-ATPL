@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const teamSchema = new mongoose.Schema({
+    sport: {
+        type: String,
+        enum: ['cricket'],
+        default: 'cricket'
+    },
     name: {
         type: String,
         required: true,
@@ -12,11 +17,11 @@ const teamSchema = new mongoose.Schema({
         required: true,
         uppercase: true,
         trim: true,
-        unique: true, // e.g. CSK
+        unique: true,
         maxLength: 4
     },
     logo: {
-        type: String, // URL
+        type: String,
         default: 'https://via.placeholder.com/150'
     },
     city: String,
@@ -24,23 +29,27 @@ const teamSchema = new mongoose.Schema({
         type: String,
         default: 'TBA'
     },
+    captainId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     coach: String,
 
-    // Stats
     matchesPlayed: { type: Number, default: 0 },
     won: { type: Number, default: 0 },
     lost: { type: Number, default: 0 },
     draw: { type: Number, default: 0 },
     points: { type: Number, default: 0 },
-    nrr: { type: Number, default: 0.0 }, // Net Run Rate
+    nrr: { type: Number, default: 0.0 },
 
-    // Players (Simple array of strings or Object IDs if we had Player model)
-    // For simplicity now, let's keep array of objects
     players: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         name: String,
-        role: String, // Batsman, Bowler, All-rounder
+        role: String, // Batsman, Bowler, All-rounder, WK
+        position: String,
+        jerseyNumber: Number,
+        isCaptain: { type: Boolean, default: false },
         image: String
-    }]
+    }],
+    playerCount: { type: Number, default: 0 },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Team', teamSchema);

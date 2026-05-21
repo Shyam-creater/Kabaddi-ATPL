@@ -31,6 +31,20 @@ export const login = createAsyncThunk(
     }
 );
 
+export const thLogin = createAsyncThunk(
+    'auth/thLogin',
+    async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+        try {
+            const data = await authService.thLogin(credentials);
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.response?.data?.message || 'Login failed');
+        }
+    }
+);
+
 const authSlice = createSlice({
     name: 'auth',
     initialState,
@@ -59,6 +73,21 @@ const authSlice = createSlice({
                 state.error = null;
             })
             .addCase(login.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+            })
+            .addCase(thLogin.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(thLogin.fulfilled, (state, action: any) => {
+                state.loading = false;
+                state.user = action.payload.user;
+                state.token = action.payload.token;
+                state.isAuthenticated = true;
+                state.error = null;
+            })
+            .addCase(thLogin.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string;
             });

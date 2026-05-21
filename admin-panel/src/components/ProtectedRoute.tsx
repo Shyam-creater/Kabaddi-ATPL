@@ -12,7 +12,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         return <Navigate to="/login" replace />;
     }
 
-    if (user?.role !== 'admin') {
+    if (user?.role !== 'admin' && user?.role !== 'TH' && user?.role !== 'super_admin' && user?.role !== 'scorer') {
         return <Navigate to="/login" replace />;
     }
 

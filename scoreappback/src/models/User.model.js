@@ -2,18 +2,21 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+    atplId: { type: String, unique: true, sparse: true }, // Auto-generated ATPL ID (e.g., ATPL_001, ATPL_TH_001)
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ['player', 'admin', 'scorer'], default: 'player' },
+    role: { type: String, enum: ['player', 'super_admin', 'admin', 'scorer', 'TH'], default: 'player' },
     gender: { type: String, enum: ['Male', 'Female', 'Other'], default: 'Male' },
     profilePicture: { type: String, default: '' },
     status: { type: String, enum: ['active', 'suspended', 'pending'], default: 'active' },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
     // Basic Info
     phone: { type: String },
     city: { type: String },
     address: { type: String },
+    leagueLimit: { type: Number, default: 5 },
     dob: { type: Date },
     sports: [{ type: String }], // Array of strings for selected sports
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -175,6 +178,43 @@ const userSchema = new mongoose.Schema({
                 fitnessStatus: { type: String, enum: ['Fit', 'Recovering', 'Injured'], default: 'Fit' },
                 lastMatchPlayedDate: Date
             }
+        },
+        football: {
+            age: Number,
+            height: String,
+            weight: String,
+            state: String,
+            country: String,
+            position: String, // Forward, Midfielder, Defender, Goalkeeper
+            currentTeam: String,
+            jerseyNumber: Number,
+            preferredFoot: String,
+            experienceYears: Number,
+
+            careerSummary: {
+                matchesPlayed: Number,
+                totalGoals: Number,
+                totalAssists: Number,
+                cleanSheets: Number,
+                shotsOnTarget: Number,
+                passingAccuracy: Number
+            },
+
+            seasonStats: [{
+                season: String,
+                matches: Number,
+                goals: Number,
+                assists: Number,
+                yellowCards: Number,
+                redCards: Number,
+                minutesPlayed: Number
+            }],
+
+            achievements: [{
+                title: String,
+                year: String,
+                description: String
+            }]
         }
     },
 
@@ -196,6 +236,7 @@ userSchema.virtual('profileProgress').get(function () {
     if (this.phone) filledFields++;
     if (this.city) filledFields++;
     if (this.address) filledFields++;
+
     if (this.dob) filledFields++;
     if (this.gender) filledFields++;
     if (this.profilePicture) filledFields++;
@@ -213,8 +254,52 @@ userSchema.virtual('profileProgress').get(function () {
 userSchema.set('toJSON', { virtuals: true });
 userSchema.set('toObject', { virtuals: true });
 
-// Password hash before save
+// Auto-generate atplId and hash password before save
 userSchema.pre('save', async function (next) {
+    // 1. Generate atplId if it doesn't exist
+    if (!this.atplId) {
+        let prefix = 'ATPL';
+        let regexPattern = '^ATPL_\\d+$';
+        
+        if (this.role === 'TH') {
+            prefix = 'ATPL_TH';
+            regexPattern = '^ATPL_TH_\\d+$';
+        } else if (this.role === 'admin') {
+            prefix = 'ATPL_ADMIN';
+            regexPattern = '^ATPL_ADMIN_\\d+$';
+        } else if (this.role === 'super_admin') {
+            prefix = 'ATPL_SADMIN';
+            regexPattern = '^ATPL_SADMIN_\\d+$';
+        }
+
+        // Find the latest user with this prefix to determine the next number
+        const lastUser = await this.constructor.findOne({ atplId: new RegExp(regexPattern) })
+            .sort({ createdAt: -1 });
+
+        let nextNumber = 1;
+        if (lastUser && lastUser.atplId) {
+            const parts = lastUser.atplId.split('_');
+            const lastNumberStr = parts[parts.length - 1];
+            const lastNum = parseInt(lastNumberStr, 10);
+            if (!isNaN(lastNum)) {
+                nextNumber = lastNum + 1;
+            }
+        }
+
+        // Ensure uniqueness
+        let isUnique = false;
+        while (!isUnique) {
+            this.atplId = `${prefix}_${nextNumber.toString().padStart(3, '0')}`;
+            const existingUser = await this.constructor.findOne({ atplId: this.atplId });
+            if (existingUser) {
+                nextNumber++;
+            } else {
+                isUnique = true;
+            }
+        }
+    }
+
+    // 2. Password hashing
     if (!this.isModified('password')) return next();
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);

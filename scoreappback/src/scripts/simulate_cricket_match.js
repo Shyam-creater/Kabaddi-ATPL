@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_URL = 'https://back.aattumtpl.com/api/cricket/matches';
+const API_URL = 'http://localhost:6899/api/cricket/matches';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 

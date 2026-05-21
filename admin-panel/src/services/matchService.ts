@@ -4,32 +4,36 @@ export interface Match {
     _id: string;
     title: string;
     series: string;
-    venue?: string; // Added location support
+    venue?: string;
     status: 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'ABANDONED';
-    sport?: 'cricket' | 'kabaddi' | 'football'; // Distinguish sports
+    sport?: 'cricket' | 'kabaddi' | 'football';
+    matchType?: 'League' | 'Knockout' | 'Friendly';
+    tournamentId?: string;
+    teamAId?: string;
+    teamBId?: string;
     teamA: { name: string; code: string; logo?: string };
     teamB: { name: string; code: string; logo?: string };
 
-    // Cricket
-    scoreA?: { runs: number; wickets: number; overs: number };
-    scoreB?: { runs: number; wickets: number; overs: number };
+    teamAPlayers?: Array<{ user?: string; name?: string; position?: string; role?: string; jerseyNumber?: number; image?: string }>;
+    teamBPlayers?: Array<{ user?: string; name?: string; position?: string; role?: string; jerseyNumber?: number; image?: string }>;
+    assignedScorer?: string;
 
-    // Kabaddi / Football (Unified simpler structure if needed, or separate)
-    // For Kabaddi: just scoreA (number) and scoreB (number) at root level of response
-    // For Football: same, scoreA (number) and scoreB (number)
-    // Note: The API returns flat scoreA/scoreB for non-cricket usually, but let's handle dynamically
+    scoreA?: any;
+    scoreB?: any;
 
-    // Common
-    statusText?: string;
+    goalScorers?: Array<{ player: string; minute?: number; type?: string; team?: string }>;
+    possession?: { teamA?: number; teamB?: number };
+    playerStats?: Array<{ user?: string; name?: string; team?: string; position?: string; goals?: number; assists?: number }>; 
+
     target?: number;
+    statusText?: string;
     winner?: string;
 
-    // Context-aware Video URLs
-    liveStreamUrl?: string;    // LIVE match – stream URL (YouTube Live, HLS, etc.)
-    youtubeId?: string;        // YouTube Video/Stream ID
-    hlsUrl?: string;           // HLS Stream URL (.m3u8)
-    previewVideoUrl?: string;  // UPCOMING match – teaser/promo video
-    recordedVideoUrl?: string; // COMPLETED match – full match or highlights
+    liveStreamUrl?: string;
+    youtubeId?: string;
+    hlsUrl?: string;
+    previewVideoUrl?: string;
+    recordedVideoUrl?: string;
 }
 
 // Updated to fetch ALL matches from the unified endpoint

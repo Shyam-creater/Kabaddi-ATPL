@@ -2,56 +2,91 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
     Home, Users, ShoppingCart, Trophy, Calendar, 
     LayoutTemplate, Shield, Gavel, Image as ImageIcon, 
-    Settings, Bell
+    Settings, Bell, X
 } from 'lucide-react';
 import logo from '../assets/images/ATPL-LOGO.jpeg';
 
-const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Users', href: '/users', icon: Users },
-    { name: 'Teams', href: '/teams', icon: Shield },
-    { name: 'Auction', href: '/auction', icon: Gavel },
-    { name: 'Matches', href: '/matches', icon: Trophy },
-    { name: 'Leagues', href: '/leagues', icon: Calendar },
-    { name: 'Registration Requests', href: '/registrations', icon: LayoutTemplate },
-    { name: 'Stores', href: '/stores', icon: ShoppingCart },
-    { name: 'App Content', href: '/content', icon: LayoutTemplate },
-    { name: 'Notifications', href: '/notifications', icon: Bell },
-    { name: 'Gallery', href: '/gallery', icon: ImageIcon },
-];
+import { useSelector } from 'react-redux';
 
-export default function Sidebar() {
+interface SidebarProps {
+    isOpen?: boolean;
+    onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     const location = useLocation();
+    const { user } = useSelector((state: any) => state.auth);
+
+    const navigation = [
+        { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'super_admin', 'TH', 'scorer'] },
+        { name: 'Sub-Admins', href: '/sub-admins', icon: Users, roles: ['super_admin'] },
+        { name: 'TH Accounts', href: '/th-accounts', icon: Users, roles: ['admin'] },
+        { name: 'Users', href: '/users', icon: Users, roles: ['admin', 'super_admin', 'TH'] },
+        { name: 'Teams', href: '/teams', icon: Shield, roles: ['admin', 'TH', 'scorer'] },
+        { name: 'Auction', href: '/auction', icon: Gavel, roles: ['admin', 'TH'] },
+        { name: 'Matches', href: '/matches', icon: Trophy, roles: ['admin', 'TH', 'scorer'] },
+        { name: 'Scorers', href: '/scorers', icon: Users, roles: ['admin', 'TH'] },
+        { name: 'Leagues', href: '/leagues', icon: Calendar, roles: ['admin', 'TH'] },
+        { name: 'Registration Requests', href: '/registrations', icon: LayoutTemplate, roles: ['admin', 'TH'] },
+        { name: 'Stores', href: '/stores', icon: ShoppingCart, roles: ['admin'] },
+        { name: 'App Content', href: '/content', icon: LayoutTemplate, roles: ['admin'] },
+        { name: 'Notifications', href: '/notifications', icon: Bell, roles: ['admin'] },
+        { name: 'Gallery', href: '/gallery', icon: ImageIcon, roles: ['admin', 'TH'] },
+    ];
+
+    const filteredNavigation = navigation.filter(item => user && item.roles.includes(user.role));
 
     return (
-        <aside className="hidden md:flex flex-col w-72 h-screen fixed top-0 left-0 z-50 bg-[#070b14] text-white shadow-[10px_0_40px_rgba(0,0,0,0.3)] overflow-hidden font-['Outfit'] border-r border-white/5">
-            {/* Ambient Background Effects */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute -top-[10%] -left-[10%] w-[80%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[20%] -right-[10%] w-[60%] h-[30%] bg-fuchsia-600/10 blur-[100px] rounded-full" />
-            </div>
+        <>
+            {/* Mobile Backdrop */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 md:hidden"
+                    onClick={onClose}
+                />
+            )}
 
-            {/* Brand Section */}
-            <div className="relative z-10 px-8 py-10">
-                <div className="flex items-center gap-4 group">
-                    <div className="relative shrink-0">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600 to-fuchsia-600 rounded-2xl blur-md opacity-40 group-hover:opacity-80 transition-all duration-500" />
-                        <div className="relative w-12 h-12 rounded-2xl overflow-hidden ring-1 ring-white/20 p-0.5 bg-white/5">
-                            <img src={logo} alt="ATPL" className="w-full h-full object-cover rounded-[14px]" />
-                        </div>
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-black tracking-tighter leading-none">
-                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-indigo-300">ATPL</span>
-                            <span className="text-indigo-500 font-extrabold ml-1">SCORE</span>
-                        </h1>
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.25em]">Admin Portal</p>
-                        </div>
-                    </div>
+            <aside className={`flex flex-col w-72 h-screen fixed top-0 left-0 z-50 bg-[#070b14] text-white shadow-[10px_0_40px_rgba(0,0,0,0.3)] overflow-hidden font-['Outfit'] border-r border-white/5 transition-transform duration-300 ease-out md:translate-x-0 ${
+                isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            }`}>
+                {/* Ambient Background Effects */}
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                    <div className="absolute -top-[10%] -left-[10%] w-[80%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[20%] -right-[10%] w-[60%] h-[30%] bg-fuchsia-600/10 blur-[100px] rounded-full" />
                 </div>
-            </div>
+
+                {/* Brand Section */}
+                <div className="relative z-10 px-8 py-10 flex items-center justify-between">
+                    <div className="flex items-center gap-4 group">
+                        <div className="relative shrink-0">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600 to-fuchsia-600 rounded-2xl blur-md opacity-40 group-hover:opacity-80 transition-all duration-500" />
+                            <div className="relative w-12 h-12 rounded-2xl overflow-hidden ring-1 ring-white/20 p-0.5 bg-white/5">
+                                <img src={logo} alt="ATPL" className="w-full h-full object-cover rounded-[14px]" />
+                            </div>
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-black tracking-tighter leading-none">
+                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-indigo-300">ATPL</span>
+                                <span className="text-indigo-500 font-extrabold ml-1">SCORE</span>
+                            </h1>
+                            <div className="flex items-center gap-2 mt-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.25em]">
+                                    {user?.role === 'super_admin' ? 'Super Admin Portal' : user?.role === 'admin' ? 'Sub-Admin Portal' : user?.role === 'scorer' ? 'Scorer Portal' : 'TH Portal'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile Close Button */}
+                    <button
+                        onClick={onClose}
+                        className="md:hidden p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all active:scale-95 border border-white/10"
+                        aria-label="Close menu"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
 
             {/* Navigation */}
             <nav className="relative z-10 flex-1 px-4 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
@@ -60,7 +95,7 @@ export default function Sidebar() {
                     <Settings size={12} className="text-slate-700" />
                 </div>
 
-                {navigation.map((item) => {
+                {filteredNavigation.map((item) => {
                     const isActive = location.pathname === item.href;
                     const Icon = item.icon;
                     return (
@@ -105,6 +140,7 @@ export default function Sidebar() {
                 </div>
             </div> */}
         </aside>
+        </>
     );
 }
 

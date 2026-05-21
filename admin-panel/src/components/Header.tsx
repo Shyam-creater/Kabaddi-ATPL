@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../store/authSlice';
-import { LogOut, User, Bell, Search, Command, Trophy, Mail } from 'lucide-react';
+import { LogOut, User, Bell, Search, Trophy, Mail, Menu } from 'lucide-react';
 import api from '../services/api';
 import { adminService } from '../services/admin';
 
-export default function Header() {
+interface HeaderProps {
+    onMenuClick?: () => void;
+}
+
+export default function Header({ onMenuClick }: HeaderProps) {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const { user } = useSelector((state: any) => state.auth);
@@ -127,8 +131,17 @@ export default function Header() {
         <header className="sticky top-0 z-40 px-6 md:px-8 py-5">
             <div className="flex items-center justify-between bg-white/60 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[2rem] px-8 py-4 transition-all">
                 {/* Welcome Message */}
-                <div className="flex items-center gap-6">
-                    <div className="hidden sm:block">
+                <div className="flex items-center gap-4 md:gap-6">
+                    {/* Mobile Menu Toggle */}
+                    <button
+                        onClick={onMenuClick}
+                        className="md:hidden p-2 rounded-xl bg-white border border-slate-100 hover:bg-slate-50 text-slate-600 transition-all active:scale-95 shadow-sm"
+                        aria-label="Toggle Sidebar"
+                    >
+                        <Menu size={20} />
+                    </button>
+
+                    <div className="sm:block">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Control Panel</p>
                         <h2 className="text-lg font-black text-[#0f172a] leading-tight flex items-center gap-2">
                             Hi, <span className="text-indigo-600 drop-shadow-sm">{user?.name?.split(' ')[0] || 'Administrator'}</span> 👋

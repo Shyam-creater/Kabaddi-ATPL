@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, PlayCircle, X, Trophy, MapPin, Video, ExternalLink, Wifi, Radio, Film } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2, PlayCircle, X, Trophy, MapPin, Video, ExternalLink, Wifi, Radio, Film, Search } from 'lucide-react';
 import { getMatches, createMatch, updateMatch, deleteMatch } from '../services/matchService';
+import { getTeams } from '../services/teamService';
 import type { Match } from '../services/matchService';
+import type { Team } from '../services/teamService';
 
 export default function Matches() {
     const [matches, setMatches] = useState<Match[]>([]);
@@ -11,6 +13,29 @@ export default function Matches() {
     const [videoMatch, setVideoMatch] = useState<Match | null>(null);
     const [videoUrl, setVideoUrl] = useState('');
     const [videoType, setVideoType] = useState<'live' | 'preview' | 'recorded'>('recorded');
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [selectedTeamAId, setSelectedTeamAId] = useState('');
+    const [selectedTeamBId, setSelectedTeamBId] = useState('');
+    const [playerSearch, setPlayerSearch] = useState('');
+    const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
+    const [playerStatForm, setPlayerStatForm] = useState<any>({
+        user: '',
+        name: '',
+        team: '',
+        role: '',
+        runs: '',
+        wickets: '',
+        catches: '',
+        runOuts: '',
+        overs: '',
+        balls: '',
+        goals: '',
+        assists: '',
+        minutes: '',
+        raidPoints: '',
+        tacklePoints: '',
+        totalPoints: ''
+    });
 
     // Form State
     const [formData, setFormData] = useState({
@@ -18,15 +43,11 @@ export default function Matches() {
         series: '',
         venue: 'TPL Stadium',
         sport: 'cricket',
-        teamA: { name: '', code: '' },
-        teamB: { name: '', code: '' }
+        teamA: { name: '', code: '', logo: '' },
+        teamB: { name: '', code: '', logo: '' }
     });
 
-    useEffect(() => {
-        loadMatches();
-        const interval = setInterval(loadMatches, 5000);
-        return () => clearInterval(interval);
-    }, []);
+    
 
     const loadMatches = async () => {
         try {
@@ -50,22 +71,71 @@ export default function Matches() {
         }
     };
 
+    const loadTeams = async (sport: string) => {
+        try {
+            const teamData = await getTeams(sport);
+            if (Array.isArray(teamData)) {
+                setTeams(teamData);
+            } else {
+                setTeams([]);
+            }
+        } catch (error) {
+            console.error('Error loading teams', error);
+            setTeams([]);
+        }
+    };
+
+    const selectExistingTeam = (side: 'A' | 'B', teamId: string) => {
+        const team = teams.find(t => t._id === teamId);
+        if (side === 'A') {
+            setSelectedTeamAId(teamId);
+            setFormData({
+                ...formData,
+                teamA: team ? { name: team.name, code: team.code, logo: team.logo } : { name: '', code: '', logo: '' }
+            });
+        } else {
+            setSelectedTeamBId(teamId);
+            setFormData({
+                ...formData,
+                teamB: team ? { name: team.name, code: team.code, logo: team.logo } : { name: '', code: '', logo: '' }
+            });
+        }
+    };
+
+    useEffect(() => {
+        loadMatches();
+        loadTeams(formData.sport);
+        const interval = setInterval(loadMatches, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        setSelectedTeamAId('');
+        setSelectedTeamBId('');
+        loadTeams(formData.sport);
+    }, [formData.sport]);
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const payload = { ...formData };
+            const payload: any = { ...formData };
             if (!payload.series) {
                 if (payload.sport === 'kabaddi') payload.series = 'Pro Kabaddi League';
                 else if (payload.sport === 'football') payload.series = 'City Football Cup';
                 else payload.series = 'TPL Premier League';
             }
 
+            if (selectedTeamAId) payload.teamAId = selectedTeamAId;
+            if (selectedTeamBId) payload.teamBId = selectedTeamBId;
+
             await createMatch(payload);
             setShowCreate(false);
             loadMatches();
+            setSelectedTeamAId('');
+            setSelectedTeamBId('');
             setFormData({
                 title: '', series: '', venue: 'TPL Stadium', sport: 'cricket',
-                teamA: { name: '', code: '' }, teamB: { name: '', code: '' }
+                teamA: { name: '', code: '', logo: '' }, teamB: { name: '', code: '', logo: '' }
             });
         } catch (error) {
             alert('Failed to create match');
@@ -174,6 +244,104 @@ export default function Matches() {
                     'recorded'
         );
         setVideoUrl('');
+    };
+
+    useEffect(() => {
+        if (!selectedMatch) return;
+        setSelectedPlayer(null);
+        setPlayerSearch('');
+        setPlayerStatForm({
+            user: '',
+            name: '',
+            team: '',
+            role: '',
+            runs: '',
+            wickets: '',
+            catches: '',
+            runOuts: '',
+            overs: '',
+            balls: '',
+            goals: '',
+            assists: '',
+            minutes: '',
+            raidPoints: '',
+            tacklePoints: '',
+            totalPoints: ''
+        });
+    }, [selectedMatch]);
+
+    const matchPlayers = useMemo(() => {
+        if (!selectedMatch) return [];
+        const teamA = (selectedMatch.teamAPlayers || []).map((player: any) => ({ ...player, teamCode: selectedMatch.teamA.code, teamName: selectedMatch.teamA.name, side: 'A' }));
+        const teamB = (selectedMatch.teamBPlayers || []).map((player: any) => ({ ...player, teamCode: selectedMatch.teamB.code, teamName: selectedMatch.teamB.name, side: 'B' }));
+        return [...teamA, ...teamB];
+    }, [selectedMatch]);
+
+    const filteredMatchPlayers = useMemo(() => {
+        if (!playerSearch.trim()) return matchPlayers;
+        const query = playerSearch.toLowerCase();
+        return matchPlayers.filter((player: any) =>
+            `${player.name || ''}`.toLowerCase().includes(query) ||
+            `${player.role || ''}`.toLowerCase().includes(query) ||
+            `${player.teamCode || ''}`.toLowerCase().includes(query)
+        );
+    }, [matchPlayers, playerSearch]);
+
+    const selectPlayerForScoring = (player: any) => {
+        setSelectedPlayer(player);
+        setPlayerStatForm({
+            user: player.user || player._id || '',
+            name: player.name || player.fullName || '',
+            team: player.teamCode || selectedMatch?.teamA.code || '',
+            role: player.role || '',
+            runs: '',
+            wickets: '',
+            catches: '',
+            runOuts: '',
+            overs: '',
+            balls: '',
+            goals: '',
+            assists: '',
+            minutes: '',
+            raidPoints: '',
+            tacklePoints: '',
+            totalPoints: ''
+        });
+    };
+
+    const handlePlayerStatChange = (field: string, value: string) => {
+        setPlayerStatForm({ ...playerStatForm, [field]: value });
+    };
+
+    const savePlayerStats = async () => {
+        if (!selectedMatch || !selectedPlayer) return;
+        const normalized = {
+            user: playerStatForm.user,
+            name: playerStatForm.name,
+            team: playerStatForm.team,
+            role: playerStatForm.role,
+            runs: Number(playerStatForm.runs) || 0,
+            wickets: Number(playerStatForm.wickets) || 0,
+            catches: Number(playerStatForm.catches) || 0,
+            runOuts: Number(playerStatForm.runOuts) || 0,
+            overs: Number(playerStatForm.overs) || 0,
+            balls: Number(playerStatForm.balls) || 0,
+            goals: Number(playerStatForm.goals) || 0,
+            assists: Number(playerStatForm.assists) || 0,
+            minutes: Number(playerStatForm.minutes) || 0,
+            raidPoints: Number(playerStatForm.raidPoints) || 0,
+            tacklePoints: Number(playerStatForm.tacklePoints) || 0,
+            totalPoints: Number(playerStatForm.totalPoints) || 0
+        };
+
+        const existing = selectedMatch.playerStats || [];
+        const nextStats = existing.filter((item: any) => item.user?.toString() !== normalized.user?.toString());
+        nextStats.push(normalized);
+
+        await updateMatch(selectedMatch._id, { playerStats: nextStats }, selectedMatch.sport || 'cricket');
+        loadMatches();
+        const refreshed = (await getMatches()).find((m: Match) => m._id === selectedMatch._id);
+        if (refreshed) setSelectedMatch(refreshed);
     };
 
     // Get video config based on match status
@@ -377,15 +545,47 @@ export default function Matches() {
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team A</label>
                                     <div className="space-y-2">
-                                        <input placeholder="Full Name" value={formData.teamA.name} onChange={e => setFormData({ ...formData, teamA: { ...formData.teamA, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } })} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
-                                        <input placeholder="Code (AAA)" value={formData.teamA.code} onChange={e => setFormData({ ...formData, teamA: { ...formData.teamA, code: e.target.value } })} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
+                                        <select value={selectedTeamAId} onChange={e => selectExistingTeam('A', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none">
+                                            <option value="">Manual entry</option>
+                                            {teams.length > 0 ? teams.map(team => (
+                                                <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
+                                            )) : <option value="">No existing teams found</option>}
+                                        </select>
+                                        <input placeholder="Full Name" value={formData.teamA.name} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
+                                        <input placeholder="Code (AAA)" value={formData.teamA.code} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, code: e.target.value } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
+                                        {selectedTeamAId && (
+                                            <div className="mt-2 text-xs text-gray-600">
+                                                <div className="font-bold text-[11px] mb-1">Preview players ({teams.find(t => t._id === selectedTeamAId)?.players?.length || 0})</div>
+                                                <div className="flex gap-2 flex-wrap">
+                                                    {teams.find(t => t._id === selectedTeamAId)?.players?.slice(0,6).map((p: any) => (
+                                                        <div key={p.user || p._id} className="px-2 py-1 bg-gray-100 rounded-full text-[11px]">{p.name || p.fullName || p.displayName || 'Player'}</div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Team B</label>
                                     <div className="space-y-2">
-                                        <input placeholder="Full Name" value={formData.teamB.name} onChange={e => setFormData({ ...formData, teamB: { ...formData.teamB, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } })} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
-                                        <input placeholder="Code (BBB)" value={formData.teamB.code} onChange={e => setFormData({ ...formData, teamB: { ...formData.teamB, code: e.target.value } })} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
+                                        <select value={selectedTeamBId} onChange={e => selectExistingTeam('B', e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none">
+                                            <option value="">Manual entry</option>
+                                            {teams.length > 0 ? teams.map(team => (
+                                                <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
+                                            )) : <option value="">No existing teams found</option>}
+                                        </select>
+                                        <input placeholder="Full Name" value={formData.teamB.name} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
+                                        <input placeholder="Code (BBB)" value={formData.teamB.code} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, code: e.target.value } }); }} className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-semibold" required />
+                                        {selectedTeamBId && (
+                                            <div className="mt-2 text-xs text-gray-600">
+                                                <div className="font-bold text-[11px] mb-1">Preview players ({teams.find(t => t._id === selectedTeamBId)?.players?.length || 0})</div>
+                                                <div className="flex gap-2 flex-wrap">
+                                                    {teams.find(t => t._id === selectedTeamBId)?.players?.slice(0,6).map((p: any) => (
+                                                        <div key={p.user || p._id} className="px-2 py-1 bg-gray-100 rounded-full text-[11px]">{p.name || p.fullName || p.displayName || 'Player'}</div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -471,6 +671,19 @@ export default function Matches() {
                                             </>
                                         )}
                                     </div>
+                                    <div className="mt-3">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Team A Roster</div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {selectedMatch.teamAPlayers && selectedMatch.teamAPlayers.length > 0 ? selectedMatch.teamAPlayers.map((p: any) => (
+                                                <button key={p.user || p._id} onClick={() => selectPlayerForScoring({ ...p, teamCode: selectedMatch.teamA.code, side: 'A' })} className={`text-left p-2 rounded-xl text-sm transition ${selectedPlayer?.user?.toString() === (p.user || p._id)?.toString() ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-100'}`}>
+                                                    <div className="font-bold text-sm">{p.name || p.fullName || 'Player'}</div>
+                                                    <div className="text-[10px] text-gray-400">#{p.jerseyNumber || p.jersey || ''} · {p.role || p.position || 'Player'}</div>
+                                                </button>
+                                            )) : (
+                                                <div className="text-xs text-gray-400">No players attached to Team A</div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* TEAM B */}
@@ -499,10 +712,141 @@ export default function Matches() {
                                             </>
                                         )}
                                     </div>
+                                    <div className="mt-3">
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Team B Roster</div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {selectedMatch.teamBPlayers && selectedMatch.teamBPlayers.length > 0 ? selectedMatch.teamBPlayers.map((p: any) => (
+                                                <button key={p.user || p._id} onClick={() => selectPlayerForScoring({ ...p, teamCode: selectedMatch.teamB.code, side: 'B' })} className={`text-left p-2 rounded-xl text-sm transition ${selectedPlayer?.user?.toString() === (p.user || p._id)?.toString() ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-100'}`}>
+                                                    <div className="font-bold text-sm">{p.name || p.fullName || 'Player'}</div>
+                                                    <div className="text-[10px] text-gray-400">#{p.jerseyNumber || p.jersey || ''} · {p.role || p.position || 'Player'}</div>
+                                                </button>
+                                            )) : (
+                                                <div className="text-xs text-gray-400">No players attached to Team B</div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* ─── Video Management ─── */}
+                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                            <Search size={12} /> Player Scoring
+                                        </p>
+                                        <p className="text-xs text-gray-400">Search the selected team roster, choose a player, and save match-level player stats.</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                                    <div className="lg:col-span-1 p-4 bg-gray-50 border border-gray-200 rounded-3xl">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2 block">Search players</label>
+                                        <div className="relative">
+                                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <input
+                                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-gray-900/10"
+                                                placeholder="Search by name, team, role..."
+                                                value={playerSearch}
+                                                onChange={(e) => setPlayerSearch(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
+                                            {filteredMatchPlayers.length > 0 ? filteredMatchPlayers.map((player: any) => (
+                                                <button
+                                                    key={player.user || player._id}
+                                                    onClick={() => selectPlayerForScoring(player)}
+                                                    className={`w-full text-left p-3 rounded-2xl transition ${selectedPlayer?.user?.toString() === (player.user || player._id)?.toString() ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'}`}>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div>
+                                                            <div className="text-sm font-bold">{player.name || player.fullName || 'Unknown Player'}</div>
+                                                            <p className="text-[10px] uppercase tracking-wider text-gray-500">{player.role || 'Player'} · {player.teamCode}</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-semibold text-gray-400">{player.side === 'A' ? 'A' : 'B'}</span>
+                                                    </div>
+                                                </button>
+                                            )) : (
+                                                <div className="text-xs text-gray-400">No players found in the selected match teams.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="lg:col-span-2 space-y-4">
+                                        <div className="p-4 bg-white border border-gray-200 rounded-3xl">
+                                            <div className="flex items-center justify-between gap-4 mb-3">
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Selected player</p>
+                                                    <h3 className="mt-1 text-sm font-black text-gray-900">{selectedPlayer?.name || 'Pick a player from roster'}</h3>
+                                                    <p className="text-xs text-gray-500">{selectedPlayer ? `${selectedPlayer.teamCode} · ${selectedPlayer.role || 'Player'}` : 'Use search to find a player from team A or B.'}</p>
+                                                </div>
+                                                {selectedPlayer && (
+                                                    <button onClick={() => setSelectedPlayer(null)} className="text-xs uppercase tracking-wider text-red-600 font-bold">Clear</button>
+                                                )}
+                                            </div>
+
+                                            {selectedPlayer ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {(selectedMatch.sport === 'cricket') ? (
+                                                        <>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Runs</label>
+                                                                <input value={playerStatForm.runs} onChange={(e) => handlePlayerStatChange('runs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Wickets</label>
+                                                                <input value={playerStatForm.wickets} onChange={(e) => handlePlayerStatChange('wickets', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Catches</label>
+                                                                <input value={playerStatForm.catches} onChange={(e) => handlePlayerStatChange('catches', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            </div>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Overs</label>
+                                                                <input value={playerStatForm.overs} onChange={(e) => handlePlayerStatChange('overs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" step="0.1" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Balls</label>
+                                                                <input value={playerStatForm.balls} onChange={(e) => handlePlayerStatChange('balls', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Run Outs</label>
+                                                                <input value={playerStatForm.runOuts} onChange={(e) => handlePlayerStatChange('runOuts', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            </div>
+                                                        </>
+                                                    ) : selectedMatch.sport === 'football' ? (
+                                                        <>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Goals</label>
+                                                                <input value={playerStatForm.goals} onChange={(e) => handlePlayerStatChange('goals', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Assists</label>
+                                                                <input value={playerStatForm.assists} onChange={(e) => handlePlayerStatChange('assists', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            </div>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Minutes</label>
+                                                                <input value={playerStatForm.minutes} onChange={(e) => handlePlayerStatChange('minutes', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Total Points</label>
+                                                                <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Raid Points</label>
+                                                                <input value={playerStatForm.raidPoints} onChange={(e) => handlePlayerStatChange('raidPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Tackle Points</label>
+                                                                <input value={playerStatForm.tacklePoints} onChange={(e) => handlePlayerStatChange('tacklePoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            </div>
+                                                            <div className="space-y-3">
+                                                                <label className="text-[10px] uppercase tracking-wider text-gray-500">Total Points</label>
+                                                                <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="rounded-3xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
+                                                    Select a player to start entering stats.
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-3">
+                                            <button disabled={!selectedPlayer} onClick={savePlayerStats} className="px-5 py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">Save Player Stats</button>
+                                            <button onClick={() => { setSelectedPlayer(null); setPlayerSearch(''); }} className="px-5 py-3 border border-gray-200 text-gray-700 rounded-2xl text-xs font-bold">Reset selection</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="mt-6 pt-6 border-t border-gray-100">
                                 <div className="flex items-center justify-between mb-3">
                                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
