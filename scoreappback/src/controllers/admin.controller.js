@@ -493,18 +493,79 @@ exports.getPlayerDetailedStats = async (req, res, next) => {
         });
 
         // Calculate overall statistics
+        let platformRuns = 0;
+        let platformBalls = 0;
+        let platformWickets = 0;
+        let platformRunsConceded = 0;
+        let platformBallsBowled = 0;
+        let platformDismissals = 0;
+        let platformHighestScore = 0;
+
+        matches.forEach(match => {
+            const playerName = player.name ? player.name.trim().toLowerCase() : '';
+            // Find batsman entry
+            const bat = match.battingLineup?.find(b => b.name && b.name.trim().toLowerCase() === playerName);
+            if (bat) {
+                platformRuns += (bat.runs || 0);
+                platformBalls += (bat.balls || 0);
+                if (bat.status !== 'Batting' && bat.status !== 'Yet to Bat') {
+                    platformDismissals += 1;
+                }
+                if ((bat.runs || 0) > platformHighestScore) {
+                    platformHighestScore = bat.runs;
+                }
+            }
+            // Find bowler entry
+            const bowl = match.bowlingLineup?.find(b => b.name && b.name.trim().toLowerCase() === playerName);
+            if (bowl) {
+                platformWickets += (bowl.wickets || 0);
+                platformRunsConceded += (bowl.runs || 0);
+                
+                // Calculate balls bowled
+                const oversStr = String(bowl.overs || '0');
+                if (oversStr.includes('.')) {
+                    const [ov, bl] = oversStr.split('.');
+                    platformBallsBowled += parseInt(ov, 10) * 6 + parseInt(bl || '0', 10);
+                } else {
+                    platformBallsBowled += parseFloat(oversStr) * 6;
+                }
+            }
+        });
+
+        const totalRunsScored = (player.playerProfile?.cricket?.careerSummary?.totalRuns || 0) + platformRuns;
+        const totalWickets = (player.playerProfile?.cricket?.careerSummary?.totalWickets || 0) + platformWickets;
+        const highestScore = Math.max(player.playerProfile?.cricket?.careerSummary?.highestScore || 0, platformHighestScore);
+        
+        // Calculate batting average
+        const totalDismissals = platformDismissals || (matches.length > 0 ? matches.length : 1);
+        const battingAverage = platformRuns > 0 
+            ? parseFloat((platformRuns / totalDismissals).toFixed(2))
+            : (player.playerProfile?.cricket?.careerSummary?.battingAverage || 0);
+            
+        // Calculate strike rate
+        const strikeRate = platformBalls > 0
+            ? parseFloat(((platformRuns / platformBalls) * 100).toFixed(2))
+            : (player.playerProfile?.cricket?.careerSummary?.strikeRate || 0);
+            
+        // Calculate economy rate
+        const totalOversBowled = platformBallsBowled / 6;
+        const economyRate = totalOversBowled > 0
+            ? parseFloat((platformRunsConceded / totalOversBowled).toFixed(2))
+            : (player.playerProfile?.cricket?.careerSummary?.economyRate || 0);
+
         const overallStats = {
-            totalMatches: matches.length,
+            totalMatches: (player.playerProfile?.cricket?.careerSummary?.totalMatches || 0) + matches.length,
             totalTournaments: allTournaments.length,
             totalTeams: allTeams.length,
             totalLeaguesRegistered: registrations.length,
             matchesWon: matchStats.filter(m => m.result === 'Won').length,
             matchesLost: matchStats.filter(m => m.result === 'Lost').length,
-            totalRunsScored: player.playerProfile?.cricket?.careerSummary?.totalRuns || 0,
-            totalWickets: player.playerProfile?.cricket?.careerSummary?.totalWickets || 0,
-            battingAverage: player.playerProfile?.cricket?.careerSummary?.battingAverage || 0,
-            strikeRate: player.playerProfile?.cricket?.careerSummary?.strikeRate || 0,
-            economyRate: player.playerProfile?.cricket?.careerSummary?.economyRate || 0
+            totalRunsScored,
+            totalWickets,
+            battingAverage,
+            strikeRate,
+            economyRate,
+            highestScore
         };
 
         // Group tournaments by sport

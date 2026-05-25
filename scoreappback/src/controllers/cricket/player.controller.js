@@ -1,5 +1,6 @@
 const Player = require('../../models/cricket/Player.model');
 const Team = require('../../models/cricket/Team.model');
+const CricketMatch = require('../../models/cricket/Match.model');
 
 // Get All Players (with optional Auction filter)
 exports.getPlayers = async (req, res) => {
@@ -17,13 +18,80 @@ exports.getPlayers = async (req, res) => {
         if (top === 'bowler') sort = { wickets: -1 };
 
         // First attempt with filters
-        let players = await Player.find(query).populate('team').sort(sort).limit(top ? 10 : 0);
+        let players = await Player.find(query).populate('team').lean();
 
         // If sport filter yields no players, retry without sport filter
         if (sport && players.length === 0) {
             delete query.sport;
-            players = await Player.find(query).populate('team').sort(sort).limit(top ? 10 : 0);
+            players = await Player.find(query).populate('team').lean();
         }
+
+        // If requested top batsman/bowler leaderboard, aggregate stats from CricketMatch dynamically
+        if (top) {
+            const matches = await CricketMatch.find({}).lean();
+            const playerStats = {};
+
+            matches.forEach(match => {
+                // Accumulate batting stats
+                match.battingLineup?.forEach(bat => {
+                    if (bat.name) {
+                        const nameKey = bat.name.trim().toLowerCase();
+                        if (!playerStats[nameKey]) {
+                            playerStats[nameKey] = { runs: 0, wickets: 0, matches: 0 };
+                        }
+                        playerStats[nameKey].runs += (bat.runs || 0);
+                    }
+                });
+
+                // Accumulate bowling stats
+                match.bowlingLineup?.forEach(bowl => {
+                    if (bowl.name) {
+                        const nameKey = bowl.name.trim().toLowerCase();
+                        if (!playerStats[nameKey]) {
+                            playerStats[nameKey] = { runs: 0, wickets: 0, matches: 0 };
+                        }
+                        playerStats[nameKey].wickets += (bowl.wickets || 0);
+                    }
+                });
+
+                // Accumulate matches played count
+                const participants = new Set();
+                match.teamAPlayers?.forEach(p => p.name && participants.add(p.name.trim().toLowerCase()));
+                match.teamBPlayers?.forEach(p => p.name && participants.add(p.name.trim().toLowerCase()));
+                participants.forEach(nameKey => {
+                    if (!playerStats[nameKey]) {
+                        playerStats[nameKey] = { runs: 0, wickets: 0, matches: 0 };
+                    }
+                    playerStats[nameKey].matches += 1;
+                });
+            });
+
+            // Merge dynamic platform stats into Player list
+            players = players.map(p => {
+                const nameKey = p.name ? p.name.trim().toLowerCase() : '';
+                const dyn = playerStats[nameKey] || { runs: 0, wickets: 0, matches: 0 };
+                return {
+                    ...p,
+                    runs: (p.runs || 0) + dyn.runs,
+                    wickets: (p.wickets || 0) + dyn.wickets,
+                    matches: (p.matches || 0) + dyn.matches
+                };
+            });
+
+            // Re-sort based on combined scores
+            if (top === 'batsman') {
+                players.sort((a, b) => b.runs - a.runs);
+            } else if (top === 'bowler') {
+                players.sort((a, b) => b.wickets - a.wickets);
+            }
+
+            // Apply limit of 10 for leaderboards
+            players = players.slice(0, 10);
+        } else {
+            // Apply standard alphabetical sorting when top is not specified
+            players.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        }
+
         res.json(players);
     } catch (error) {
         res.status(500).json({ message: error.message });

@@ -71,7 +71,7 @@ export default function ProfileDetailsPage() {
                 battingAverage: advancedStats?.stats?.battingAverage !== undefined ? advancedStats.stats.battingAverage : (careerSummary.battingAverage || 0),
                 strikeRate: advancedStats?.stats?.strikeRate !== undefined ? advancedStats.stats.strikeRate : (careerSummary.strikeRate || 0),
                 economyRate: advancedStats?.stats?.economyRate !== undefined ? advancedStats.stats.economyRate : (careerSummary.economyRate || 0),
-                highestScore: careerSummary.highestScore || 0,
+                highestScore: advancedStats?.stats?.highestScore !== undefined ? advancedStats.stats.highestScore : (careerSummary.highestScore || 0),
                 matchesPlayed: advancedStats?.stats?.totalMatches !== undefined ? advancedStats.stats.totalMatches : (careerSummary.matchesPlayed || 0),
             },
             formatStats: cricketProfile.formatStats || [],
