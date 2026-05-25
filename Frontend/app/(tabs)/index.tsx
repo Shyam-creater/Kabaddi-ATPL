@@ -13,6 +13,7 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import AppHeader from '../../components/common/AppHeader';
@@ -111,6 +112,11 @@ export default function HomeScreen() {
   const [activeBanner, setActiveBanner] = useState<any>(null);
   const [bannerVisible, setBannerVisible] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [blogsData, setBlogsData] = useState<any[]>([]);
+
+  // Cycling indices for quotes and trivia
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [triviaIndex, setTriviaIndex] = useState(0);
 
   // Featured video player state
   const [featuredVideoVisible, setFeaturedVideoVisible] = useState(false);
@@ -141,6 +147,24 @@ export default function HomeScreen() {
 
     return () => clearInterval(interval);
   }, [activeBanner]);
+
+  // Auto-cycle quotes every 10 seconds
+  useEffect(() => {
+    if (quotesData.length <= 1) return;
+    const interval = setInterval(() => {
+      setQuoteIndex(prev => (prev + 1) % quotesData.length);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [quotesData]);
+
+  // Auto-cycle trivia every 15 seconds
+  useEffect(() => {
+    if (triviaData.length <= 1) return;
+    const interval = setInterval(() => {
+      setTriviaIndex(prev => (prev + 1) % triviaData.length);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [triviaData]);
 
   useEffect(() => {
     const fetchAllSuggested = async () => {
@@ -201,7 +225,10 @@ export default function HomeScreen() {
     fetchItem('/content/trending-players', setTrendingPlayers);
     fetchItem('/content/partners', setSponsors);
     fetchItem('/content/news', setLatestNews);
-    fetchItem('/content/quotes', setQuotesData);
+    fetchItem('/content/quotes', (data) => {
+      setQuotesData(data);
+      setQuoteIndex(0);
+    });
     fetchItem('/content/highlights', (data) => {
       setHighlightsData(data);
       if (data.length > 0) {
@@ -213,17 +240,22 @@ export default function HomeScreen() {
       if (data.length > 0) setAdData(data.find((a: any) => a.active) || data[0]);
     });
     fetchItem('/content/social', setSocialData);
-    fetchItem('/content/trivia', setTriviaData);
+    fetchItem('/content/trivia', (data) => {
+      setTriviaData(data);
+      setTriviaIndex(0);
+    });
     fetchItem('/content/banners?active=true', (data) => {
       if (data.length > 0) setActiveBanner(data[0]);
     });
     fetchItem('/content/polls', (data) => {
-      if (data.length > 0) setActivePoll(data[0]);
-      else setActivePoll(null);
+      // Show the active poll, fall back to first
+      const active = data.find((p: any) => p.active) || data[0] || null;
+      setActivePoll(active);
     });
     fetchItem('/products', (data) => {
       setStoreProducts(data.slice(0, 8));
     });
+    fetchItem('/content/blogs', setBlogsData);
 
     setLoadingMatches(false);
   };
@@ -477,7 +509,9 @@ export default function HomeScreen() {
                           style={styles.bannerActionBtn}
                           onPress={() => {
                             setBannerVisible(false);
-                            router.push(activeBanner?.link || '/tournament');
+                            const link = activeBanner?.link || '/tournament';
+                            if (link.startsWith('http')) Linking.openURL(link);
+                            else router.push(link as any);
                           }}
                           activeOpacity={0.85}
                         >
@@ -544,7 +578,9 @@ export default function HomeScreen() {
                     style={styles.fullscreenBtn}
                     onPress={() => {
                       setModalVisible(false);
-                      router.push(activeBanner?.link || '/tournament');
+                      const link = activeBanner?.link || '/tournament';
+                      if (link.startsWith('http')) Linking.openURL(link);
+                      else router.push(link as any);
                     }}
                   >
                     <Text style={styles.fullscreenBtnText}>Register Tournament</Text>
@@ -772,7 +808,13 @@ export default function HomeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.newsScrollContent}>
             {latestNews.map((news, index) => (
               <Animated.View key={news._id} entering={FadeInRight.delay(index * 100)}>
-                <TouchableOpacity style={styles.newsCardHorizontal}>
+                <TouchableOpacity
+                  style={styles.newsCardHorizontal}
+                  onPress={() => {
+                    if (news.link) Linking.openURL(news.link);
+                  }}
+                  activeOpacity={0.85}
+                >
                   <Image source={{ uri: news.image }} style={styles.newsThumbHorizontal} />
                   <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.newsOverlay}>
                     <View style={styles.newsCategoryBadge}>
@@ -805,22 +847,39 @@ export default function HomeScreen() {
         {/* --- 7. QUOTE OF THE DAY --- */}
         {quotesData.length > 0 && (
           <Animated.View entering={FadeInDown.delay(700).duration(500).springify()} style={styles.quoteContainer}>
-            <ImageBackground
-              source={{ uri: quotesData[0].image || 'https://images.unsplash.com/photo-1593341646261-1e961917f699?w=800&q=80' }}
-              style={styles.quoteBackground}
-              imageStyle={{ borderRadius: 20 }}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setQuoteIndex(prev => (prev + 1) % quotesData.length)}
             >
-              <LinearGradient colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']} style={styles.quoteGradient}>
-                <View style={styles.quoteIconContainer}>
-                  <FontAwesome5 name="quote-left" size={28} color="#FFD700" />
-                </View>
-                <Text style={styles.quoteText}>"{quotesData[0].text}"</Text>
-                <View style={styles.quoteAuthorRow}>
-                  <View style={styles.quoteAuthorLine} />
-                  <Text style={styles.quoteAuthor}>{quotesData[0].author}</Text>
-                </View>
-              </LinearGradient>
-            </ImageBackground>
+              <ImageBackground
+                source={{ uri: quotesData[quoteIndex % quotesData.length]?.image || 'https://images.unsplash.com/photo-1593341646261-1e961917f699?w=800&q=80' }}
+                style={styles.quoteBackground}
+                imageStyle={{ borderRadius: 20 }}
+              >
+                <LinearGradient colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']} style={styles.quoteGradient}>
+                  <View style={styles.quoteIconContainer}>
+                    <FontAwesome5 name="quote-left" size={28} color="#FFD700" />
+                  </View>
+                  <Text style={styles.quoteText}>"{quotesData[quoteIndex % quotesData.length]?.text}"</Text>
+                  <View style={styles.quoteAuthorRow}>
+                    <View style={styles.quoteAuthorLine} />
+                    <Text style={styles.quoteAuthor}>{quotesData[quoteIndex % quotesData.length]?.author}</Text>
+                  </View>
+                  {quotesData.length > 1 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 6 }}>
+                      {quotesData.map((_: any, i: number) => (
+                        <View key={i} style={{
+                          width: i === quoteIndex % quotesData.length ? 18 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: i === quoteIndex % quotesData.length ? '#FFD700' : 'rgba(255,255,255,0.4)',
+                        }} />
+                      ))}
+                    </View>
+                  )}
+                </LinearGradient>
+              </ImageBackground>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -842,8 +901,12 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     style={styles.videoCard}
                     onPress={() => {
-                      setSelectedHighlightVideo(video);
-                      setHighlightVideoVisible(true);
+                      if (video.videoUrl && (video.videoUrl.includes('youtube.com') || video.videoUrl.includes('youtu.be'))) {
+                        Linking.openURL(video.videoUrl);
+                      } else {
+                        setSelectedHighlightVideo(video);
+                        setHighlightVideoVisible(true);
+                      }
                     }}
                     activeOpacity={0.8}
                   >
@@ -908,13 +971,23 @@ export default function HomeScreen() {
         {/* --- 10. DID YOU KNOW? --- */}
         {triviaData.length > 0 && (
           <Animated.View entering={FadeInDown.delay(1000).duration(500).springify()} style={styles.sectionContainer}>
-            <LinearGradient colors={['#E3F2FD', '#BBDEFB']} style={styles.triviaCard}>
-              <View style={styles.triviaHeader}>
-                <View style={[styles.premiumHeaderBar, { backgroundColor: '#FFD700', marginRight: 12 }]} />
-                <Text style={styles.triviaTitle}>Did You Know?</Text>
-              </View>
-              <Text style={styles.triviaText}>{triviaData[0].fact}</Text>
-            </LinearGradient>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setTriviaIndex(prev => (prev + 1) % triviaData.length)}
+            >
+              <LinearGradient colors={['#E3F2FD', '#BBDEFB']} style={styles.triviaCard}>
+                <View style={styles.triviaHeader}>
+                  <View style={[styles.premiumHeaderBar, { backgroundColor: '#FFD700', marginRight: 12 }]} />
+                  <Text style={styles.triviaTitle}>Did You Know?</Text>
+                  {triviaData.length > 1 && (
+                    <Text style={{ fontSize: 10, color: '#90CAF9', marginLeft: 'auto', fontWeight: '600' }}>
+                      {triviaIndex + 1}/{triviaData.length} • Tap for next
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.triviaText}>{triviaData[triviaIndex % triviaData.length]?.fact}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -972,6 +1045,67 @@ export default function HomeScreen() {
             </Animated.View>
           ))}
         </Animated.View>
+
+        {/* --- 13. BLOGS SECTION --- */}
+        {blogsData.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(1300).duration(500).springify()} style={styles.sectionContainer}>
+            <View style={[styles.sectionHeader, { paddingHorizontal: 0 }]}>
+              <View style={styles.sectionTitleRow}>
+                <View style={[styles.premiumHeaderBar, { backgroundColor: '#7C3AED' }]} />
+                <Text style={styles.sectionTitle}>Cricket Blogs</Text>
+              </View>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+              {blogsData.map((blog, index) => (
+                <Animated.View key={blog._id} entering={FadeInRight.delay(index * 100)}>
+                  <TouchableOpacity
+                    style={styles.blogCard}
+                    activeOpacity={0.85}
+                    onPress={() => router.push({
+                      pathname: '/blog/[id]',
+                      params: {
+                        ...blog,
+                        tags: Array.isArray(blog.tags) ? blog.tags.join(',') : (blog.tags || ''),
+                      }
+                    } as any)}
+                  >
+                    <ImageBackground
+                      source={{ uri: blog.image }}
+                      style={styles.blogThumb}
+                      imageStyle={{ borderRadius: 16 }}
+                    >
+                      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.blogOverlay}>
+                        <View style={styles.blogCategoryBadge}>
+                          <Text style={styles.blogCategory}>{blog.category}</Text>
+                        </View>
+                        <Text style={styles.blogTitle} numberOfLines={2}>{blog.title}</Text>
+                        <View style={styles.blogAuthorRow}>
+                          <Ionicons name="person-circle-outline" size={14} color="rgba(255,255,255,0.8)" />
+                          <Text style={styles.blogAuthor}>{blog.author}</Text>
+                        </View>
+                      </LinearGradient>
+                    </ImageBackground>
+                    {blog.excerpt ? (
+                      <Text style={styles.blogExcerpt} numberOfLines={2}>{blog.excerpt}</Text>
+                    ) : null}
+                    {blog.tags && blog.tags.length > 0 && (
+                      <View style={styles.blogTagsRow}>
+                        {(Array.isArray(blog.tags) ? blog.tags : blog.tags.split(',')).slice(0, 3).map((tag: string, ti: number) => (
+                          <View key={ti} style={styles.blogTag}>
+                            <Text style={styles.blogTagText}>#{tag.trim()}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -1058,15 +1192,25 @@ const MarqueeRow = ({ sponsors }: { sponsors: any[] }) => {
     <View style={{ overflow: 'hidden', width: '100%', paddingVertical: 10 }}>
       <Animated.View style={[{ flexDirection: 'row', alignItems: 'center' }, animatedStyle]}>
         {list.map((sponsor, index) => (
-          <View key={`${sponsor._id}-${index}`} style={styles.sponsorGlassCard}>
+          <TouchableOpacity
+            key={`${sponsor._id}-${index}`}
+            style={styles.sponsorGlassCard}
+            onPress={() => { if (sponsor.link) Linking.openURL(sponsor.link); }}
+            activeOpacity={sponsor.link ? 0.7 : 1}
+          >
             <View style={styles.sponsorGradient}>
               <Image
                 source={{ uri: sponsor.logo }}
                 style={styles.sponsorLogo}
                 resizeMode="contain"
               />
+              {sponsor.name ? (
+                <Text style={{ fontSize: 10, color: '#555', fontWeight: '700', textAlign: 'center', marginTop: 4, paddingHorizontal: 4 }} numberOfLines={1}>
+                  {sponsor.name}
+                </Text>
+              ) : null}
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </Animated.View>
     </View>
@@ -1943,6 +2087,91 @@ const styles = StyleSheet.create({
   },
   socialShareBtn: {
     padding: 8,
+  },
+
+  // Blog Section
+  blogCard: {
+    width: width * 0.72,
+    marginLeft: 16,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 5,
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  blogThumb: {
+    width: '100%',
+    height: 180,
+    justifyContent: 'flex-end',
+  },
+  blogOverlay: {
+    borderRadius: 16,
+    padding: 14,
+    paddingTop: 60,
+    justifyContent: 'flex-end',
+  },
+  blogCategoryBadge: {
+    backgroundColor: '#7C3AED',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  blogCategory: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  blogTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#fff',
+    lineHeight: 21,
+    marginBottom: 6,
+  },
+  blogAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  blogAuthor: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+  },
+  blogExcerpt: {
+    fontSize: 13,
+    color: '#555',
+    lineHeight: 19,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 6,
+    fontWeight: '500',
+  },
+  blogTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  blogTag: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  blogTagText: {
+    fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '700',
   },
 
   // Story Modal
