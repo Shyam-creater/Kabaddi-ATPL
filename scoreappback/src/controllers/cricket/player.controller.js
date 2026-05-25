@@ -4,19 +4,26 @@ const Team = require('../../models/cricket/Team.model');
 // Get All Players (with optional Auction filter)
 exports.getPlayers = async (req, res) => {
     try {
-        const { status, teamId, top, sport, category } = req.query; // top=batsman or top=bowler
+        const { status, teamId, top, sport, category } = req.query;
         let query = {};
         let sort = { name: 1 };
 
         if (status) query.auctionStatus = status;
         if (teamId) query.team = teamId;
-        if (sport) query.sport = sport;
         if (category) query.category = category;
+        if (sport) query.sport = sport;
 
         if (top === 'batsman') sort = { runs: -1 };
         if (top === 'bowler') sort = { wickets: -1 };
 
-        const players = await Player.find(query).populate('team').sort(sort).limit(top ? 10 : 0);
+        // First attempt with filters
+        let players = await Player.find(query).populate('team').sort(sort).limit(top ? 10 : 0);
+
+        // If sport filter yields no players, retry without sport filter
+        if (sport && players.length === 0) {
+            delete query.sport;
+            players = await Player.find(query).populate('team').sort(sort).limit(top ? 10 : 0);
+        }
         res.json(players);
     } catch (error) {
         res.status(500).json({ message: error.message });

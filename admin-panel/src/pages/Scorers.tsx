@@ -121,7 +121,7 @@ export default function Scorers() {
     };
 
     return (
-        <div className="space-y-6 px-4 md:px-8 xl:px-12 pb-20">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">

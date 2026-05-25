@@ -103,7 +103,7 @@ export default function THAccounts() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Tournament Heads</h1>

@@ -9,7 +9,10 @@ const messageRoutes = require('./routes/message.routes');
 const cricketMatchRoutes = require('./routes/cricket/match.routes');
 const teamRoutes = require('./routes/team.routes'); // Added teamRoutes
 const lookingRoutes = require('./routes/looking.routes');
-const productRoutes = require('./routes/product.routes');
+const productRoutes = require('./routes/product.routes').default || require('./routes/product.routes');
+const productVariantRoutes = require('./routes/productVariant.routes').default || require('./routes/productVariant.routes');
+const cartRoutes = require('./routes/cart.routes').default || require('./routes/cart.routes');
+const orderRoutes = require('./routes/order.routes').default || require('./routes/order.routes');
 
 const errorHandler = require('./middlewares/error.middleware');
 
@@ -41,8 +44,16 @@ app.use('/api/content', require('./routes/content.routes'));
 app.use('/api/tournaments', require('./routes/tournament.routes'));
 app.use('/api/registrations', require('./routes/playerRegistration.routes'));
 app.use('/api/looking', lookingRoutes);
-app.use('/api/products', productRoutes);
+// app.use('/api/products', productRoutes);
 app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api', productRoutes);
+app.use('/api', require('./routes/categoryRoutes').default || require('./routes/categoryRoutes'));
+app.use('/api/brand', require('./routes/brandRoutes').default || require('./routes/brandRoutes'));
+app.use('/api/variants', productVariantRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/shipping', require('./routes/shipping.routes.js').default || require('./routes/shipping.routes.js'));
 
 // Error Handler
 app.use(errorHandler);

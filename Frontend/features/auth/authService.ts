@@ -9,7 +9,7 @@ const register = async (data: any) => {
     return response.data;
 };
 
-const login = async (data: { email: string, password: string }) => {
+const login = async (data: { email?: string, password: string, atplId?: string }) => {
     const response = await api.post('/auth/login', { ...data, loginType: 'user' });
     if (response.data.data.token) {
         await AsyncStorage.setItem('token', response.data.data.token);

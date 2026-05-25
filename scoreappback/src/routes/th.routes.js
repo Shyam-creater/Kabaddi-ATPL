@@ -1,17 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { getTHDashboardStats, getMyLeagues, getScorers, createScorer, updateScorerStatus, deleteScorer } = require('../controllers/th.controller');
-const { protect, thOnly } = require('../middlewares/auth.middleware');
+const { protect, thOnly, adminSuperAdminOrTH } = require('../middlewares/auth.middleware');
 
 // Protect all TH routes
 router.use(protect);
-router.use(thOnly);
 
-router.get('/dashboard', getTHDashboardStats);
-router.get('/leagues', getMyLeagues);
-router.get('/scorers', getScorers);
-router.post('/scorers', createScorer);
-router.put('/scorers/:id/status', updateScorerStatus);
-router.delete('/scorers/:id', deleteScorer);
+router.get('/dashboard', thOnly, getTHDashboardStats);
+router.get('/leagues', thOnly, getMyLeagues);
+router.get('/scorers', adminSuperAdminOrTH, getScorers);
+router.post('/scorers', adminSuperAdminOrTH, createScorer);
+router.put('/scorers/:id/status', adminSuperAdminOrTH, updateScorerStatus);
+router.delete('/scorers/:id', adminSuperAdminOrTH, deleteScorer);
 
 module.exports = router;

@@ -70,6 +70,12 @@ const matchSchema = new mongoose.Schema({
 
     period: { type: String, default: 'First Half' },
     statusText: String,
+    commentary: [{
+        time: String,
+        event: String,
+        description: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
 
     liveStreamUrl: { type: String, default: null },
     youtubeId: { type: String, default: null }, 

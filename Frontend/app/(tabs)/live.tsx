@@ -61,16 +61,25 @@ export default function MyScoreScreen() {
   useEffect(() => {
     loadData();
 
-    // Socket Listener (Generic update)
-    socketService.onMatchUpdate((updatedMatch: any) => {
-      // In a real app we'd intelligently merge. 
-      // For simplicity in this demo, reload or check ID.
-      // Ideally we check if this match ID exists in our `allMatches` and update it.
-      loadData();
-    });
+    // Socket Listener (Intelligently merge socket updates)
+    const handleMatchUpdate = (updatedMatch: any) => {
+      setAllMatches(prev => {
+        const index = prev.findIndex(m => m.id === updatedMatch._id);
+        const mapped = mapMatchToCard(updatedMatch);
+        if (index !== -1) {
+          const newMatches = [...prev];
+          newMatches[index] = mapped;
+          return newMatches;
+        } else {
+          return [mapped, ...prev];
+        }
+      });
+    };
+
+    socketService.onMatchUpdate(handleMatchUpdate);
 
     return () => {
-      socketService.removeListener('match:update');
+      socketService.removeListener('match:update', handleMatchUpdate);
     };
   }, []);
 
@@ -106,7 +115,7 @@ export default function MyScoreScreen() {
 
   const loadData = async () => {
     try {
-      const data = await MatchService.getMatches();
+      const data = await MatchService.getMatches(undefined, 'MyScoreScreen');
       const mapped = data.map(mapMatchToCard);
       setAllMatches(mapped);
 

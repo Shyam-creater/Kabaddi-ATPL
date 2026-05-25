@@ -7,6 +7,8 @@ import MatchService, { Match } from '../../services/matchService';
 import socketService from '../../services/socketService';
 import AppHeader from '../../components/common/AppHeader';
 import VideoPlayerModal from '../../components/common/VideoPlayerModal';
+import api from '../../services/api';
+import { useAppSelector } from '../../store/hooks';
 
 const SPORTS = [
     { id: 'all', label: 'All' },
@@ -23,15 +25,47 @@ const TABS = [
 
 export default function MatchesScreen() {
     const router = useRouter();
+    const { user: currentUser } = useAppSelector(state => state.auth);
     const [activeTab, setActiveTab] = useState('LIVE');
     const [activeSport, setActiveSport] = useState('all');
     const [matches, setMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    const [myTeamIds, setMyTeamIds] = useState<string[]>([]);
+    const [myTeamNames, setMyTeamNames] = useState<Set<string>>(new Set());
+    const [myTeamCodes, setMyTeamCodes] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        const fetchUserTeams = async () => {
+            if (!currentUser?._id) return;
+            try {
+                const response = await api.get('/teams');
+                const allTeams = Array.isArray(response.data) ? response.data : [];
+                
+                const filtered = allTeams.filter((t: any) => 
+                    t.players?.some((p: any) => p.user === currentUser._id || p.user?._id === currentUser._id) ||
+                    t.createdBy === currentUser._id || t.createdBy?._id === currentUser._id ||
+                    t.captainId === currentUser._id
+                );
+
+                const ids = filtered.map((t: any) => t._id);
+                const names = new Set(filtered.map((t: any) => t.name?.toLowerCase()));
+                const codes = new Set(filtered.map((t: any) => t.code?.toLowerCase()));
+
+                setMyTeamIds(ids);
+                setMyTeamNames(names);
+                setMyTeamCodes(codes);
+            } catch (error) {
+                console.error('Failed to fetch user teams:', error);
+            }
+        };
+        fetchUserTeams();
+    }, [currentUser?._id]);
+
     const fetchMatches = async () => {
         try {
-            const data = await MatchService.getMatches(activeTab !== 'ALL' ? activeTab : undefined);
+            const data = await MatchService.getMatches(activeTab !== 'ALL' ? activeTab : undefined, 'MatchesScreen');
             setMatches(data);
         } catch (error) {
             console.error('Failed to fetch matches', error);
@@ -44,7 +78,7 @@ export default function MatchesScreen() {
         setLoading(true);
         fetchMatches();
 
-        socketService.onMatchUpdate((updatedMatch: Match) => {
+        const handleMatchUpdate = (updatedMatch: Match) => {
             setMatches(prev => {
                 const index = prev.findIndex(m => m._id === updatedMatch._id);
                 if (index !== -1) {
@@ -56,11 +90,13 @@ export default function MatchesScreen() {
                 }
                 return prev;
             });
-        });
+        };
+
+        socketService.onMatchUpdate(handleMatchUpdate);
 
         return () => {
-            socketService.removeListener('match:update');
-        }
+            socketService.removeListener('match:update', handleMatchUpdate);
+        };
     }, [activeTab]);
 
     const onRefresh = async () => {
@@ -69,7 +105,34 @@ export default function MatchesScreen() {
         setRefreshing(false);
     };
 
-    const filteredMatches = matches.filter(m => activeSport === 'all' || m.sport === activeSport);
+    const filteredMatches = matches.filter(m => {
+        // 1. Sport filter
+        const matchesSport = activeSport === 'all' || m.sport === activeSport;
+        if (!matchesSport) return false;
+
+        // 2. User specific filter based on login users
+        if (!currentUser?._id) return true; // If not logged in, show all (or default)
+        
+        const matchObj = m as any;
+        const createdById = typeof matchObj.createdBy === 'object' ? matchObj.createdBy?._id : matchObj.createdBy;
+        const isCreatedByUser = createdById === currentUser._id;
+        
+        const isPlaying = 
+            matchObj.teamAPlayers?.some((p: any) => p.user === currentUser._id || p.user?._id === currentUser._id) ||
+            matchObj.teamBPlayers?.some((p: any) => p.user === currentUser._id || p.user?._id === currentUser._id);
+            
+        const isMyTeamMatch = 
+            myTeamIds.includes(matchObj.teamAId) || 
+            myTeamIds.includes(matchObj.teamBId) ||
+            myTeamIds.includes(matchObj.teamA?._id) || 
+            myTeamIds.includes(matchObj.teamB?._id) ||
+            (matchObj.teamA?.name && myTeamNames.has(matchObj.teamA.name.toLowerCase())) ||
+            (matchObj.teamB?.name && myTeamNames.has(matchObj.teamB.name.toLowerCase())) ||
+            (matchObj.teamA?.code && myTeamCodes.has(matchObj.teamA.code.toLowerCase())) ||
+            (matchObj.teamB?.code && myTeamCodes.has(matchObj.teamB.code.toLowerCase()));
+
+        return isCreatedByUser || isPlaying || isMyTeamMatch;
+    });
 
     return (
         <View style={styles.container}>

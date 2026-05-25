@@ -30,30 +30,62 @@ export default function LoginScreen() {
     const dispatch = useAppDispatch();
     const { loading, error } = useAppSelector(state => state.auth);
 
+    const [loginMethod, setLoginMethod] = useState<'email' | 'atplId'>('email');
     const [email, setEmail] = useState('');
+    const [atplId, setAtplId] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const { signIn } = useSession();
 
     const handleLogin = async () => {
-        const res = await dispatch(loginUser({ email, password }));
-
-        if (res.meta.requestStatus === 'fulfilled') {
-            const payload = res.payload as any;
-            const token = payload?.token || payload?.data?.token;
-
-            console.log('Login Payload:', payload);
-
-            if (token && typeof token === 'string') {
-                signIn(token);
-            } else {
-                console.error('Login Error: Missing string token', payload);
-                Alert.alert('Login Failed', 'Server response invalid');
+        if (loginMethod === 'email') {
+            if (!email || !password) {
+                Alert.alert('Required', 'Please enter email and password');
+                return;
             }
-        } else if (res.meta.requestStatus === 'rejected') {
-            const payload = res.payload as string;
-            Alert.alert('Login Failed', payload || 'An error occurred during login');
+            const res = await dispatch(loginUser({ email, password }));
+
+            if (res.meta.requestStatus === 'fulfilled') {
+                const payload = res.payload as any;
+                const token = payload?.token || payload?.data?.token;
+
+                console.log('Login Payload:', payload);
+
+                if (token && typeof token === 'string') {
+                    signIn(token);
+                } else {
+                    console.error('Login Error: Missing string token', payload);
+                    Alert.alert('Login Failed', 'Server response invalid');
+                }
+            } else if (res.meta.requestStatus === 'rejected') {
+                const payload = res.payload as string;
+                Alert.alert('Login Failed', payload || 'An error occurred during login');
+            }
+        } else {
+            if (!atplId) {
+                Alert.alert('Required', 'Please enter your ATPL ID');
+                return;
+            }
+            // Backend auth controller allows atplId without password
+            const res = await dispatch(loginUser({ atplId } as any));
+
+            if (res.meta.requestStatus === 'fulfilled') {
+                const payload = res.payload as any;
+                const token = payload?.token || payload?.data?.token;
+
+                console.log('Login Payload:', payload);
+
+                if (token && typeof token === 'string') {
+                    signIn(token);
+                } else {
+                    console.error('Login Error: Missing string token', payload);
+                    Alert.alert('Login Failed', 'Server response invalid');
+                }
+            } else if (res.meta.requestStatus === 'rejected') {
+                const payload = res.payload as string;
+                Alert.alert('Login Failed', payload || 'An error occurred during login');
+            }
         }
     };
 
@@ -94,53 +126,99 @@ export default function LoginScreen() {
                         <Text style={styles.welcomeText}>Welcome Back!</Text>
                         <Text style={styles.instructionText}>Please sign in to continue</Text>
 
+                        {/* Login Method Toggle */}
+                        <View style={styles.toggleContainer}>
+                            <TouchableOpacity
+                                onPress={() => setLoginMethod('email')}
+                                style={[styles.toggleButton, loginMethod === 'email' && styles.toggleButtonActive]}
+                            >
+                                <Text style={[styles.toggleButtonText, loginMethod === 'email' && styles.toggleButtonTextActive]}>
+                                    Email
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setLoginMethod('atplId')}
+                                style={[styles.toggleButton, loginMethod === 'atplId' && styles.toggleButtonActive]}
+                            >
+                                <Text style={[styles.toggleButtonText, loginMethod === 'atplId' && styles.toggleButtonTextActive]}>
+                                    ATPL ID
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
                         {/* Email Input */}
-                        <View style={styles.inputWrapper}>
-                            <LinearGradient
-                                colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-                                style={styles.inputGradient}
-                            >
-                                <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
-                                <TextInput
-                                    placeholder="Email Address"
-                                    placeholderTextColor="#666"
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    style={styles.input}
-                                />
-                            </LinearGradient>
-                        </View>
-
-                        {/* Password Input */}
-                        <View style={styles.inputWrapper}>
-                            <LinearGradient
-                                colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-                                style={styles.inputGradient}
-                            >
-                                <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-                                <TextInput
-                                    placeholder="Password"
-                                    placeholderTextColor="#666"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry={!showPassword}
-                                    style={styles.input}
-                                />
-                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                    <Ionicons
-                                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                                        size={20}
-                                        color="#888"
+                        {loginMethod === 'email' && (
+                            <View style={styles.inputWrapper}>
+                                <LinearGradient
+                                    colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                                    style={styles.inputGradient}
+                                >
+                                    <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
+                                    <TextInput
+                                        placeholder="Email Address"
+                                        placeholderTextColor="#666"
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
+                                        style={styles.input}
                                     />
-                                </TouchableOpacity>
-                            </LinearGradient>
-                        </View>
+                                </LinearGradient>
+                            </View>
+                        )}
 
-                        <TouchableOpacity style={styles.forgotPassword}>
-                            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                        </TouchableOpacity>
+                        {/* ATPL ID Input */}
+                        {loginMethod === 'atplId' && (
+                            <View style={styles.inputWrapper}>
+                                <LinearGradient
+                                    colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                                    style={styles.inputGradient}
+                                >
+                                    <Ionicons name="card-outline" size={20} color="#888" style={styles.inputIcon} />
+                                    <TextInput
+                                        placeholder="ATPL ID"
+                                        placeholderTextColor="#666"
+                                        value={atplId}
+                                        onChangeText={setAtplId}
+                                        autoCapitalize="none"
+                                        style={styles.input}
+                                    />
+                                </LinearGradient>
+                            </View>
+                        )}
+
+                        {/* Password Input (Only for Email) */}
+                        {loginMethod === 'email' && (
+                            <>
+                                <View style={styles.inputWrapper}>
+                                    <LinearGradient
+                                        colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                                        style={styles.inputGradient}
+                                    >
+                                        <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+                                        <TextInput
+                                            placeholder="Password"
+                                            placeholderTextColor="#666"
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            secureTextEntry={!showPassword}
+                                            style={styles.input}
+                                        />
+                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                                            <Ionicons
+                                                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                                size={20}
+                                                color="#888"
+                                            />
+                                        </TouchableOpacity>
+                                    </LinearGradient>
+                                </View>
+
+                                <TouchableOpacity style={styles.forgotPassword}>
+                                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
 
 
 
@@ -255,7 +333,34 @@ const styles = StyleSheet.create({
     instructionText: {
         fontSize: 14,
         color: '#666',
-        marginBottom: 30,
+        marginBottom: 20,
+    },
+    toggleContainer: {
+        flexDirection: 'row',
+        marginBottom: 20,
+        gap: 10,
+    },
+    toggleButton: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        alignItems: 'center',
+    },
+    toggleButtonActive: {
+        backgroundColor: 'rgba(227, 28, 37, 0.2)',
+        borderColor: '#E31C25',
+    },
+    toggleButtonText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#666',
+    },
+    toggleButtonTextActive: {
+        color: '#E31C25',
     },
     inputWrapper: {
         marginBottom: 20,

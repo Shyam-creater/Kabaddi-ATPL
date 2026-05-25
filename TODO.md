@@ -1,8 +1,8 @@
-# TODO
+# TODO - Sidebar continue
 
-- [x] Update sidebar role access so `super_admin` can see and control: Teams, Matches, Leagues, Registration Requests, Notifications, App Content, Gallery
-  - File: `admin-panel/src/components/Sidebar.tsx`
-- [ ] Build/typecheck admin-panel
-- [ ] Quick runtime verification steps (manual)
+- [ ] Update `admin-panel/src/components/Sidebar_HEAD.tsx` to support `collapsed` prop (width + hide/show labels)
+- [ ] Add desktop collapse/expand toggle button wired to `onToggleCollapse` (with close/open adjust check)
 
+- [ ] Ensure mobile open/close still works (backdrop + onClose)
+- [ ] Smoke-test route navigation + active item styling in both modes
 

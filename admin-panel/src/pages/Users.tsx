@@ -8,7 +8,7 @@ import {
     Users as UsersIcon, UserCheck, UserPlus,
     ChevronRight,
     ShieldCheck, UserCog, Download, Filter,
-    ArrowUpDown, RefreshCcw
+    ArrowUpDown, RefreshCcw, Activity, Target, Zap, Trophy
 } from 'lucide-react';
 
 export default function Users() {
@@ -18,11 +18,15 @@ export default function Users() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<any>(null);
+    const [selectedUserStats, setSelectedUserStats] = useState<any>(null);
+    const [statsLoading, setStatsLoading] = useState(false);
+    const [activeStatTab, setActiveStatTab] = useState('overview');
     const [actionLoading, setActionLoading] = useState(false);
     const [filterRole, setFilterRole] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
+    const [imgError, setImgError] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const userId = searchParams.get('id');
 
@@ -42,6 +46,29 @@ export default function Users() {
             }
         }
     }, [userId, users]);
+
+    useEffect(() => {
+        if (selectedUser) {
+            setActiveStatTab('overview');
+            loadPlayerStats(selectedUser._id);
+            setImgError(false);
+        } else {
+            setSelectedUserStats(null);
+        }
+    }, [selectedUser]);
+
+    const loadPlayerStats = async (id: string) => {
+        try {
+            setStatsLoading(true);
+            const data = await adminService.getPlayerDetailedStats(id);
+            setSelectedUserStats(data);
+        } catch (error) {
+            console.error('Failed to fetch player stats', error);
+            setSelectedUserStats(null);
+        } finally {
+            setStatsLoading(false);
+        }
+    };
 
     useEffect(() => {
         const filtered = users.filter(
@@ -146,6 +173,7 @@ export default function Users() {
         active: users.filter(u => u.status !== 'suspended' && u.status !== 'pending').length,
         admins: users.filter(u => u.role === 'admin').length,
         thAccounts: users.filter(u => u.role === 'TH').length,
+        scorers: users.filter(u => u.role === 'scorer').length,
         newToday: users.filter(u => {
             const today = new Date();
             const joinDate = new Date(u.createdAt);
@@ -168,7 +196,7 @@ export default function Users() {
     );
 
     return (
-        <div className="min-h-screen pb-24 px-4 md:px-8 xl:px-12 space-y-10 animate-fade-in bg-[#fcfcfc]">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             {/* --- TOP HUD --- */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pt-4">
                 <div className="flex items-center gap-4">
@@ -195,8 +223,10 @@ export default function Users() {
                     <StatBox label="Active" value={stats.active} icon={UserCheck} color="bg-emerald-500" />
                     {currentUser?.role === 'super_admin' ? (
                         <StatBox label="Admins" value={stats.admins} icon={ShieldCheck} color="bg-orange-500" />
-                    ) : (
+                    ) : currentUser?.role === 'admin' ? (
                         <StatBox label="TH Accounts" value={stats.thAccounts} icon={ShieldCheck} color="bg-orange-500" />
+                    ) : (
+                        <StatBox label="Scorers" value={stats.scorers} icon={UserCheck} color="bg-orange-500" />
                     )}
                     <StatBox label="New" value={stats.newToday} icon={UserPlus} color="bg-blue-600" />
                 </div>
@@ -406,150 +436,141 @@ export default function Users() {
                     </table>
                 </div>
             </div>
-
             {/* --- PREMIUM USER PASSPORT MODAL --- */}
             {selectedUser && (
                 <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4"
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center md:pl-72 z-[999] p-4 sm:p-6"
                     onClick={() => setSelectedUser(null)}
                 >
                     <div
-                        className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-[0_30px_60px_rgba(0,0,0,0.35)] animate-scale-in overflow-y-auto max-h-[90vh] relative border-2 border-white"
+                        className="bg-gradient-to-b from-white to-gray-50/50 rounded-[1.5rem] w-full max-w-5xl shadow-2xl animate-scale-in relative border border-gray-100 max-h-[90vh] overflow-y-auto custom-scrollbar p-5 sm:p-6 flex flex-col gap-5"
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* Header Background */}
-                        <div className="absolute top-0 inset-x-0 h-56 bg-gray-950 overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-black" />
-                            <div className="absolute -top-20 -right-20 w-72 h-72 bg-red-600/10 rounded-full blur-[80px]" />
-                        </div>
-
                         {/* Close Button */}
-                        <div className="absolute top-6 right-6 z-30">
+                        <div className="absolute top-4 right-4 z-30">
                             <button
                                 onClick={() => setSelectedUser(null)}
-                                className="w-11 h-11 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-xl backdrop-blur-xl border border-white/10 transition-all active:scale-90"
+                                className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-900 text-gray-400 hover:text-white rounded-lg shadow-sm border border-gray-200/60 transition-all active:scale-95"
                             >
-                                <X size={22} />
+                                <X size={16} />
                             </button>
                         </div>
 
-                        <div className="relative z-10 px-6 lg:px-10 pt-16 pb-10">
-                            <div className="flex flex-col lg:flex-row gap-10 items-start">
-
-                                {/* LEFT PROFILE */}
-                                <div className="w-full lg:w-72 flex flex-col items-center">
-
-                                    <div className="relative mb-6">
-                                        <div className="w-52 h-52 rounded-[2.5rem] bg-gray-900 p-2 shadow-2xl">
-                                            <div className="w-full h-full rounded-[2rem] bg-white overflow-hidden border-2 border-gray-900/10">
-                                                {selectedUser.profilePicture ? (
-                                                    <img
-                                                        src={selectedUser.profilePicture}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                                                        <UserIcon size={60} className="text-gray-200" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="absolute -bottom-3 -right-3 w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-xl border-4 border-white">
-                                            <Award className="text-white" size={24} />
-                                        </div>
-                                    </div>
-
-                                    <div className="text-center space-y-3 w-full">
-                                        <h2 className="text-2xl lg:text-3xl font-black text-gray-900">
-                                            {selectedUser.name}
-                                        </h2>
-
-                                        <div className="flex flex-col items-center gap-2">
-                                            <span className="px-4 py-1.5 bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest rounded-full border border-primary/10">
-                                                {selectedUser.role} Verified
-                                            </span>
-
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase">
-                                                ATPL ID: {selectedUser.atplId || selectedUser._id?.slice(-8).toUpperCase()}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-wrap justify-center gap-2 pt-3">
-                                            {selectedUser.sports?.length > 0 ? (
-                                                selectedUser.sports.map((s: string) => (
-                                                    <span
-                                                        key={s}
-                                                        className="px-3 py-1.5 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg"
-                                                    >
-                                                        {s}
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                <span className="text-[10px] text-gray-400 italic">
-                                                    No sports registered
+                        {/* Top Identity Header */}
+                        <div className="flex items-center gap-4 w-full pb-3 border-b border-gray-100 z-10">
+                            {/* Profile Picture */}
+                            <div className="relative group shrink-0">
+                                <div className="w-16 h-16 rounded-xl bg-white shadow-sm border border-gray-100 p-0.5 transition-all duration-300">
+                                    <div className="w-full h-full rounded-lg overflow-hidden bg-gray-50">
+                                        {!imgError && selectedUser.profilePicture ? (
+                                            <img
+                                                src={selectedUser.profilePicture}
+                                                onError={() => setImgError(true)}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+                                                <span className="text-primary font-black text-lg">
+                                                    {selectedUser.name.charAt(0).toUpperCase()}
                                                 </span>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
+                                <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-md flex items-center justify-center shadow-md border border-white text-white z-10 ${
+                                    selectedUser.role === 'admin' ? 'bg-orange-500' :
+                                    selectedUser.role === 'TH' ? 'bg-indigo-500' :
+                                    selectedUser.role === 'scorer' ? 'bg-blue-500' :
+                                    'bg-gray-900'
+                                }`}>
+                                    {selectedUser.role === 'admin' ? <Shield size={10} /> :
+                                     selectedUser.role === 'TH' ? <ShieldCheck size={10} /> :
+                                     selectedUser.role === 'scorer' ? <UserIcon size={10} /> :
+                                     <Award size={10} />}
+                                </div>
+                            </div>
 
-                                {/* RIGHT DETAILS */}
-                                <div className="flex-1 space-y-8 w-full">
-
-                                    {/* INFO GRID */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <PremiumCard
-                                            icon={Mail}
-                                            label="Email"
-                                            value={selectedUser.email}
-                                            color="text-blue-600"
-                                        />
-
-                                        <PremiumCard
-                                            icon={Phone}
-                                            label="Phone"
-                                            value={selectedUser.phone || 'UNAVAILABLE'}
-                                            color="text-indigo-600"
-                                        />
-
-                                        <PremiumCard
-                                            icon={MapPin}
-                                            label="Location"
-                                            value={selectedUser.city || selectedUser.state || 'UNKNOWN'}
-                                            color="text-red-600"
-                                        />
-
-                                        <PremiumCard
-                                            icon={Calendar}
-                                            label="Joined"
-                                            value={new Date(selectedUser.createdAt).toLocaleDateString()}
-                                            color="text-amber-600"
-                                        />
+                            {/* Name and Badges */}
+                            <div className="flex-1 space-y-1.5 z-10">
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-lg font-black text-gray-900 tracking-tight">
+                                        {selectedUser.name}
+                                    </h2>
+                                    {selectedUser.gender === 'female' && <span className="text-pink-500 text-base" title="Female">♀</span>}
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-200/40 font-mono">
+                                        ID: {selectedUser.atplId || selectedUser._id?.slice(-8).toUpperCase()}
+                                    </span>
+                                    
+                                    <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border inline-flex items-center gap-1 bg-white ${
+                                        selectedUser.status === 'suspended' ? 'text-red-600 border-red-100' :
+                                        selectedUser.status === 'pending' ? 'text-amber-600 border-amber-100' :
+                                        'text-emerald-600 border-emerald-100'
+                                    }`}>
+                                        <span className={`w-1 h-1 rounded-full ${
+                                            selectedUser.status === 'suspended' ? 'bg-red-500' :
+                                            selectedUser.status === 'pending' ? 'bg-amber-500' : 'bg-emerald-500'
+                                        }`} />
+                                        {selectedUser.status || 'Active'}
                                     </div>
+                                    
+                                    <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border inline-flex items-center gap-1 bg-white ${
+                                        selectedUser.role === 'admin' ? 'text-orange-600 border-orange-100' :
+                                        selectedUser.role === 'TH' ? 'text-indigo-600 border-indigo-100' :
+                                        selectedUser.role === 'scorer' ? 'text-blue-600 border-blue-100' :
+                                        'text-gray-600 border-gray-200'
+                                    }`}>
+                                        {selectedUser.role} Account
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                                    {/* ACTION SECTION */}
-                                    <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100 space-y-8">
-                                        {/* ROLE SWITCH */}
+                        {/* 2-Column Main Content */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start w-full z-10">
+                            
+                            {/* LEFT SIDEBAR - Info & Admin Controls */}
+                            <div className="lg:col-span-4 space-y-4">
+                                
+                                {/* Contact Details */}
+                                <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100 space-y-3">
+                                    <div className="flex items-center gap-2 pb-1.5 border-b border-gray-200/60">
+                                        <UserIcon size={10} className="text-gray-400" />
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                            Contact Profile
+                                        </span>
+                                    </div>
+                                    <ContactRow icon={Mail} label="Email" value={selectedUser.email} color="text-blue-500" />
+                                    <ContactRow icon={Phone} label="Phone" value={selectedUser.phone || 'N/A'} color="text-indigo-500" />
+                                    <ContactRow icon={MapPin} label="Location" value={selectedUser.city || selectedUser.state || 'N/A'} color="text-red-500" />
+                                    <ContactRow icon={Calendar} label="Joined" value={new Date(selectedUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} color="text-amber-500" />
+                                </div>
+
+                                {/* ADMIN CONTROLS */}
+                                {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
+                                    <div className="space-y-4">
+                                        {/* Clearance Switch */}
                                         {currentUser?.role === 'super_admin' && (
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Shield size={15} className="text-gray-600" />
-                                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm space-y-3">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Shield size={10} className="text-orange-500" />
+                                                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
                                                         Clearance Level
                                                     </span>
                                                 </div>
 
-                                                <div className="flex flex-wrap gap-2 p-2 bg-white border border-gray-100 rounded-2xl">
+                                                <div className="grid grid-cols-3 gap-1 p-0.5 bg-gray-50 border border-gray-100 rounded-lg">
                                                     {['player', 'scorer', 'admin'].map(r => (
                                                         <button
                                                             key={r}
                                                             onClick={() => handleUpdateRole(r)}
                                                             disabled={actionLoading}
-                                                            className={`flex-1 min-w-[90px] py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all
-                                                 ${selectedUser.role === r
-                                                                    ? 'bg-primary text-white shadow-lg'
-                                                                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'
+                                                            className={`py-1.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-all duration-200
+                                                                ${selectedUser.role === r
+                                                                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200/40'
+                                                                    : 'text-gray-400 hover:text-gray-900 border border-transparent'
                                                                 }`}
                                                         >
                                                             {r}
@@ -559,35 +580,33 @@ export default function Users() {
                                             </div>
                                         )}
 
-                                        {/* ACTION BUTTONS */}
-                                        <div className="space-y-3">
-
-                                            <div className="flex items-center gap-2">
-                                                <UserCog size={15} className="text-gray-600" />
-                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                                                    Account Actions
+                                        {/* Account Actions */}
+                                        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm space-y-3">
+                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                                                <UserCog size={10} className="text-red-500" />
+                                                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                                    Authorization
                                                 </span>
                                             </div>
 
-                                            <div className={`grid gap-4 ${currentUser?.role === 'super_admin' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-
+                                            <div className="grid grid-cols-1 gap-2">
                                                 {selectedUser.status === 'suspended' ? (
                                                     <button
                                                         onClick={() => handleStatusChange('active')}
                                                         disabled={actionLoading}
-                                                        className="group py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all animate-fade-in"
+                                                        className="w-full py-2.5 bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all duration-200 border border-emerald-100 hover:border-emerald-500 shadow-sm active:scale-95"
                                                     >
-                                                        <CheckCircle size={18} />
-                                                        Restore
+                                                        <CheckCircle size={10} />
+                                                        Restore Account
                                                     </button>
                                                 ) : (
                                                     <button
                                                         onClick={() => handleStatusChange('suspended')}
                                                         disabled={actionLoading}
-                                                        className="group py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all animate-fade-in"
+                                                        className="w-full py-2.5 bg-gray-50 hover:bg-gray-900 text-gray-600 hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all duration-200 border border-gray-200/50 hover:border-gray-900 shadow-sm active:scale-95"
                                                     >
-                                                        <Ban size={18} />
-                                                        Suspend
+                                                        <Ban size={10} />
+                                                        Suspend Account
                                                     </button>
                                                 )}
 
@@ -595,23 +614,180 @@ export default function Users() {
                                                     <button
                                                         onClick={handleDelete}
                                                         disabled={actionLoading}
-                                                        className="group py-4 bg-white border-2 border-red-100 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-50 transition-all animate-fade-in"
+                                                        className="w-full py-2.5 bg-red-50 hover:bg-primary text-primary hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all duration-200 border border-red-100 hover:border-primary shadow-sm active:scale-95"
                                                     >
-                                                        <Trash2 size={18} />
-                                                        Delete
+                                                        <Trash2 size={10} />
+                                                        Delete Account
                                                     </button>
                                                 )}
                                             </div>
                                         </div>
-
                                     </div>
-                                </div>
+                                )}
+                            </div>
 
+                            {/* RIGHT COLUMN - Statistics */}
+                            <div className="lg:col-span-8 w-full">
+                                <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-gray-900 flex items-center justify-center">
+                                                <Activity size={10} className="text-white" />
+                                            </div>
+                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">
+                                                Player Data Vault
+                                            </span>
+                                        </div>
+                                        
+                                        {selectedUserStats?.stats && (
+                                            <div className="flex p-0.5 bg-gray-50 border border-gray-100 rounded-xl overflow-x-auto no-scrollbar">
+                                                {['overview', ...(selectedUserStats?.player?.playerProfile?.cricket ? ['formats', 'leagues', 'achievements'] : [])].map(tab => (
+                                                    <button
+                                                        key={tab}
+                                                        onClick={() => setActiveStatTab(tab)}
+                                                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all duration-200 whitespace-nowrap ${
+                                                            activeStatTab === tab 
+                                                                ? 'bg-white text-gray-900 shadow-sm border border-gray-200/40' 
+                                                                : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100/50 border border-transparent'
+                                                        }`}
+                                                    >
+                                                        {tab}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {statsLoading ? (
+                                        <div className="flex justify-center p-12">
+                                            <div className="w-10 h-10 border-4 border-gray-100 border-t-gray-900 rounded-full animate-spin"></div>
+                                        </div>
+                                    ) : selectedUserStats?.stats ? (
+                                        <div className="space-y-3 pt-1">
+                                            {/* OVERVIEW TAB */}
+                                            {activeStatTab === 'overview' && (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 animate-fade-in">
+                                                    <ModalStatCard label="Matches Played" value={selectedUserStats.stats.totalMatches} icon={Activity} color="bg-blue-500" accentColor="from-blue-400 to-blue-600" />
+                                                    <ModalStatCard label="Total Runs" value={selectedUserStats.stats.totalRunsScored} icon={Target} color="bg-emerald-500" accentColor="from-emerald-400 to-emerald-600" />
+                                                    <ModalStatCard label="Total Wickets" value={selectedUserStats.stats.totalWickets} icon={Shield} color="bg-purple-500" accentColor="from-purple-400 to-purple-600" />
+                                                    <ModalStatCard label="Batting Average" value={selectedUserStats.stats.battingAverage?.toFixed(2) || '0.00'} icon={ArrowUpDown} color="bg-amber-500" accentColor="from-amber-400 to-amber-600" />
+                                                    <ModalStatCard label="Strike Rate" value={selectedUserStats.stats.strikeRate?.toFixed(2) || '0.00'} icon={Zap} color="bg-rose-500" accentColor="from-rose-400 to-rose-600" />
+                                                    <ModalStatCard label="Matches Won" value={selectedUserStats.stats.matchesWon} icon={Trophy} color="bg-indigo-500" accentColor="from-indigo-400 to-indigo-600" />
+                                                </div>
+                                            )}
+
+                                            {/* FORMATS TAB */}
+                                            {activeStatTab === 'formats' && (
+                                                <div className="space-y-3 animate-fade-in">
+                                                    {selectedUserStats.player?.playerProfile?.cricket?.formatStats?.length > 0 ? (
+                                                        selectedUserStats.player.playerProfile.cricket.formatStats.map((f: any, idx: number) => (
+                                                            <div key={idx} className="bg-gradient-to-br from-white to-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-gray-200 transition-all duration-200">
+                                                                <div>
+                                                                    <div className="flex items-center gap-1.5 mb-2">
+                                                                        <span className="w-1 h-1 bg-primary rounded-full" />
+                                                                        <div className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{f.format}</div>
+                                                                    </div>
+                                                                    <div className="flex gap-6 text-xs font-bold text-gray-900">
+                                                                        <span className="flex flex-col"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Matches</span><span className="text-sm font-black tracking-tight">{f.matches}</span></span>
+                                                                        <span className="flex flex-col"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Runs</span><span className="text-sm font-black tracking-tight">{f.runs}</span></span>
+                                                                        <span className="flex flex-col"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Wickets</span><span className="text-sm font-black tracking-tight">{f.wickets}</span></span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="sm:text-right flex sm:flex-col justify-between items-center sm:items-end bg-gray-50 group-hover:bg-white p-3 sm:p-0 rounded-xl sm:rounded-none border border-gray-100 sm:border-transparent transition-all duration-200">
+                                                                    <div className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Avg / SR</div>
+                                                                    <div className="text-sm font-black text-gray-900 tracking-tight">{f.average || '0.0'} <span className="text-gray-300 font-bold mx-0.5">/</span> {f.strikeRate || '0.0'}</div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-center py-12 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 rounded-xl border border-gray-100">No format stats available</div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* LEAGUES TAB */}
+                                            {activeStatTab === 'leagues' && (
+                                                <div className="space-y-3 animate-fade-in">
+                                                    {selectedUserStats.player?.playerProfile?.cricket?.leagueHistory?.length > 0 ? (
+                                                        selectedUserStats.player.playerProfile.cricket.leagueHistory.map((l: any, idx: number) => (
+                                                            <div key={idx} className="bg-gradient-to-br from-white to-gray-50/50 p-4 rounded-xl border border-gray-100 space-y-4 group hover:border-gray-200 transition-all duration-200">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <div className="text-sm font-black text-gray-950 tracking-tight">{l.leagueName}</div>
+                                                                        <div className="flex items-center gap-1.5 mt-1.5">
+                                                                            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest bg-white shadow-sm px-2 py-0.5 rounded border border-gray-200/60">{l.teamName}</span>
+                                                                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">•</span>
+                                                                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{l.season}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-4 gap-2 pt-3 border-t border-gray-100">
+                                                                    <div className="text-center bg-white/80 p-2 rounded-lg border border-gray-100"><div className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Matches</div><div className="text-xs font-black text-gray-900 tracking-tight">{l.matches}</div></div>
+                                                                    <div className="text-center bg-white/80 p-2 rounded-lg border border-gray-100"><div className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Runs</div><div className="text-xs font-black text-gray-900 tracking-tight">{l.runs}</div></div>
+                                                                    <div className="text-center bg-white/80 p-2 rounded-lg border border-gray-100"><div className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Wickets</div><div className="text-xs font-black text-gray-900 tracking-tight">{l.wickets}</div></div>
+                                                                    <div className="text-center bg-white/80 p-2 rounded-lg border border-gray-100"><div className="text-[7px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Strike Rate</div><div className="text-xs font-black text-gray-900 tracking-tight">{l.strikeRate}</div></div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-center py-12 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 rounded-xl border border-gray-100">No league history available</div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* ACHIEVEMENTS TAB */}
+                                            {activeStatTab === 'achievements' && (
+                                                <div className="space-y-3 animate-fade-in">
+                                                    {selectedUserStats.player?.playerProfile?.cricket?.achievements?.length > 0 ? (
+                                                        selectedUserStats.player.playerProfile.cricket.achievements.map((a: any, idx: number) => (
+                                                            <div key={idx} className="bg-gradient-to-br from-white to-gray-50/50 p-4 rounded-xl border border-gray-100 flex gap-4 items-start group hover:border-gray-200 transition-all duration-200">
+                                                                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+                                                                    <Trophy size={16} className="text-amber-500" />
+                                                                </div>
+                                                                <div className="flex-1 pt-0.5">
+                                                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                                                                        <div className="text-sm font-black text-gray-950 tracking-tight">{a.title}</div>
+                                                                        <span className="px-2 py-0.5 bg-white shadow-sm rounded-lg text-[8px] font-black text-gray-500 border border-gray-200/60 tracking-wider font-mono">{a.year}</span>
+                                                                    </div>
+                                                                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">{a.description}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-center py-12 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 rounded-xl border border-gray-100">No achievements available</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-12 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 rounded-xl border border-gray-100">
+                                            No statistics available
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function ModalStatCard({ label, value, icon: Icon, color, accentColor }: any) {
+    return (
+        <div className="bg-gradient-to-br from-white to-gray-50/50 rounded-xl p-4 border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-300 group flex flex-col justify-between h-24 relative overflow-hidden">
+            {/* Accent top glow */}
+            <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${accentColor} opacity-70`} />
+            <div className="flex items-center justify-between">
+                <div className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{label}</div>
+                <div className={`w-7 h-7 rounded-lg ${color} flex items-center justify-center shadow-sm`}>
+                    <Icon size={12} className="text-white" />
+                </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none mt-2 tabular-nums">
+                {value}
+            </div>
         </div>
     );
 }
@@ -630,14 +806,16 @@ function StatBox({ label, value, icon: Icon, color }: any) {
     );
 }
 
-function PremiumCard({ icon: Icon, label, value, color }: any) {
+function ContactRow({ icon: Icon, label, value, color }: any) {
     return (
-        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 hover:border-primary/20 transition-all group shadow-sm hover:shadow-xl hover:shadow-gray-200/50 flex flex-col">
-            <div className={`w-12 h-12 rounded-2xl bg-gray-50 ${color} mb-5 flex items-center justify-center group-hover:scale-110 group-hover:bg-white group-hover:shadow-md transition-all duration-500`}>
-                <Icon size={20} />
+        <div className="flex items-center gap-4 group cursor-default p-2 rounded-2xl hover:bg-gray-100/50 transition-colors">
+            <div className={`w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center ${color} group-hover:scale-110 transition-transform duration-300 shrink-0`}>
+                <Icon size={16} />
             </div>
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</div>
-            <div className="text-sm font-bold text-gray-900 truncate group-hover:text-primary transition-colors">{value}</div>
+            <div className="flex-1 min-w-0">
+                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{label}</div>
+                <div className="text-sm font-bold text-gray-900 truncate" title={value}>{value}</div>
+            </div>
         </div>
     );
 }

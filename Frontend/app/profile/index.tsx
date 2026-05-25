@@ -13,8 +13,10 @@ import {
     RefreshControl,
     StatusBar,
     Linking,
-    Modal
+    Modal,
+    ToastAndroid
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '@/app/ctx';
 import { useRouter } from 'expo-router';
@@ -81,6 +83,15 @@ export default function ProfilePage() {
 
     const navigateTo = (screen: string) => {
         router.push(`/profile/${screen}` as any);
+    };
+
+    const copyToClipboard = async (text: string) => {
+        await Clipboard.setStringAsync(text);
+        if (Platform.OS === 'android') {
+            ToastAndroid.show('ID copied to clipboard!', ToastAndroid.SHORT);
+        } else {
+            Alert.alert('Copied', 'ID copied to clipboard!');
+        }
     };
 
     // ... existing helper functions like hasCricketProfile, calculateAge ...
@@ -183,6 +194,15 @@ export default function ProfilePage() {
                             </TouchableOpacity>
                         </View>
                         <Text style={styles.userName}>{user?.name || 'Guest user'}</Text>
+                        {user?.atplId && (
+                            <TouchableOpacity 
+                                style={styles.atplIdContainer}
+                                onPress={() => copyToClipboard(user.atplId)}
+                            >
+                                <Text style={styles.atplIdText}>{user.atplId}</Text>
+                                <Ionicons name="copy-outline" size={14} color="#fff" />
+                            </TouchableOpacity>
+                        )}
 
                         {/* Social Stats */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 20 }}>
@@ -308,6 +328,8 @@ const styles = StyleSheet.create({
     avatarImage: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)' }, // Slightly larger
     avatarPlaceholder: { width: 120, height: 120, borderRadius: 60, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)', backgroundColor: '#fff' },
     userName: { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: 0.5, marginBottom: 15 },
+    atplIdContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginBottom: 15, gap: 8 },
+    atplIdText: { fontSize: 13, fontWeight: '800', color: '#fff', letterSpacing: 1.5 },
     headerGrid: { width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 15, gap: 15 },
     gridRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 15 },
     gridItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },

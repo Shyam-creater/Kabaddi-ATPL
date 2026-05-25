@@ -24,7 +24,7 @@ exports.protect = async (req, res, next) => {
 };
 
 exports.adminOnly = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
         next();
     } else {
         return next(new ApiError(403, 'Administrator access required'));
@@ -40,9 +40,17 @@ exports.thOnly = (req, res, next) => {
 };
 
 exports.adminOrTH = (req, res, next) => {
-    if (req.user && (req.user.role === 'admin' || req.user.role === 'TH' || req.user.role === 'scorer')) {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin' || req.user.role === 'TH' || req.user.role === 'scorer')) {
         next();
     } else {
         return next(new ApiError(403, 'Administrator, Tournament Head, or Scorer access required'));
+    }
+};
+
+exports.adminSuperAdminOrTH = (req, res, next) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin' || req.user.role === 'TH')) {
+        next();
+    } else {
+        return next(new ApiError(403, 'Administrator or Tournament Head access required'));
     }
 };

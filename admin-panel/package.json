@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@headlessui/react": "^2.2.9",
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.4",
     "jspdf": "^4.2.1",
@@ -20,7 +24,8 @@
     "react-dom": "^19.2.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.13.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

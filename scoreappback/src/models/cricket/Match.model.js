@@ -59,33 +59,51 @@ const matchSchema = new mongoose.Schema({
         image: String
     }],
     assignedScorer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    scoreA: { type: mongoose.Schema.Types.Mixed, default: { runs: 0, wickets: 0, overs: 0 } },
-    scoreB: { type: mongoose.Schema.Types.Mixed, default: { runs: 0, wickets: 0, overs: 0 } },
+    scoreA: { type: mongoose.Schema.Types.Mixed, default: { runs: 0, wickets: 0, overs: 0, extras: 0, wides: 0, noballs: 0, byes: 0, legbyes: 0 } },
+    scoreB: { type: mongoose.Schema.Types.Mixed, default: { runs: 0, wickets: 0, overs: 0, extras: 0, wides: 0, noballs: 0, byes: 0, legbyes: 0 } },
     target: Number,
+    tossWinner: String,
+    tossDecision: String,
+    oversLimit: { type: Number, default: 20 },
     battingLineup: [{
         name: String,
         position: String,
-        runs: Number,
-        balls: Number,
-        status: String
+        runs: { type: Number, default: 0 },
+        balls: { type: Number, default: 0 },
+        fours: { type: Number, default: 0 },
+        sixes: { type: Number, default: 0 },
+        status: { type: String, default: 'Yet to Bat' },
+        dismissal: String
     }],
     bowlingLineup: [{
         name: String,
-        overs: Number,
-        maidens: Number,
-        runs: Number,
-        wickets: Number
+        overs: { type: Number, default: 0 },
+        maidens: { type: Number, default: 0 },
+        runs: { type: Number, default: 0 },
+        wickets: { type: Number, default: 0 },
+        wides: { type: Number, default: 0 },
+        noballs: { type: Number, default: 0 }
     }],
     currentBatters: [
-        { name: String, runs: Number, balls: Number, isStriker: Boolean }
+        { name: String, runs: { type: Number, default: 0 }, balls: { type: Number, default: 0 }, fours: { type: Number, default: 0 }, sixes: { type: Number, default: 0 }, isStriker: Boolean }
     ],
     currentBowler: {
         name: String,
-        overs: Number,
-        maidens: Number,
-        runs: Number,
-        wickets: Number
+        overs: { type: Number, default: 0 },
+        maidens: { type: Number, default: 0 },
+        runs: { type: Number, default: 0 },
+        wickets: { type: Number, default: 0 },
+        wides: { type: Number, default: 0 },
+        noballs: { type: Number, default: 0 }
     },
+    commentary: [{
+        over: Number,
+        ball: Number,
+        runs: Number,
+        event: String,
+        description: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
     playerStats: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         name: String,

@@ -26,7 +26,7 @@ const ApiError = require('../utils/ApiError');
 exports.getDashboardStats = async (req, res, next) => {
     try {
         let userRoles = ['player', 'scorer'];
-        if (req.user.role === 'admin') {
+        if (req.user.role === 'admin' || req.user.role === 'super_admin') {
             userRoles.push('TH');
         }
 
@@ -100,10 +100,39 @@ exports.getAllUsers = async (req, res, next) => {
         const { includeAdmins } = req.query;
         let query = {};
         
-        if (req.user.role === 'super_admin') {
-            // Super Admin: gets players/scorers. If includeAdmins is true, also gets sub-admins (role: 'admin'), but NEVER THs
+        if (req.user.role === 'TH') {
+            const createdBy = req.user._id;
+
+            // 1. Tournaments created by this TH
+            const [cricketTournaments, footballTournaments, kabaddiTournaments] = await Promise.all([
+                CricketTournament.find({ createdBy }).select('_id').lean(),
+                FootballTournament.find({ createdBy }).select('_id').lean(),
+                KabaddiTournament.find({ createdBy }).select('_id').lean()
+            ]);
+
+            const allTournamentIds = [
+                ...cricketTournaments.map(t => t._id),
+                ...footballTournaments.map(t => t._id),
+                ...kabaddiTournaments.map(t => t._id)
+            ];
+
+            // 2. Retrieve player registrations to get the userIds
+            const registrations = await PlayerRegistration.find({ tournamentId: { $in: allTournamentIds } })
+                .select('userId')
+                .lean();
+            const playerUserIds = registrations.filter(r => r.userId).map(r => r.userId);
+
+            // 3. Combined query for scorers created by TH and players registered
+            query = {
+                $or: [
+                    { _id: { $in: playerUserIds } },
+                    { role: 'scorer', createdBy: createdBy }
+                ]
+            };
+        } else if (req.user.role === 'super_admin') {
+            // Super Admin: gets players/scorers. If includeAdmins is true, also gets sub-admins (role: 'admin') and THs
             if (includeAdmins === 'true') {
-                query.role = { $in: ['admin', 'player', 'scorer'] };
+                query.role = { $in: ['admin', 'player', 'scorer', 'TH'] };
             } else {
                 query.role = { $in: ['player', 'scorer'] };
             }
@@ -382,6 +411,185 @@ exports.deleteSubAdmin = async (req, res, next) => {
         }
 
         res.status(200).json(ApiResponse.success('Sub-admin deleted successfully'));
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Get Detailed Player Statistics
+// @route   GET /api/admin/players/:id/stats
+// @access  Private/Admin
+exports.getPlayerDetailedStats = async (req, res, next) => {
+    try {
+        const userId = req.params.id;
+        
+        // Get player user data
+        const player = await User.findById(userId).select('-password').lean();
+        if (!player) {
+            return next(new ApiError(404, 'Player not found'));
+        }
+
+        // Get all tournaments the player is registered for (all sports)
+        const registrations = await PlayerRegistration.find({ userId }).lean();
+        const tournamentIds = [...new Set(registrations.map(r => r.tournamentId))];
+        
+        // Get all tournaments (fetch from all types)
+        const [cricketTournaments, footballTournaments, kabaddiTournaments] = await Promise.all([
+            CricketTournament.find({ _id: { $in: tournamentIds } }).lean(),
+            FootballTournament.find({ _id: { $in: tournamentIds } }).lean(),
+            KabaddiTournament.find({ _id: { $in: tournamentIds } }).lean()
+        ]);
+        
+        const allTournaments = [
+            ...cricketTournaments.map(t => ({ ...t, sport: 'cricket' })),
+            ...footballTournaments.map(t => ({ ...t, sport: 'football' })),
+            ...kabaddiTournaments.map(t => ({ ...t, sport: 'kabaddi' }))
+        ];
+
+        // Get all teams the player belongs to (all sports)
+        const [cricketTeams, footballTeams, kabaddiTeams] = await Promise.all([
+            CricketTeam.find({ 'players.user': userId }).lean(),
+            FootballTeam.find({ 'players.user': userId }).lean(),
+            KabaddiTeam.find({ 'players.user': userId }).lean()
+        ]);
+        
+        const allTeams = [
+            ...cricketTeams.map(t => ({ ...t, sport: 'cricket' })),
+            ...footballTeams.map(t => ({ ...t, sport: 'football' })),
+            ...kabaddiTeams.map(t => ({ ...t, sport: 'kabaddi' }))
+        ];
+
+        // Get all matches where the player participated (cricket only for now)
+        const matches = await CricketMatch.find({
+            $or: [
+                { 'teamAPlayers.user': userId },
+                { 'teamBPlayers.user': userId }
+            ]
+        }).lean();
+
+        // Calculate match-by-match scores
+        const matchStats = matches.map(match => {
+            const isTeamA = match.teamAPlayers?.some(p => p.user?.toString() === userId);
+            const playerInMatch = isTeamA 
+                ? match.teamAPlayers?.find(p => p.user?.toString() === userId)
+                : match.teamBPlayers?.find(p => p.user?.toString() === userId);
+
+            return {
+                matchId: match._id,
+                title: match.title,
+                date: match.date,
+                venue: match.venue,
+                status: match.status,
+                matchType: match.matchType,
+                opponent: isTeamA ? match.teamB : match.teamA,
+                playerTeam: isTeamA ? match.teamA : match.teamB,
+                playerTeamScore: isTeamA ? match.scoreA : match.scoreB,
+                opponentScore: isTeamA ? match.scoreB : match.scoreA,
+                result: isTeamA 
+                    ? (match.scoreA.runs > match.scoreB.runs ? 'Won' : 'Lost')
+                    : (match.scoreB.runs > match.scoreA.runs ? 'Won' : 'Lost'),
+                playerInfo: playerInMatch || null
+            };
+        });
+
+        // Calculate overall statistics
+        const overallStats = {
+            totalMatches: matches.length,
+            totalTournaments: allTournaments.length,
+            totalTeams: allTeams.length,
+            totalLeaguesRegistered: registrations.length,
+            matchesWon: matchStats.filter(m => m.result === 'Won').length,
+            matchesLost: matchStats.filter(m => m.result === 'Lost').length,
+            totalRunsScored: player.playerProfile?.cricket?.careerSummary?.totalRuns || 0,
+            totalWickets: player.playerProfile?.cricket?.careerSummary?.totalWickets || 0,
+            battingAverage: player.playerProfile?.cricket?.careerSummary?.battingAverage || 0,
+            strikeRate: player.playerProfile?.cricket?.careerSummary?.strikeRate || 0,
+            economyRate: player.playerProfile?.cricket?.careerSummary?.economyRate || 0
+        };
+
+        // Group tournaments by sport
+        const tournamentsByLeague = {};
+        allTournaments.forEach(t => {
+            if (!tournamentsByLeague[t.sport]) {
+                tournamentsByLeague[t.sport] = [];
+            }
+            tournamentsByLeague[t.sport].push({
+                id: t._id,
+                name: t.name,
+                year: t.year,
+                season: t.season,
+                format: t.format,
+                status: t.status,
+                startDate: t.startDate,
+                endDate: t.endDate
+            });
+        });
+
+        // Group teams by sport
+        const teamsByLeague = {};
+        allTeams.forEach(t => {
+            if (!teamsByLeague[t.sport]) {
+                teamsByLeague[t.sport] = [];
+            }
+            teamsByLeague[t.sport].push({
+                id: t._id,
+                name: t.name,
+                code: t.code,
+                logo: t.logo,
+                city: t.city,
+                captain: t.captain,
+                matchesPlayed: t.matchesPlayed,
+                won: t.won,
+                lost: t.lost,
+                points: t.points
+            });
+        });
+
+        res.status(200).json(ApiResponse.success('Player detailed stats fetched', {
+            player: {
+                _id: player._id,
+                atplId: player.atplId,
+                name: player.name,
+                email: player.email,
+                phone: player.phone,
+                city: player.city,
+                state: player.state,
+                gender: player.gender,
+                profilePicture: player.profilePicture,
+                status: player.status,
+                createdAt: player.createdAt,
+                sports: player.sports,
+                playerProfile: player.playerProfile
+            },
+            stats: overallStats,
+            leagues: {
+                byType: tournamentsByLeague,
+                total: allTournaments.length,
+                cricket: tournamentsByLeague.cricket?.length || 0,
+                football: tournamentsByLeague.football?.length || 0,
+                kabaddi: tournamentsByLeague.kabaddi?.length || 0
+            },
+            teams: {
+                byType: teamsByLeague,
+                total: allTeams.length,
+                cricket: teamsByLeague.cricket?.length || 0,
+                football: teamsByLeague.football?.length || 0,
+                kabaddi: teamsByLeague.kabaddi?.length || 0
+            },
+            matches: {
+                total: matches.length,
+                details: matchStats,
+                byStatus: {
+                    completed: matches.filter(m => m.status === 'COMPLETED').length,
+                    live: matches.filter(m => m.status === 'LIVE').length,
+                    upcoming: matches.filter(m => m.status === 'UPCOMING').length
+                }
+            },
+            registrations: {
+                total: registrations.length,
+                details: registrations
+            }
+        }));
     } catch (error) {
         next(error);
     }

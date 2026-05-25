@@ -21,9 +21,13 @@ import Teams from './pages/Teams';
 import AuctionManager from './pages/AuctionManager';
 import GalleryManager from './pages/GalleryManager';
 import Stores from './pages/Stores';
+import CatalogManager from './pages/CatalogManager';
+import ShippingManager from './pages/ShippingManager';
+import OrdersManager from './pages/OrdersManager';
 import Notifications from './pages/Notifications';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import './index.css';
+
 
 function App() {
   return (
@@ -172,6 +176,36 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <ContentManager />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/catalog"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CatalogManager />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shipping"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ShippingManager />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OrdersManager />
                 </Layout>
               </ProtectedRoute>
             }

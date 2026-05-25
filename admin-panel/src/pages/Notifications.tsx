@@ -148,7 +148,7 @@ export default function Notifications() {
     );
 
     return (
-        <div className="max-w-7xl mx-auto space-y-12 pb-24 animate-fade-in font-['Outfit'] pt-16">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in font-['Outfit'] pt-8">
             {/* Header Suite */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 border-b border-gray-100 pb-10">
                 <div className="space-y-3">

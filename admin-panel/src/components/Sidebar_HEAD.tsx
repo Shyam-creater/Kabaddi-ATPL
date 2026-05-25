@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
     Home, Users, ShoppingCart, Trophy, Calendar, 
     LayoutTemplate, Shield, Gavel, Image as ImageIcon, 
-    Settings, Bell, X, LogOut, Search, User
+    Settings, Bell, X, LogOut, Search, User, Layers, 
+    ShoppingBag, Truck, ChevronDown, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import logo from '../assets/images/ATPL-LOGO.jpeg';
 import { logout } from '../store/authSlice';
@@ -14,9 +15,13 @@ import { adminService } from '../services/admin';
 interface SidebarProps {
     isOpen?: boolean;
     onClose?: () => void;
+    // Layout passes these props; Sidebar_HEAD doesn't use them in this implementation.
+    collapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
-export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+
+export default function Sidebar({ isOpen = false, onClose, collapsed = false, onToggleCollapse }: SidebarProps) {
     const location = useLocation();
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -32,6 +37,16 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     const [isSearching, setIsSearching] = useState(false);
     const [allSearchableData, setAllSearchableData] = useState<{ users: any[], leagues: any[] }>({ users: [], leagues: [] });
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    const isStorePath = ['/stores', '/catalog', '/orders', '/shipping'].includes(location.pathname);
+    const [isStoresOpen, setIsStoresOpen] = useState(isStorePath);
+    const [showFloatingStoreMenu, setShowFloatingStoreMenu] = useState(false);
+
+    useEffect(() => {
+        if (isStorePath) {
+            setIsStoresOpen(true);
+        }
+    }, [location.pathname, isStorePath]);
 
     useEffect(() => {
         if (user) {
@@ -131,13 +146,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     };
 
     const confirmLogout = () => {
-        const userRole = user?.role;
         dispatch(logout());
-        if (userRole === 'TH' || userRole === 'scorer') {
-            navigate('/th-login');
-        } else {
-            navigate('/login');
-        }
+        navigate('/login-choice');
     };
 
     const navigation = [
@@ -151,7 +161,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         { name: 'Scorers', href: '/scorers', icon: Users, roles: ['admin', 'TH'] },
         { name: 'Leagues', href: '/leagues', icon: Calendar, roles: ['admin', 'super_admin', 'TH'] },
         { name: 'Registration Requests', href: '/registrations', icon: LayoutTemplate, roles: ['admin', 'super_admin', 'TH'] },
-        { name: 'Stores', href: '/stores', icon: ShoppingCart, roles: ['admin'] },
+        { name: 'Stores', href: '/stores', icon: ShoppingCart, roles: ['admin', 'super_admin'] },
         { name: 'App Content', href: '/content', icon: LayoutTemplate, roles: ['admin', 'super_admin'] },
         { name: 'Notifications', href: '/notifications', icon: Bell, roles: ['admin', 'super_admin'] },
         { name: 'Gallery', href: '/gallery', icon: ImageIcon, roles: ['admin', 'super_admin', 'TH'] },
@@ -169,9 +179,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                 />
             )}
 
-            <aside className={`flex flex-col w-72 h-screen fixed top-0 left-0 z-50 bg-[#070b14] text-white shadow-[10px_0_40px_rgba(0,0,0,0.3)] overflow-hidden font-['Outfit'] border-r border-white/5 transition-transform duration-300 ease-out md:translate-x-0 ${
+            <aside className={`flex flex-col h-screen fixed top-0 left-0 z-50 bg-[#070b14] text-white shadow-[10px_0_40px_rgba(0,0,0,0.3)] overflow-hidden font-['Outfit'] border-r border-white/5 transition-all duration-300 ease-out md:translate-x-0 ${
                 isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-            }`}>
+            } ${collapsed ? 'w-20' : 'w-72'}`}>
+
                 {/* Ambient Background Effects */}
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                     <div className="absolute -top-[10%] -left-[10%] w-[80%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
@@ -179,27 +190,45 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                 </div>
 
                 {/* Brand Section */}
-                <div className="relative z-10 px-8 py-8 flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-4 group">
+                <div className={`relative z-10 flex items-center justify-between flex-shrink-0 transition-all duration-300 ${
+                    collapsed ? 'px-3 py-6 flex-col gap-4' : 'px-8 py-8'
+                }`}>
+                    <div className={`flex items-center gap-3 group ${collapsed ? 'flex-col' : ''}`}>
                         <div className="relative shrink-0">
                             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600 to-fuchsia-600 rounded-2xl blur-md opacity-40 group-hover:opacity-80 transition-all duration-500" />
                             <div className="relative w-12 h-12 rounded-2xl overflow-hidden ring-1 ring-white/20 p-0.5 bg-white/5">
                                 <img src={logo} alt="ATPL" className="w-full h-full object-cover rounded-[14px]" />
                             </div>
                         </div>
-                        <div>
-                            <h1 className="text-2xl font-black tracking-tighter leading-none">
-                                <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-indigo-300">ATPL</span>
-                                <span className="text-indigo-500 font-extrabold ml-1">SCORE</span>
-                            </h1>
-                            <div className="flex items-center gap-2 mt-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.25em]">
-                                    {user?.role === 'super_admin' ? 'Super Admin Portal' : user?.role === 'admin' ? 'Sub-Admin Portal' : user?.role === 'scorer' ? 'Scorer Portal' : 'TH Portal'}
-                                </p>
+                        {!collapsed && (
+                            <div className="animate-fade-in">
+                                <h1 className="text-2xl font-black tracking-tighter leading-none">
+                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-indigo-300">ATPL</span>
+                                    <span className="text-indigo-500 font-extrabold ml-1">SCORE</span>
+                                </h1>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.25em]">
+                                        {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'admin' ? 'Sub-Admin' : user?.role === 'scorer' ? 'Scorer' : 'TH'}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
+
+                    {/* Desktop collapse toggle */}
+                    {onToggleCollapse && (
+                        <button
+                            onClick={onToggleCollapse}
+                            className={`hidden md:flex items-center justify-center w-8 h-8 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-indigo-500/30 text-white/70 hover:text-white transition-all active:scale-95 ${
+                                collapsed ? 'mt-1' : ''
+                            }`}
+                            aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
+                            title={collapsed ? 'Open sidebar' : 'Close sidebar'}
+                        >
+                            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                        </button>
+                    )}
 
                     {/* Mobile Close Button */}
                     <button
@@ -212,24 +241,30 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                 </div>
 
                 {/* Global Search Bar (Sidebar Integrated) */}
-                <div className="relative z-20 px-4 mb-4 flex-shrink-0">
-                    <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all">
-                        <Search className="w-4 h-4 text-slate-400 mr-2.5 shrink-0" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            onFocus={() => fetchGlobalSearchData()}
-                            placeholder="Search users or leagues..."
-                            className="bg-transparent border-none outline-none text-xs w-full font-bold text-white placeholder-slate-500"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => handleSearch('')}
-                                className="text-slate-400 hover:text-white p-0.5"
-                            >
-                                <X size={14} />
-                            </button>
+                <div className={`relative z-20 px-4 mb-4 flex-shrink-0 transition-all duration-300 ${collapsed ? 'flex justify-center' : ''}`}>
+                    <div className={`flex items-center bg-white/5 border border-white/10 rounded-2xl transition-all ${
+                        collapsed ? 'p-3 justify-center' : 'px-4 py-2.5'
+                    } focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10`}>
+                        <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                        {!collapsed && (
+                            <>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    onFocus={() => fetchGlobalSearchData()}
+                                    placeholder="Search users or leagues..."
+                                    className="bg-transparent border-none outline-none text-xs w-full font-bold text-white placeholder-slate-500 ml-2.5"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => handleSearch('')}
+                                        className="text-slate-400 hover:text-white p-0.5"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
 
@@ -310,43 +345,149 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
                 {/* Navigation */}
                 <nav className="relative z-10 flex-1 px-4 py-2 space-y-1.5 overflow-y-auto custom-scrollbar">
-                    <div className="px-5 mb-3 flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">General</span>
-                        <Settings size={12} className="text-slate-700" />
-                    </div>
+                    {!collapsed && (
+                        <div className="px-5 mb-3 flex items-center justify-between animate-fade-in">
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">General</span>
+                            <Settings size={12} className="text-slate-700" />
+                        </div>
+                    )}
 
                     {filteredNavigation.map((item) => {
                         const isActive = location.pathname === item.href;
                         const Icon = item.icon;
+
+                        if (item.name === 'Stores') {
+                            return (
+                                <div key={item.name} className="relative group/stores"
+                                     onMouseEnter={() => collapsed && setShowFloatingStoreMenu(true)}
+                                     onMouseLeave={() => collapsed && setShowFloatingStoreMenu(false)}>
+                                    <button
+                                        onClick={() => !collapsed && setIsStoresOpen(!isStoresOpen)}
+                                        className={`w-full group relative flex items-center text-sm font-bold rounded-2xl transition-all duration-300 ease-out 
+                                            ${collapsed ? 'px-3 py-3 justify-center' : 'px-5 py-3'}
+                                            ${isStorePath
+                                                ? 'text-white shadow-[0_10px_20px_-5px_rgba(79,70,229,0.3)] bg-gradient-to-r from-indigo-600 to-indigo-500'
+                                                : 'text-slate-400 hover:text-white hover:bg-white/[0.03]'
+                                            }`}
+                                        title={collapsed ? 'Store Manager' : undefined}
+                                    >
+                                        <div className={`p-1.5 rounded-xl transition-all duration-300 ${collapsed ? 'mr-0' : 'mr-3'} ${isStorePath ? 'bg-white/10' : 'bg-transparent group-hover:bg-white/5'}`}>
+                                            <ShoppingCart className={`w-4 h-4 transition-all duration-300 ${isStorePath ? 'text-white scale-110' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                                        </div>
+                                        {!collapsed && (
+                                            <>
+                                                <span className="flex-1 tracking-tight text-xs text-left animate-fade-in">Store Manager</span>
+                                                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${isStoresOpen ? 'rotate-180 text-white' : ''}`} />
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {/* Submenu in Expanded mode */}
+                                    {!collapsed && isStoresOpen && (
+                                        <div className="pl-5 mt-1.5 space-y-1 border-l border-white/10 ml-7 animate-fade-in">
+                                            {[
+                                                { name: 'Products', href: '/stores', icon: ShoppingCart },
+                                                { name: 'Catalog', href: '/catalog', icon: Layers },
+                                                { name: 'Orders', href: '/orders', icon: ShoppingBag },
+                                                { name: 'Shipping', href: '/shipping', icon: Truck },
+                                            ].map((subItem) => {
+                                                const isSubActive = location.pathname === subItem.href;
+                                                const SubIcon = subItem.icon;
+                                                return (
+                                                    <Link
+                                                        key={subItem.name}
+                                                        to={subItem.href}
+                                                        onClick={onClose}
+                                                        className={`group relative flex items-center px-4 py-2 text-xs font-bold rounded-xl transition-all duration-300 ease-out 
+                                                            ${isSubActive
+                                                                ? 'text-white bg-white/10'
+                                                                : 'text-slate-400 hover:text-white hover:bg-white/[0.02]'
+                                                            }`}
+                                                    >
+                                                        <SubIcon className={`w-3.5 h-3.5 mr-2.5 transition-colors ${isSubActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                                                        <span className="tracking-tight">{subItem.name}</span>
+                                                        {isSubActive && (
+                                                            <div className="absolute right-3 w-1 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,1)]" />
+                                                        )}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Floating Popover in Collapsed mode */}
+                                    {collapsed && showFloatingStoreMenu && (
+                                        <div 
+                                            className="absolute left-[68px] -top-2 bg-[#0a0f1d]/95 backdrop-blur-xl border border-white/10 shadow-[10px_10px_30px_rgba(0,0,0,0.5)] rounded-2xl p-2 z-[100] w-44 animate-scale-in"
+                                            onMouseEnter={() => setShowFloatingStoreMenu(true)}
+                                            onMouseLeave={() => setShowFloatingStoreMenu(false)}
+                                        >
+                                            <div className="px-3 py-1.5 border-b border-white/5 mb-1">
+                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Store Manager</p>
+                                            </div>
+                                            {[
+                                                { name: 'Products', href: '/stores', icon: ShoppingCart },
+                                                { name: 'Catalog', href: '/catalog', icon: Layers },
+                                                { name: 'Orders', href: '/orders', icon: ShoppingBag },
+                                                { name: 'Shipping', href: '/shipping', icon: Truck },
+                                            ].map((subItem) => {
+                                                const isSubActive = location.pathname === subItem.href;
+                                                const SubIcon = subItem.icon;
+                                                return (
+                                                    <Link
+                                                        key={subItem.name}
+                                                        to={subItem.href}
+                                                        onClick={() => { setShowFloatingStoreMenu(false); if(onClose) onClose(); }}
+                                                        className={`group flex items-center px-3 py-2 text-xs font-bold rounded-xl transition-all duration-300
+                                                            ${isSubActive
+                                                                ? 'text-white bg-white/10'
+                                                                : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                                                            }`}
+                                                    >
+                                                        <SubIcon className={`w-3.5 h-3.5 mr-2.5 transition-colors ${isSubActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                                                        <span>{subItem.name}</span>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
+
                         return (
                             <Link
                                 key={item.name}
                                 to={item.href}
                                 onClick={onClose}
-                                className={`group relative flex items-center px-5 py-3 text-sm font-bold rounded-2xl transition-all duration-300 ease-out 
+                                className={`group relative flex items-center text-sm font-bold rounded-2xl transition-all duration-300 ease-out 
+                                    ${collapsed ? 'px-3 py-3 justify-center' : 'px-5 py-3'}
                                     ${isActive
-                                        ? 'text-white shadow-[0_10px_20px_-5px_rgba(79,70,229,0.3)] bg-gradient-to-r from-indigo-600 to-indigo-500 translate-x-1'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/[0.03] hover:translate-x-1'
+                                        ? `text-white shadow-[0_10px_20px_-5px_rgba(79,70,229,0.3)] bg-gradient-to-r from-indigo-600 to-indigo-500 ${collapsed ? '' : 'translate-x-1'}`
+                                        : `text-slate-400 hover:text-white hover:bg-white/[0.03] ${collapsed ? '' : 'hover:translate-x-1'}`
                                     }`}
+                                title={collapsed ? item.name : undefined}
                             >
-                                <div className={`p-1.5 rounded-xl mr-3 transition-all duration-300 ${isActive ? 'bg-white/10' : 'bg-transparent group-hover:bg-white/5'}`}>
+                                <div className={`p-1.5 rounded-xl transition-all duration-300 ${collapsed ? 'mr-0' : 'mr-3'} ${isActive ? 'bg-white/10' : 'bg-transparent group-hover:bg-white/5'}`}>
                                     <Icon className={`w-4 h-4 transition-all duration-300 ${isActive ? 'text-white scale-110' : 'text-slate-500 group-hover:text-indigo-400'}`} />
                                 </div>
-                                <span className="flex-1 tracking-tight text-xs">{item.name}</span>
+                                {!collapsed && (
+                                    <span className="flex-1 tracking-tight text-xs animate-fade-in">{item.name}</span>
+                                )}
 
-                                {isActive && (
+                                {isActive && !collapsed && (
                                     <div className="absolute right-4 w-1 h-4 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,1)]" />
                                 )}
                             </Link>
                         );
                     })}
-                </nav>
-
-                {/* Sidebar Footer - User Profile & Action Controls */}
+                </nav>                {/* Sidebar Footer - User Profile & Action Controls */}
                 <div className="relative z-10 p-4 mt-auto border-t border-white/5 bg-white/[0.01] backdrop-blur-md flex-shrink-0">
                     {/* Notifications Popover */}
                     {showNotifications && (
-                        <div className="absolute bottom-[80px] left-4 right-4 bg-[#0a0f1d] border border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-[100] animate-scale-in">
+                        <div className={`absolute bottom-[80px] bg-[#0a0f1d] border border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-[100] animate-scale-in ${
+                            collapsed ? 'left-20 w-80 shadow-[10px_-10px_30px_rgba(0,0,0,0.5)]' : 'left-4 right-4'
+                        }`}>
                             <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
                                 <div>
                                     <h4 className="text-xs font-black text-white uppercase tracking-wider">Activity</h4>
@@ -387,9 +528,9 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between gap-3">
+                    <div className={`flex ${collapsed ? 'flex-col items-center gap-3' : 'items-center justify-between gap-3'}`}>
                         {/* User profile card */}
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 min-w-0">
                             <div className="relative shrink-0">
                                 <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-600 p-0.5 shadow-md shadow-indigo-500/10">
                                     <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center overflow-hidden border border-white/10">
@@ -398,16 +539,18 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                                 </div>
                                 <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-[#070b14] shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <h4 className="text-xs font-black text-slate-200 truncate leading-none mb-0.5">{user?.name || 'Administrator'}</h4>
-                                <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider truncate">
-                                    {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : user?.role === 'scorer' ? 'Scorer' : 'TH'}
-                                </p>
-                            </div>
+                            {!collapsed && (
+                                <div className="min-w-0 flex-1 animate-fade-in">
+                                    <h4 className="text-xs font-black text-slate-200 truncate leading-none mb-0.5">{user?.name || 'Administrator'}</h4>
+                                    <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider truncate">
+                                        {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : user?.role === 'scorer' ? 'Scorer' : 'TH'}
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Action buttons (Notification bell & logout) */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className={`flex ${collapsed ? 'flex-col gap-2' : 'items-center gap-1.5'} shrink-0`}>
                             {/* Notifications Bell */}
                             <button
                                 onClick={handleToggleNotifications}
@@ -437,7 +580,9 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
             {/* Logout Confirmation Modal */}
             {showLogoutConfirm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden md:pl-72">
+                <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden ${
+                    collapsed ? 'md:pl-20' : 'md:pl-72'
+                }`}>
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"

@@ -24,5 +24,10 @@ export const adminService = {
     async deleteUser(userId: string) {
         const response = await api.delete(`/admin/users/${userId}`);
         return response.data;
+    },
+
+    async getPlayerDetailedStats(userId: string) {
+        const response = await api.get(`/admin/players/${userId}/stats`);
+        return response.data.data;
     }
 };

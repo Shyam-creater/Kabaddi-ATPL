@@ -43,6 +43,7 @@ import MatchService, { Match } from '../../services/matchService';
 import socketService from '../../services/socketService';
 import api, { userService } from '../../services/api';
 import LiveMatchCard from '../../components/match/LiveMatchCard';
+import DetailedMatchCard from '../../components/match/DetailedMatchCard';
 import VideoPlayerModal from '../../components/common/VideoPlayerModal';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateFollowStatus, fetchProfile } from '../../features/auth/authSlice';
@@ -132,11 +133,11 @@ export default function HomeScreen() {
     setBannerVisible(true);
     setModalVisible(true);
 
-    // Show again every 30 seconds
+    // Show again every 5 minutes
     const interval = setInterval(() => {
       setBannerVisible(true);
       setModalVisible(true);
-    }, 60 * 1000);
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [activeBanner]);
@@ -173,9 +174,9 @@ export default function HomeScreen() {
 
     // 1. Fetch Matches
     try {
-      const matches = await MatchService.getMatches('LIVE');
+      const matches = await MatchService.getMatches('LIVE', 'HomeScreen');
       if (matches.length === 0) {
-        const upcoming = await MatchService.getMatches('UPCOMING');
+        const upcoming = await MatchService.getMatches('UPCOMING', 'HomeScreen');
         setLiveMatches(upcoming);
       } else {
         setLiveMatches(matches);
@@ -230,7 +231,7 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchData();
 
-    socketService.onMatchUpdate((updatedMatch: Match) => {
+    const handleMatchUpdate = (updatedMatch: Match) => {
       setLiveMatches(prev => {
         const index = prev.findIndex(m => m._id === updatedMatch._id);
         if (index !== -1) {
@@ -240,10 +241,12 @@ export default function HomeScreen() {
         }
         return prev;
       });
-    });
+    };
+
+    socketService.onMatchUpdate(handleMatchUpdate);
 
     return () => {
-      socketService.removeListener('match:update');
+      socketService.removeListener('match:update', handleMatchUpdate);
     };
   }, []);
 
@@ -576,6 +579,24 @@ export default function HomeScreen() {
             )}
           </ScrollView>
         </View>
+
+        {/* --- DETAILED MATCH SCOREBOARD SECTION --- */}
+        {liveMatches.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.sectionContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleWrapper}>
+                <View style={[styles.premiumHeaderBar, { backgroundColor: '#E31C25' }]} />
+                <Text style={styles.sectionHeaderTitle}>
+                  {liveMatches[0].status === 'LIVE' ? '🔴 Live Match Center' : '🏏 Featured Match'}
+                </Text>
+              </View>
+            </View>
+            <DetailedMatchCard
+              match={liveMatches[0]}
+              onPress={() => router.push(`/matches/details/${liveMatches[0]._id}` as any)}
+            />
+          </Animated.View>
+        )}
 
         {/* --- 2. QUICK ACTIONS GRID (PREMIUM) --- */}
         <Animated.View entering={FadeInDown.delay(100).duration(500).springify().damping(12)} style={styles.sectionContainer}>
@@ -2410,81 +2431,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  // Fullscreen Modal Styles
-  fullscreenContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  fullscreenBg: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  fullscreenGradient: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'space-between',
-  },
-  fullscreenClose: {
-    alignSelf: 'flex-end',
-    marginTop: Platform.OS === 'ios' ? 40 : 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullscreenContent: {
-    paddingBottom: 40,
-  },
-  exclusiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,215,0,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
-  },
-  exclusiveText: {
-    color: '#FFD700',
-    fontSize: 11,
-    fontWeight: '900',
-    marginLeft: 6,
-    letterSpacing: 1,
-  },
-  fullscreenTitle: {
-    color: '#fff',
-    fontSize: 34,
-    fontWeight: '900',
-    lineHeight: 40,
-    marginBottom: 12,
-  },
-  fullscreenDesc: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  fullscreenBtn: {
-    backgroundColor: '#E31C25',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 18,
-    gap: 10,
-  },
-  fullscreenBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
   },
 
 });

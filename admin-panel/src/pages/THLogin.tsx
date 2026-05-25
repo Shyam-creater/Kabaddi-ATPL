@@ -69,8 +69,7 @@ export default function THLogin() {
                     <div className="mb-8 text-center md:text-left">
                         <img src={logo} alt="ATPL" className="w-16 h-16 rounded-2xl shadow-md mb-6 mx-auto md:mx-0 object-cover" />
                         <h1 className="text-2xl font-black text-gray-900 mb-2">Tournament Head Login</h1>
-                        <p className="text-sm text-gray-500">TH / Scorer: enter your credentials to manage leagues and matches.</p>
-
+                        <p className="text-sm text-gray-500">Please enter your credentials to manage your leagues.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">

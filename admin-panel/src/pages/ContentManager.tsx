@@ -199,7 +199,7 @@ export default function ContentManager() {
     ];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-100 pb-8">
                 <div>

@@ -1,12 +1,27 @@
 import api from './api';
 
+export interface ProductVariant {
+    sku?: string;
+    title?: string;
+    price: number;
+    stock?: number;
+    offer?: number;
+    attributes?: {
+        color?: string;
+        size?: string;
+    };
+}
+
 export interface Product {
     _id: string;
     title: string;
     price: number;
     description: string;
     category: string;
-    image: string;
+    image?: string;
+    images?: string[];
+    stock?: number;
+    variants?: ProductVariant[];
     createdAt?: string;
 }
 

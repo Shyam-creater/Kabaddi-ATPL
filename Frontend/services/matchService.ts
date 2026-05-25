@@ -39,12 +39,16 @@ export interface Match {
 
 class MatchService {
     // Get all matches from unified endpoint (optionally filter by status if backend supports it filtering on array, but for now we fetch all and filter client side or let backend handle simple status query if generic)
-    // The unified endpoint /api/matches/all returns everything sorted by date.
-    async getMatches(status?: string) {
+    async getMatches(status?: string, caller?: string) {
         try {
+            console.log('[MatchService.getMatches] CALLED BY:', caller || 'unknown');
             // Note: The new unified endpoint is /matches/all. 
             // If specific sport endpoint is needed we can add that logic, but requirement is "All Matches".
-            const response = await api.get('/matches/all');
+            const response = await api.get('/matches/all', {
+                headers: {
+                    'x-client-caller': caller || 'unknown'
+                }
+            });
             const allMatches = response.data;
 
             if (status) {

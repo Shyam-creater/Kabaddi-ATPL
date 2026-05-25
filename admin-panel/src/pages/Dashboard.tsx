@@ -29,21 +29,6 @@ export default function Dashboard() {
             let data;
             if (user?.role === 'TH') {
                 data = await thService.getDashboardStats();
-                // Map the TH data format to the expected Dashboard format to minimize changes
-                data = {
-                    users: { total: 0, male: 0, female: 0, recent: [] },
-                    counts: { 
-                        tournaments: data.stats.totalLeagues,
-                        teams: 0, // Update when TH teams API is ready
-                        activeMatches: 0, // Update when TH matches API is ready
-                        players: 0
-                    },
-                    categories: {
-                        cricket: { tournaments: data.stats.cricketLeagues },
-                        kabaddi: { tournaments: data.stats.kabaddiLeagues },
-                        football: { tournaments: data.stats.footballLeagues }
-                    }
-                };
             } else {
                 data = await adminService.getDashboardStats();
             }
@@ -167,7 +152,7 @@ export default function Dashboard() {
     // };
 
     return (
-        <div className="max-w-[1600px] mx-auto space-y-8 pb-12 px-4 md:px-0">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in">
                 <div className="space-y-1">

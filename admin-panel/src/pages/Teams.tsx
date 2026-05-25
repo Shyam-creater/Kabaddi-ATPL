@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Plus, Edit2, Trash2, Shield, X, Upload, Check, Users, MapPin } from 'lucide-react';
+import { Plus, Edit2, Trash2, Shield, X, Upload, Check, Users, MapPin, Search } from 'lucide-react';
 
 export default function Teams() {
     const [teams, setTeams] = useState<any[]>([]);
@@ -10,6 +10,7 @@ export default function Teams() {
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [selectedSport, setSelectedSport] = useState('cricket');
+    const [playerSearchTerm, setPlayerSearchTerm] = useState('');
 
     const [formData, setFormData] = useState({
         _id: '',
@@ -50,8 +51,60 @@ export default function Teams() {
 
     const loadPlayers = async () => {
         try {
-            const res = await api.get(`/players?sport=${selectedSport}`);
-            setPlayers(Array.isArray(res.data) ? res.data : []);
+            // 1. Fetch auction/cricket players
+            const playersRes = await api.get(`/players?sport=${selectedSport}`);
+            const allAuctionPlayers = Array.isArray(playersRes.data) ? playersRes.data : [];
+            // Filter out auction players
+            const nonAuctionPlayers = allAuctionPlayers.filter((p: any) => !p.isAuctionPlayer);
+            
+            // 2. Fetch registered users
+            const usersRes = await api.get('/admin/users?includeAdmins=false');
+            const allUsers = Array.isArray(usersRes.data?.data) ? usersRes.data.data : (Array.isArray(usersRes.data) ? usersRes.data : []);
+            
+            // Filter users who are players for the selected sport
+            const registeredPlayers = allUsers.filter((u: any) => 
+                u.role === 'player' && 
+                u.sports?.some((s: string) => s.toLowerCase() === selectedSport.toLowerCase())
+            );
+
+            // Filter out any registered user that matches an auction player's name or email to prevent auction duplicates
+            const auctionPlayerNames = new Set(allAuctionPlayers.map((p: any) => p.name.toLowerCase()));
+            
+            const filteredRegisteredPlayers = registeredPlayers.filter((u: any) => 
+                !auctionPlayerNames.has(u.name.toLowerCase()) &&
+                !(u.email && allAuctionPlayers.some((p: any) => p.email?.toLowerCase() === u.email.toLowerCase()))
+            );
+
+            // Map users to player structure
+            const mappedUsers = filteredRegisteredPlayers.map((u: any) => ({
+                _id: u._id,
+                name: u.name,
+                role: u.playerProfile?.[selectedSport]?.role || u.role || 'Player',
+                image: u.profilePicture || '',
+                isUser: true,
+                email: u.email,
+                phone: u.phone || ''
+            }));
+
+            const mappedPlayers = nonAuctionPlayers.map((p: any) => ({
+                _id: p._id,
+                name: p.name,
+                role: p.role || p.category || 'Player',
+                image: p.image || '',
+                isUser: false,
+                email: '',
+                phone: ''
+            }));
+
+            // Merge avoiding duplicate IDs or names
+            const combined = [...mappedUsers];
+            mappedPlayers.forEach((p: any) => {
+                if (!combined.some((c: any) => c.name.toLowerCase() === p.name.toLowerCase() || c._id === p._id)) {
+                    combined.push(p);
+                }
+            });
+
+            setPlayers(combined);
         } catch (error) {
             console.error('Failed to load players', error);
             setPlayers([]);
@@ -114,7 +167,17 @@ export default function Teams() {
         setFormData({ _id: '', name: '', code: '', logo: '', city: '', captain: '', coach: '', owner: '', sport: selectedSport });
         setTeamPlayers([]);
         setIsEditing(false);
+        setPlayerSearchTerm('');
     };
+
+    const filteredAvailablePlayers = players.filter((player) => {
+        const query = playerSearchTerm.toLowerCase();
+        return (
+            player.name?.toLowerCase().includes(query) ||
+            player.email?.toLowerCase().includes(query) ||
+            player.phone?.toLowerCase().includes(query)
+        );
+    });
 
     /* ────────────────── label helper ────────────────── */
     const InputLabel = ({ children }: { children: React.ReactNode }) => (
@@ -125,7 +188,7 @@ export default function Teams() {
         'w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400';
 
     return (
-        <div className="space-y-6 pb-16">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             {/* ═══════ Header ═══════ */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -372,13 +435,28 @@ export default function Teams() {
                                         <div className="border border-gray-100 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
                                             <div className="px-3 py-2 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                                                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Available</span>
-                                                <span className="text-[10px] font-bold text-gray-400">{players.length}</span>
+                                                <span className="text-[10px] font-bold text-gray-400">
+                                                    {filteredAvailablePlayers.length} / {players.length}
+                                                </span>
+                                            </div>
+                                            {/* Search Bar */}
+                                            <div className="px-3 py-2 border-b border-gray-100 bg-white">
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search players by name, email or phone..."
+                                                        value={playerSearchTerm}
+                                                        onChange={(e) => setPlayerSearchTerm(e.target.value)}
+                                                        className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 placeholder:text-gray-400 transition-all"
+                                                    />
+                                                    <Search className="absolute left-2.5 top-2 text-gray-400" size={13} />
+                                                </div>
                                             </div>
                                             <div className="max-h-56 overflow-y-auto">
-                                                {players.length === 0 ? (
-                                                    <div className="px-4 py-8 text-center text-xs text-gray-400">No players available</div>
+                                                {filteredAvailablePlayers.length === 0 ? (
+                                                    <div className="px-4 py-8 text-center text-xs text-gray-400">No players found</div>
                                                 ) : (
-                                                    players.map((player) => {
+                                                    filteredAvailablePlayers.map((player) => {
                                                         const selected = teamPlayers.some((item) => item.user === player._id);
                                                         return (
                                                             <button
@@ -393,8 +471,15 @@ export default function Teams() {
                                                                         : player.name?.[0] || 'P'}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <div className="text-[11px] font-semibold text-gray-900 truncate leading-tight">{player.name || 'Unnamed'}</div>
-                                                                    <div className="text-[9px] text-gray-400 leading-tight">{player.role || player.category || 'Player'}</div>
+                                                                    <div className="text-[11px] font-semibold text-gray-900 truncate leading-tight flex items-center gap-1.5">
+                                                                        {player.name || 'Unnamed'}
+                                                                        {player.isUser && (
+                                                                            <span className="text-[8px] font-bold bg-green-50 text-green-600 px-1 py-0.2 rounded border border-green-100">User</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[9px] text-gray-400 leading-tight">
+                                                                        {player.role || 'Player'}{player.email ? ` • ${player.email}` : ''}
+                                                                    </div>
                                                                 </div>
                                                                 <div className={`w-4 h-4 rounded border-[1.5px] flex items-center justify-center flex-shrink-0 transition-colors ${selected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
                                                                     {selected && <Check size={10} className="text-white" />}

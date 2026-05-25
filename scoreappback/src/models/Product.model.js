@@ -1,40 +1,180 @@
-const mongoose = require('mongoose');
+"use strict";
 
-const productSchema = new mongoose.Schema(
-    {
-        title: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        price: {
-            type: Number,
-            required: true,
-        },
-        description: {
-            type: String,
-            required: true,
-        },
-        category: {
-            type: String,
-            required: true,
-        },
-        image: {
-            type: String,
-            required: true,
-        },
-        rating: {
-            rate: {
-                type: Number,
-                default: 0,
-            },
-            count: {
-                type: Number,
-                default: 0,
-            },
-        },
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+var _mongoose = _interopRequireDefault(require("mongoose"));
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+const {
+  ObjectId
+} = _mongoose.default.Schema.Types;
+const productSchema = new _mongoose.default.Schema({
+  pName: {
+    type: String,
+    required: true
+  },
+  pShortDescription: {
+    type: String,
+    required: true
+  },
+  pDescription: {
+    type: String,
+    required: true
+  },
+  pImage: {
+    type: Array,
+    required: true
+  },
+  pStatus: {
+    type: String,
+    required: true
+  },
+  pCategory: {
+    type: String,
+    required: true
+  },
+  pSubCategory: {
+    type: String,
+    required: false
+  },
+  pNestedSubCategory: {
+    type: String,
+    required: false
+  },
+  pPrice: {
+    type: Number,
+    required: true
+  },
+  pPreviousPrice: {
+    type: Number,
+    required: false,
+    default: 0
+  },
+  pOffer: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  pTax: {
+    type: Number,
+    required: true,
+    default: 5
+  },
+  pBrand: {
+    type: String,
+    required: true
+  },
+  pStock: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  pQuantity: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  pReturn: {
+    type: Boolean,
+    default: false
+  },
+  pReturnDays: {
+    type: Number,
+    required: false
+  },
+  pRatingsReviews: [{
+    user: {
+      type: ObjectId,
+      ref: "User",
+      required: true
     },
-    { timestamps: true }
-);
-
-module.exports = mongoose.model('Product', productSchema);
+    rating: {
+      type: String,
+      required: true
+    },
+    review: {
+      type: String,
+      required: true
+    },
+    image: {
+      type: Array,
+      // Array of URLs or filenames for the uploaded images/videos
+      required: false,
+      default: []
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now()
+    }
+  }],
+  pWishlist: [{
+    user: {
+      type: ObjectId,
+      ref: "User",
+      required: true
+    }
+  }],
+  createdBy: {
+    type: String,
+    required: false
+  },
+  vendorId: {
+    type: ObjectId,
+    ref: "vendors",
+    required: false
+  },
+  editedBy: {
+    type: String,
+    default: "Not Edited",
+    required: false
+  },
+  variants: [{
+    type: ObjectId,
+    ref: "ProductVariant"
+  }],
+  pType: {
+    type: String,
+    default: 'product'
+  },
+  pis_voucher_50: {
+    type: Boolean,
+    default: false
+  },
+  pis_voucher_100: {
+    type: Boolean,
+    default: false
+  },
+  freeshipping: {
+    type: Boolean,
+    default: false
+  },
+  pMetaTitle: {
+    type: String,
+    required: false
+  },
+  pMetaKeywords: {
+    type: String,
+    required: false
+  },
+  pMetaDescription: {
+    type: String,
+    required: false
+  },
+  pCanonicalUrl: {
+    type: String,
+    required: false
+  },
+  pUrl: {
+    type: String,
+    required: false
+  },
+  schemaMarkup: {
+    type: String,
+    required: false
+  }
+}, {
+  timestamps: true
+});
+const productModel = _mongoose.default.model("products", productSchema);
+var _default = exports.default = productModel;

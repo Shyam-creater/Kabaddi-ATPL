@@ -9,12 +9,18 @@ const generateToken = (userId) => {
 
 exports.register = async (req, res, next) => {
     try {
-        const { name, email, phone, password } = req.body;
+        const { name, email, phone, password, sports } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) return next(new ApiError(400, 'Email already registered'));
 
-        const user = await User.create({ name, email, phone, password });
+        const user = await User.create({ 
+            name, 
+            email, 
+            phone, 
+            password,
+            sports: sports || []
+        });
 
         const token = generateToken(user._id);
         return res.status(201).json(ApiResponse.success('User registered', { token, user }));
@@ -25,12 +31,26 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const { email, password, loginType } = req.body; // loginType: 'user' or 'admin'
-        const user = await User.findOne({ email });
-        if (!user) return next(new ApiError(404, 'Email not found'));
-
-        const isMatch = await user.matchPassword(password);
-        if (!isMatch) return next(new ApiError(401, 'Invalid password'));
+        const { email, password, atplId, loginType } = req.body; // loginType: 'user' or 'admin'
+        
+        let user;
+        // Login with ATPL ID (no password required)
+        if (atplId) {
+            user = await User.findOne({ atplId });
+            if (!user) return next(new ApiError(404, 'ATPL ID not found'));
+        } 
+        // Login with email (password required)
+        else if (email) {
+            user = await User.findOne({ email });
+            if (!user) return next(new ApiError(404, 'Email not found'));
+            
+            if (!password) return next(new ApiError(400, 'Password required'));
+            const isMatch = await user.matchPassword(password);
+            if (!isMatch) return next(new ApiError(401, 'Invalid password'));
+        } 
+        else {
+            return next(new ApiError(400, 'Email or ATPL ID required'));
+        }
 
         // Role-based login restrictions
         if (loginType === 'admin') {

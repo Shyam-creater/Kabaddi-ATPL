@@ -29,6 +29,58 @@ export interface Match {
     statusText?: string;
     winner?: string;
 
+    tossWinner?: string;
+    tossDecision?: string;
+    oversLimit?: number;
+    battingLineup?: Array<{
+        name: string;
+        position?: string;
+        runs?: number;
+        balls?: number;
+        fours?: number;
+        sixes?: number;
+        status?: string;
+        dismissal?: string;
+    }>;
+    bowlingLineup?: Array<{
+        name: string;
+        overs?: number;
+        maidens?: number;
+        runs?: number;
+        wickets?: number;
+        wides?: number;
+        noballs?: number;
+    }>;
+    currentBatters?: Array<{
+        name: string;
+        runs?: number;
+        balls?: number;
+        fours?: number;
+        sixes?: number;
+        isStriker?: boolean;
+    }>;
+    currentBowler?: {
+        name: string;
+        overs?: number;
+        maidens?: number;
+        runs?: number;
+        wickets?: number;
+        wides?: number;
+        noballs?: number;
+    };
+    commentary?: Array<{
+        over?: number;
+        ball?: number;
+        time?: string;
+        runs?: number;
+        bowlerRuns?: number;
+        bowler?: string;
+        innings?: string;
+        event?: string;
+        description: string;
+        timestamp?: string;
+    }>;
+
     liveStreamUrl?: string;
     youtubeId?: string;
     hlsUrl?: string;

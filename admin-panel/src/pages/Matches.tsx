@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { Plus, Trash2, PlayCircle, X, Trophy, MapPin, Video, ExternalLink, Wifi, Radio, Film, Search } from 'lucide-react';
 import { getMatches, createMatch, updateMatch, deleteMatch } from '../services/matchService';
 import { getTeams } from '../services/teamService';
 import type { Match } from '../services/matchService';
 import type { Team } from '../services/teamService';
+import MatchScorerFullPage from '../components/MatchScorerFullPage';
 
 export default function Matches() {
+    const { user } = useSelector((state: any) => state.auth);
+    const userRole = user?.role || '';
+    const isScorer = userRole === 'scorer' || userRole === 'admin' || userRole === 'super_admin';
+
     const [matches, setMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
@@ -349,7 +355,7 @@ export default function Matches() {
         if (match.status === 'LIVE') return {
             field: 'liveStreamUrl' as const,
             current: match.liveStreamUrl,
-            label: '🔴 Live Stream URL',
+            label: 'ðŸ”´ Live Stream URL',
             placeholder: 'YouTube Live, HLS stream, or any live URL...',
             badge: 'Live',
             icon: <Wifi size={10} />,
@@ -360,7 +366,7 @@ export default function Matches() {
         if (match.status === 'UPCOMING') return {
             field: 'previewVideoUrl' as const,
             current: match.previewVideoUrl,
-            label: '📅 Preview / Teaser URL',
+            label: 'ðŸ“… Preview / Teaser URL',
             placeholder: 'YouTube promo, teaser clip URL...',
             badge: 'Preview',
             icon: <Radio size={10} />,
@@ -371,7 +377,7 @@ export default function Matches() {
         return {
             field: 'recordedVideoUrl' as const,
             current: match.recordedVideoUrl,
-            label: '🎬 Highlights / Full Match URL',
+            label: 'ðŸŽ¬ Highlights / Full Match URL',
             placeholder: 'YouTube highlights, full match recording URL...',
             badge: 'Watch',
             icon: <Film size={10} />,
@@ -399,8 +405,21 @@ export default function Matches() {
         return match.recordedVideoUrl;
     };
 
+    // If a match is selected, show full-page scorer dashboard instead of the grid
+    if (selectedMatch) {
+        return (
+            <MatchScorerFullPage
+                match={selectedMatch}
+                onBack={() => setSelectedMatch(null)}
+                onRefresh={loadMatches}
+                isScorer={isScorer}
+                userRole={userRole}
+            />
+        );
+    }
+
     return (
-        <div className="space-y-6 pb-16">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -420,7 +439,7 @@ export default function Matches() {
                     <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 animate-pulse">
                         <Trophy size={24} className="text-gray-300" />
                     </div>
-                    <div className="text-xs font-bold text-gray-400">Loading matches…</div>
+                    <div className="text-xs font-bold text-gray-400">Loading matchesâ€¦</div>
                 </div>
             ) : matches.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24">
@@ -623,404 +642,6 @@ export default function Matches() {
                 </div>
             )}
 
-            {/* SCORER UI - Compact */}
-            {selectedMatch && (
-                <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center md:pl-72 z-[999] p-4"
-                    onClick={() => setSelectedMatch(null)}
-                >
-                    <div
-                        className="bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden animate-scale-in max-h-[90vh] flex flex-col"
-                        onClick={e => e.stopPropagation()}
-                        style={{ animation: 'modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
-                    >
-                        {/* Scorer Header */}
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-start flex-shrink-0">
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-[10px] font-bold bg-white border border-gray-200 px-2 py-0.5 rounded text-gray-500 uppercase shadow-sm">{selectedMatch.sport || 'Cricket'}</span>
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{selectedMatch.venue}</span>
-                                </div>
-                                <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                                    {selectedMatch.teamA.code} <span className="text-lg text-gray-300 font-medium">vs</span> {selectedMatch.teamB.code}
-                                </h2>
-                            </div>
-                            <div className="flex gap-2 items-center">
-                                {/* ── Status Dropdown ── */}
-                                <div className="relative">
-                                    <select
-                                        value={selectedMatch.status}
-                                        onChange={async (e) => {
-                                            await updateMatch(selectedMatch._id, { status: e.target.value }, selectedMatch.sport || 'cricket');
-                                            loadMatches();
-                                        }}
-                                        className={`appearance-none cursor-pointer pl-3 pr-8 py-2 rounded-xl text-xs font-black uppercase tracking-wider border-0 outline-none shadow-lg transition-all ${selectedMatch.status === 'LIVE' ? 'bg-red-500 text-white shadow-red-500/30' :
-                                            selectedMatch.status === 'UPCOMING' ? 'bg-amber-500 text-white shadow-amber-500/30' :
-                                                selectedMatch.status === 'COMPLETED' ? 'bg-emerald-500 text-white shadow-emerald-500/30' :
-                                                    'bg-gray-400 text-white shadow-gray-400/30'
-                                            }`}
-                                    >
-                                        <option value="UPCOMING">⏳ Upcoming</option>
-                                        <option value="LIVE">🔴 Live</option>
-                                        <option value="COMPLETED">✅ Completed</option>
-                                        <option value="ABANDONED">🚫 Abandoned</option>
-                                    </select>
-                                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-white text-[10px]">▾</span>
-                                </div>
-                                <button onClick={() => setSelectedMatch(null)} className="p-2 bg-white border border-gray-200 text-gray-400 hover:text-gray-900 rounded-xl transition-colors shadow-sm"><X size={20} /></button>
-                            </div>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto flex-1">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                {/* TEAM A */}
-                                <div className="space-y-4">
-                                    <div className="p-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-inner">
-                                        <h3 className="font-bold text-xs text-blue-900 uppercase tracking-wider mb-2">{selectedMatch.teamA.name}</h3>
-                                        <div className="text-5xl font-black text-blue-600 tracking-tighter">
-                                            {selectedMatch.sport === 'cricket' ? `${selectedMatch.scoreA?.runs}/${selectedMatch.scoreA?.wickets}` : (selectedMatch as any).scoreA}
-                                        </div>
-                                        {selectedMatch.sport === 'cricket' && <div className="text-sm text-blue-400 font-mono mt-2 font-bold bg-blue-100/50 inline-block px-2 py-1 rounded">Over: {selectedMatch.scoreA?.overs}</div>}
-                                    </div>
-                                    <div className={`grid ${selectedMatch.sport === 'cricket' ? 'grid-cols-5' : 'grid-cols-3'} gap-2`}>
-                                        {selectedMatch.sport === 'cricket' ? (
-                                            <>
-                                                <ScoreBtn onClick={() => updateCricketScore('A', 0, false, true)} label="0" />
-                                                <ScoreBtn onClick={() => updateCricketScore('A', 1, false, true)} label="1" />
-                                                <ScoreBtn onClick={() => updateCricketScore('A', 4, false, true)} label="4" color="bg-green-100 text-green-700 hover:bg-green-200 border-green-200" />
-                                                <ScoreBtn onClick={() => updateCricketScore('A', 6, false, true)} label="6" color="bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200" />
-                                                <ScoreBtn onClick={() => updateCricketScore('A', 0, true, true)} label="WKT" color="bg-red-100 text-red-700 hover:bg-red-200 border-red-200" />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ScoreBtn onClick={() => updateSimpleScore('A', 1)} label="+1" />
-                                                <ScoreBtn onClick={() => updateSimpleScore('A', 2)} label="+2" />
-                                                <ScoreBtn onClick={() => updateSimpleScore('A', -1)} label="-1" color="bg-red-50 text-red-500 hover:bg-red-100" />
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="mt-3">
-                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Team A Roster</div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {selectedMatch.teamAPlayers && selectedMatch.teamAPlayers.length > 0 ? selectedMatch.teamAPlayers.map((p: any) => (
-                                                <button key={p.user || p._id} onClick={() => selectPlayerForScoring({ ...p, teamCode: selectedMatch.teamA.code, side: 'A' })} className={`text-left p-2 rounded-xl text-sm transition ${selectedPlayer?.user?.toString() === (p.user || p._id)?.toString() ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-100'}`}>
-                                                    <div className="font-bold text-sm">{p.name || p.fullName || 'Player'}</div>
-                                                    <div className="text-[10px] text-gray-400">#{p.jerseyNumber || p.jersey || ''} · {p.role || p.position || 'Player'}</div>
-                                                </button>
-                                            )) : (
-                                                <div className="text-xs text-gray-400">No players attached to Team A</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* TEAM B */}
-                                <div className="space-y-4">
-                                    <div className="p-6 rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-white shadow-inner">
-                                        <h3 className="font-bold text-xs text-orange-900 uppercase tracking-wider mb-2">{selectedMatch.teamB.name}</h3>
-                                        <div className="text-5xl font-black text-orange-600 tracking-tighter">
-                                            {selectedMatch.sport === 'cricket' ? `${selectedMatch.scoreB?.runs}/${selectedMatch.scoreB?.wickets}` : (selectedMatch as any).scoreB}
-                                        </div>
-                                        {selectedMatch.sport === 'cricket' && <div className="text-sm text-orange-400 font-mono mt-2 font-bold bg-orange-100/50 inline-block px-2 py-1 rounded">Over: {selectedMatch.scoreB?.overs}</div>}
-                                    </div>
-                                    <div className={`grid ${selectedMatch.sport === 'cricket' ? 'grid-cols-5' : 'grid-cols-3'} gap-2`}>
-                                        {selectedMatch.sport === 'cricket' ? (
-                                            <>
-                                                <ScoreBtn onClick={() => updateCricketScore('B', 0, false, true)} label="0" />
-                                                <ScoreBtn onClick={() => updateCricketScore('B', 1, false, true)} label="1" />
-                                                <ScoreBtn onClick={() => updateCricketScore('B', 4, false, true)} label="4" color="bg-green-100 text-green-700 hover:bg-green-200 border-green-200" />
-                                                <ScoreBtn onClick={() => updateCricketScore('B', 6, false, true)} label="6" color="bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200" />
-                                                <ScoreBtn onClick={() => updateCricketScore('B', 0, true, true)} label="WKT" color="bg-red-100 text-red-700 hover:bg-red-200 border-red-200" />
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ScoreBtn onClick={() => updateSimpleScore('B', 1)} label="+1" />
-                                                <ScoreBtn onClick={() => updateSimpleScore('B', 2)} label="+2" />
-                                                <ScoreBtn onClick={() => updateSimpleScore('B', -1)} label="-1" color="bg-red-50 text-red-500 hover:bg-red-100" />
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="mt-3">
-                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Team B Roster</div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {selectedMatch.teamBPlayers && selectedMatch.teamBPlayers.length > 0 ? selectedMatch.teamBPlayers.map((p: any) => (
-                                                <button key={p.user || p._id} onClick={() => selectPlayerForScoring({ ...p, teamCode: selectedMatch.teamB.code, side: 'B' })} className={`text-left p-2 rounded-xl text-sm transition ${selectedPlayer?.user?.toString() === (p.user || p._id)?.toString() ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-50 text-gray-900 border border-gray-100'}`}>
-                                                    <div className="font-bold text-sm">{p.name || p.fullName || 'Player'}</div>
-                                                    <div className="text-[10px] text-gray-400">#{p.jerseyNumber || p.jersey || ''} · {p.role || p.position || 'Player'}</div>
-                                                </button>
-                                            )) : (
-                                                <div className="text-xs text-gray-400">No players attached to Team B</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* ─── Video Management ─── */}
-                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                                            <Search size={12} /> Player Scoring
-                                        </p>
-                                        <p className="text-xs text-gray-400">Search the selected team roster, choose a player, and save match-level player stats.</p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-                                    <div className="lg:col-span-1 p-4 bg-gray-50 border border-gray-200 rounded-3xl">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2 block">Search players</label>
-                                        <div className="relative">
-                                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                            <input
-                                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-gray-900/10"
-                                                placeholder="Search by name, team, role..."
-                                                value={playerSearch}
-                                                onChange={(e) => setPlayerSearch(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
-                                            {filteredMatchPlayers.length > 0 ? filteredMatchPlayers.map((player: any) => (
-                                                <button
-                                                    key={player.user || player._id}
-                                                    onClick={() => selectPlayerForScoring(player)}
-                                                    className={`w-full text-left p-3 rounded-2xl transition ${selectedPlayer?.user?.toString() === (player.user || player._id)?.toString() ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'}`}>
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div>
-                                                            <div className="text-sm font-bold">{player.name || player.fullName || 'Unknown Player'}</div>
-                                                            <p className="text-[10px] uppercase tracking-wider text-gray-500">{player.role || 'Player'} · {player.teamCode}</p>
-                                                        </div>
-                                                        <span className="text-[10px] font-semibold text-gray-400">{player.side === 'A' ? 'A' : 'B'}</span>
-                                                    </div>
-                                                </button>
-                                            )) : (
-                                                <div className="text-xs text-gray-400">No players found in the selected match teams.</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="lg:col-span-2 space-y-4">
-                                        <div className="p-4 bg-white border border-gray-200 rounded-3xl">
-                                            <div className="flex items-center justify-between gap-4 mb-3">
-                                                <div>
-                                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Selected player</p>
-                                                    <h3 className="mt-1 text-sm font-black text-gray-900">{selectedPlayer?.name || 'Pick a player from roster'}</h3>
-                                                    <p className="text-xs text-gray-500">{selectedPlayer ? `${selectedPlayer.teamCode} · ${selectedPlayer.role || 'Player'}` : 'Use search to find a player from team A or B.'}</p>
-                                                </div>
-                                                {selectedPlayer && (
-                                                    <button onClick={() => setSelectedPlayer(null)} className="text-xs uppercase tracking-wider text-red-600 font-bold">Clear</button>
-                                                )}
-                                            </div>
-
-                                            {selectedPlayer ? (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {(selectedMatch.sport === 'cricket') ? (
-                                                        <>
-                                                            <div className="space-y-4">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Runs</label>
-                                                                    <input value={playerStatForm.runs} onChange={(e) => handlePlayerStatChange('runs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Wickets</label>
-                                                                    <input value={playerStatForm.wickets} onChange={(e) => handlePlayerStatChange('wickets', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Catches</label>
-                                                                    <input value={playerStatForm.catches} onChange={(e) => handlePlayerStatChange('catches', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-4">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Overs</label>
-                                                                    <input value={playerStatForm.overs} onChange={(e) => handlePlayerStatChange('overs', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" step="0.1" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Balls</label>
-                                                                    <input value={playerStatForm.balls} onChange={(e) => handlePlayerStatChange('balls', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Run Outs</label>
-                                                                    <input value={playerStatForm.runOuts} onChange={(e) => handlePlayerStatChange('runOuts', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                            </div>
-                                                        </>
-                                                    ) : selectedMatch.sport === 'football' ? (
-                                                        <>
-                                                            <div className="space-y-4">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Goals</label>
-                                                                    <input value={playerStatForm.goals} onChange={(e) => handlePlayerStatChange('goals', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Assists</label>
-                                                                    <input value={playerStatForm.assists} onChange={(e) => handlePlayerStatChange('assists', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-4">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Minutes</label>
-                                                                    <input value={playerStatForm.minutes} onChange={(e) => handlePlayerStatChange('minutes', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Total Points</label>
-                                                                    <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="space-y-4">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Raid Points</label>
-                                                                    <input value={playerStatForm.raidPoints} onChange={(e) => handlePlayerStatChange('raidPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Tackle Points</label>
-                                                                    <input value={playerStatForm.tacklePoints} onChange={(e) => handlePlayerStatChange('tacklePoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-4">
-                                                                <div className="flex flex-col gap-1.5">
-                                                                    <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Total Points</label>
-                                                                    <input value={playerStatForm.totalPoints} onChange={(e) => handlePlayerStatChange('totalPoints', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm" type="number" min="0" />
-                                                                </div>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="rounded-3xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
-                                                    Select a player to start entering stats.
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            <button disabled={!selectedPlayer} onClick={savePlayerStats} className="px-5 py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">Save Player Stats</button>
-                                            <button onClick={() => { setSelectedPlayer(null); setPlayerSearch(''); }} className="px-5 py-3 border border-gray-200 text-gray-700 rounded-2xl text-xs font-bold">Reset selection</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                <div className="flex items-center justify-between mb-3">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Video size={11} /> Video URL
-                                    </label>
-                                </div>
-
-                                {/* ── Explicit 3-tab type selector ── */}
-                                <div className="grid grid-cols-3 gap-2 p-1 bg-gray-100 rounded-xl mb-3">
-                                    {([
-                                        { key: 'live', emoji: '🔴', label: 'Live Stream', saved: selectedMatch.liveStreamUrl },
-                                        { key: 'preview', emoji: '📅', label: 'Preview', saved: selectedMatch.previewVideoUrl },
-                                        { key: 'recorded', emoji: '🎬', label: 'Highlights', saved: selectedMatch.recordedVideoUrl },
-                                    ] as const).map(tab => (
-                                        <button
-                                            key={tab.key}
-                                            onClick={() => { setVideoType(tab.key); setVideoUrl(tab.saved || ''); }}
-                                            className={`relative py-2 px-1 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 ${videoType === tab.key
-                                                    ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
-                                                    : 'text-gray-400 hover:text-gray-600'
-                                                }`}
-                                        >
-                                            <span>{tab.emoji}</span>
-                                            <span>{tab.label}</span>
-                                            {tab.saved && (
-                                                <span className={`absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full ${tab.key === 'live' ? 'bg-red-500' : tab.key === 'preview' ? 'bg-amber-500' : 'bg-indigo-500'
-                                                    }`} title="URL saved" />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* URL Input row */}
-                                <div className="flex gap-2">
-                                    <input
-                                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-gray-900/10 transition-all font-mono"
-                                        placeholder={
-                                            videoType === 'live' ? 'Direct stream URL (e.g. YouTube URL)...' :
-                                                videoType === 'preview' ? 'YouTube promo / teaser URL...' :
-                                                    'YouTube highlights, full match URL...'
-                                        }
-                                        value={videoUrl}
-                                        onChange={(e) => setVideoUrl(e.target.value)}
-                                    />
-                                    <button
-                                        onClick={() => saveVideoForStatus(videoUrl)}
-                                        disabled={!videoUrl.trim()}
-                                        className={`px-5 py-3 text-white rounded-xl text-xs font-bold shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${videoType === 'live' ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20' :
-                                                videoType === 'preview' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' :
-                                                    'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'
-                                            }`}
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-
-                                {videoType === 'live' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                                                <Radio size={10} className="text-red-500" /> YouTube Stream ID
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    className="flex-1 px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:bg-white"
-                                                    placeholder="e.g. jfKfPfyJRdk"
-                                                    defaultValue={selectedMatch.youtubeId}
-                                                    onBlur={(e) => saveVideoForStatus('', e.target.value, '')}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                                                <Radio size={10} className="text-blue-500" /> HLS Stream URL (.m3u8)
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    className="flex-1 px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:bg-white"
-                                                    placeholder="e.g. streaming.mpd/index.m3u8"
-                                                    defaultValue={selectedMatch.hlsUrl}
-                                                    onBlur={(e) => saveVideoForStatus('', '', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="mt-3">
-                                    {(videoType === 'live' ? selectedMatch.liveStreamUrl : videoType === 'preview' ? selectedMatch.previewVideoUrl : selectedMatch.recordedVideoUrl) && (
-                                        <button
-                                            onClick={() => setVideoMatch(selectedMatch)}
-                                            className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-all flex items-center gap-1.5"
-                                        >
-                                            <PlayCircle size={14} /> Test
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Saved URL indicator */}
-                                {(videoType === 'live' ? selectedMatch.liveStreamUrl : videoType === 'preview' ? selectedMatch.previewVideoUrl : selectedMatch.recordedVideoUrl) && (
-                                    <p className={`mt-2 text-[10px] font-semibold flex items-center gap-1.5 ${videoType === 'live' ? 'text-red-600' : videoType === 'preview' ? 'text-amber-600' : 'text-indigo-600'
-                                        }`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full inline-block ${videoType === 'live' ? 'bg-red-500' : videoType === 'preview' ? 'bg-amber-500' : 'bg-indigo-500'
-                                            }`} />
-                                        Saved: <span className="truncate max-w-[260px] text-gray-400 font-normal">
-                                            {videoType === 'live' ? selectedMatch.liveStreamUrl : videoType === 'preview' ? selectedMatch.previewVideoUrl : selectedMatch.recordedVideoUrl}
-                                        </span>
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="mt-6 pt-6 border-t border-gray-100 flex gap-4">
-                                <input className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-gray-900/10 transition-all" placeholder="Update Status Text (e.g. In Innings Break)" onBlur={(e) => updateStatusText(e.target.value)} defaultValue={selectedMatch.statusText} />
-                                <button onClick={() => finishMatch(selectedMatch.teamA.code)} className="px-6 py-3 bg-gray-900 text-white rounded-xl text-xs font-bold shadow-lg shadow-gray-900/20 hover:bg-black transition-all">End Match & Save</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {/* VIDEO PLAYER MODAL */}
             {videoMatch && getActiveVideoUrl(videoMatch) && (
                 <div
                     className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center md:pl-72 z-[1000] p-4"
@@ -1038,11 +659,11 @@ export default function Matches() {
                                         videoMatch.status === 'UPCOMING' ? 'bg-orange-500 text-white' :
                                             'bg-indigo-600 text-white'
                                         }`}>
-                                        {videoMatch.status === 'LIVE' ? '🔴 Live Stream' : videoMatch.status === 'UPCOMING' ? '📅 Preview' : '🎬 Highlights'}
+                                        {videoMatch.status === 'LIVE' ? 'ðŸ”´ Live Stream' : videoMatch.status === 'UPCOMING' ? 'ðŸ“… Preview' : 'ðŸŽ¬ Highlights'}
                                     </span>
                                 </div>
                                 <h2 className="text-white font-black text-lg">{videoMatch.teamA.code} vs {videoMatch.teamB.code}</h2>
-                                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">{videoMatch.series} · {videoMatch.venue}</p>
+                                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">{videoMatch.series} Â· {videoMatch.venue}</p>
                             </div>
                             <div className="flex gap-2">
                                 <a

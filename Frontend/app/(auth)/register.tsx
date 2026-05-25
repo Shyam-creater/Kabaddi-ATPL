@@ -19,27 +19,71 @@ import { registerUser } from '../../features/auth/authSlice';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useSession } from '../../app/ctx';
+import * as Clipboard from 'expo-clipboard';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { loading, error } = useAppSelector(state => state.auth);
+  const { signIn } = useSession();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedSports, setSelectedSports] = useState<string[]>([]);
+
+  const sports = ['Cricket', 'Kabaddi', 'Football'];
+
+  const toggleSport = (sport: string) => {
+    setSelectedSports(prev =>
+      prev.includes(sport) ? prev.filter(s => s !== sport) : [...prev, sport]
+    );
+  };
 
   const handleRegister = async () => {
-    const res = await dispatch(registerUser({ name, email, phone, password }));
+    if (selectedSports.length === 0) {
+      Alert.alert('Required', 'Please select at least one sport');
+      return;
+    }
+
+    const res = await dispatch(registerUser({ name, email, phone, password, sports: selectedSports }));
 
     console.log('REGISTER RESPONSE 👉', res);
 
     if (res.meta.requestStatus === 'fulfilled') {
-      Alert.alert('Success', 'Account created successfully! Please login.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') }
-      ]);
+      const payload = res.payload as any;
+      const token = payload?.token || payload?.data?.token;
+      const atplId = payload?.data?.user?.atplId || payload?.user?.atplId;
+
+      const successMessage = atplId 
+        ? `Your ATPL ID is: ${atplId}\n\nCopy this ID, you can use it to login on different devices!`
+        : 'Account created successfully!';
+
+      const handleOk = () => {
+        if (token && typeof token === 'string') {
+            signIn(token);
+            router.replace('/(tabs)');
+        } else {
+            router.replace('/(auth)/login');
+        }
+      };
+
+      if (atplId) {
+          Alert.alert('Welcome to ATPL Score!', successMessage, [
+            { text: 'Copy ID & Continue', onPress: async () => {
+                await Clipboard.setStringAsync(atplId);
+                handleOk();
+            } },
+            { text: 'Continue', onPress: handleOk, style: 'cancel' }
+          ]);
+      } else {
+          Alert.alert('Success', successMessage, [
+            { text: 'OK', onPress: handleOk }
+          ]);
+      }
     } else if (res.meta.requestStatus === 'rejected') {
       const payload = res.payload as string;
       Alert.alert('Registration Failed', payload || 'An error occurred during registration');
@@ -114,7 +158,7 @@ export default function RegisterScreen() {
               </LinearGradient>
             </View>
 
-            {/* Password Input */}
+            {/* Phone Input */}
             <View style={styles.inputWrapper}>
               <LinearGradient
                 colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
@@ -158,7 +202,36 @@ export default function RegisterScreen() {
               </LinearGradient>
             </View>
 
-
+            {/* Sports Selection */}
+            <View style={styles.sportsSection}>
+              <Text style={styles.sportsLabel}>Select Your Sports</Text>
+              <View style={styles.sportsContainer}>
+                {sports.map(sport => (
+                  <TouchableOpacity
+                    key={sport}
+                    onPress={() => toggleSport(sport)}
+                    style={[
+                      styles.sportButton,
+                      selectedSports.includes(sport) && styles.sportButtonActive
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={selectedSports.includes(sport) ? ['#E31C25', '#A00F15'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+                      style={styles.sportButtonGradient}
+                    >
+                      <Ionicons
+                        name={sport === 'Cricket' ? 'baseball' : sport === 'Kabaddi' ? 'hand-right' : 'football'}
+                        size={16}
+                        color={selectedSports.includes(sport) ? '#fff' : '#888'}
+                      />
+                      <Text style={[styles.sportButtonText, selectedSports.includes(sport) && styles.sportButtonTextActive]}>
+                        {sport}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
             <TouchableOpacity
               onPress={handleRegister}
@@ -262,6 +335,47 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 8,
+  },
+  sportsSection: {
+    marginBottom: 25,
+  },
+  sportsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  sportsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  sportButton: {
+    flex: 1,
+    minWidth: '30%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  sportButtonActive: {
+    borderColor: '#E31C25',
+  },
+  sportButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sportButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#888',
+    textAlign: 'center',
+  },
+  sportButtonTextActive: {
+    color: '#fff',
   },
   errorText: {
     color: '#FF5252',

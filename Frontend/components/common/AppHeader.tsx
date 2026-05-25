@@ -7,7 +7,10 @@ import {
   Platform,
   StatusBar,
   Image,
+  Alert,
+  ToastAndroid
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SearchModal from '../common/SearchModal';
 import NotificationsModal from '../common/NotificationItem';
@@ -183,6 +186,23 @@ export default function AppHeader() {
                   <View style={styles.textStack}>
                     <Text style={styles.mainTitle}>ATPL</Text>
                     <Text style={styles.subTitle}>SCORE</Text>
+                    {user?.atplId && (
+                      <TouchableOpacity 
+                        style={styles.idBadge} 
+                        onPress={async () => {
+                          await Clipboard.setStringAsync(user.atplId);
+                          if (Platform.OS === 'android') {
+                            ToastAndroid.show('ID Copied!', ToastAndroid.SHORT);
+                          } else {
+                            Alert.alert('Copied', 'ID copied to clipboard!');
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.idText}>{user.atplId}</Text>
+                        <Ionicons name="copy-outline" size={10} color="#FFD700" style={{ marginLeft: 3 }} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </View>
@@ -320,6 +340,23 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     lineHeight: 10,
     marginTop: 1,
+  },
+  idBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 3,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+  },
+  idText: {
+    color: '#FFD700',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   actionRegistry: {
     flexDirection: 'row',

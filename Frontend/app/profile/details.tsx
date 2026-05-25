@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     View,
     Text,
@@ -9,7 +9,8 @@ import {
     Dimensions,
     StatusBar,
     Image,
-    Platform
+    Platform,
+    ActivityIndicator
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { fetchProfile } from '../../features/auth/authSlice';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import api from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -24,16 +26,96 @@ export default function ProfileDetailsPage() {
     const router = useRouter();
     const dispatch = useAppDispatch();
     const { user } = useAppSelector(state => state.auth);
+    const [advancedStats, setAdvancedStats] = useState<any>(null);
+    const [loadingStats, setLoadingStats] = useState(true);
 
     useFocusEffect(
         useCallback(() => {
             dispatch(fetchProfile());
-        }, [dispatch])
+            
+            const fetchStats = async () => {
+                if (!user?._id) return;
+                try {
+                    setLoadingStats(true);
+                    const response = await api.get(`/user/${user._id}/stats`);
+                    if (response.data.success) {
+                        setAdvancedStats(response.data.data);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch player stats:', error);
+                } finally {
+                    setLoadingStats(false);
+                }
+            };
+            fetchStats();
+        }, [dispatch, user?._id])
     );
 
-    const hasCricketProfile = user?.playerProfile && user.playerProfile.cricket && user.sports?.includes('Cricket');
-    const hasKabaddiProfile = user?.playerProfile && user.playerProfile.kabaddi && user.sports?.includes('Kabaddi');
-    const hasProfile = hasCricketProfile || hasKabaddiProfile;
+    const hasCricketProfile = !!((user?.playerProfile?.cricket || (advancedStats?.stats?.totalMatches > 0)) && user?.sports?.includes('Cricket'));
+    const hasKabaddiProfile = !!((user?.playerProfile?.kabaddi || (advancedStats?.stats?.totalMatches > 0)) && user?.sports?.includes('Kabaddi'));
+    const hasProfile = hasCricketProfile || hasKabaddiProfile || !!(advancedStats?.stats?.totalMatches > 0);
+
+    const getMergedCricketStats = () => {
+        const cricketProfile = user?.playerProfile?.cricket || {};
+        const careerSummary = cricketProfile.careerSummary || {};
+        
+        return {
+            ...cricketProfile,
+            role: cricketProfile.role || 'Player',
+            jerseyNumber: cricketProfile.jerseyNumber || '-',
+            battingStyle: cricketProfile.battingStyle || 'N/A',
+            bowlingStyle: cricketProfile.bowlingStyle || 'N/A',
+            careerSummary: {
+                totalRuns: advancedStats?.stats?.totalRunsScored !== undefined ? advancedStats.stats.totalRunsScored : (careerSummary.totalRuns || 0),
+                totalWickets: advancedStats?.stats?.totalWickets !== undefined ? advancedStats.stats.totalWickets : (careerSummary.totalWickets || 0),
+                battingAverage: advancedStats?.stats?.battingAverage !== undefined ? advancedStats.stats.battingAverage : (careerSummary.battingAverage || 0),
+                strikeRate: advancedStats?.stats?.strikeRate !== undefined ? advancedStats.stats.strikeRate : (careerSummary.strikeRate || 0),
+                economyRate: advancedStats?.stats?.economyRate !== undefined ? advancedStats.stats.economyRate : (careerSummary.economyRate || 0),
+                highestScore: careerSummary.highestScore || 0,
+                matchesPlayed: advancedStats?.stats?.totalMatches !== undefined ? advancedStats.stats.totalMatches : (careerSummary.matchesPlayed || 0),
+            },
+            formatStats: cricketProfile.formatStats || [],
+            leagueHistory: cricketProfile.leagueHistory || []
+        };
+    };
+
+    const getMergedKabaddiStats = () => {
+        const kabaddiProfile = user?.playerProfile?.kabaddi || {};
+        const careerSummary = kabaddiProfile.careerSummary || {};
+        const raidingStats = kabaddiProfile.raidingStats || {};
+        const defenseStats = kabaddiProfile.defenseStats || {};
+        
+        return {
+            ...kabaddiProfile,
+            role: kabaddiProfile.role || 'Player',
+            jerseyNumber: kabaddiProfile.jerseyNumber || '-',
+            playingPosition: kabaddiProfile.playingPosition || 'N/A',
+            careerSummary: {
+                totalPoints: careerSummary.totalPoints || 0,
+                matchesPlayed: advancedStats?.stats?.totalMatches !== undefined ? advancedStats.stats.totalMatches : (careerSummary.matchesPlayed || 0),
+            },
+            raidingStats: {
+                totalRaidPoints: raidingStats.totalRaidPoints || 0,
+                raidSuccessRate: raidingStats.raidSuccessRate || 0,
+                super10s: raidingStats.super10s || 0,
+                superRaids: raidingStats.superRaids || 0,
+                doOrDieRaidPoints: raidingStats.doOrDieRaidPoints || 0,
+                emptyRaids: raidingStats.emptyRaids || 0,
+                bonusPoints: raidingStats.bonusPoints || 0,
+            },
+            defenseStats: {
+                totalTacklePoints: defenseStats.totalTacklePoints || 0,
+                tackleSuccessRate: defenseStats.tackleSuccessRate || 0,
+                high5s: defenseStats.high5s || 0,
+                superTackles: defenseStats.superTackles || 0,
+                blocks: defenseStats.blocks || 0,
+                dashes: defenseStats.dashes || 0,
+                ankleHolds: defenseStats.ankleHolds || 0,
+            },
+            records: kabaddiProfile.records || {},
+            discipline: kabaddiProfile.discipline || {}
+        };
+    };
 
     const StatCard = ({ label, value, icon, color = '#E31C25' }: { label: string, value: any, icon?: any, color?: string }) => (
         <View style={styles.statCard}>
@@ -210,6 +292,81 @@ export default function ProfileDetailsPage() {
         </View>
     );
 
+    const showCricket = hasCricketProfile || (hasProfile && !hasKabaddiProfile);
+    const showKabaddi = hasKabaddiProfile;
+
+    const renderRecentMatches = () => {
+        if (!advancedStats?.matches?.details || advancedStats.matches.details.length === 0) {
+            return null;
+        }
+
+        return (
+            <View style={{ marginTop: 10, marginBottom: 20 }}>
+                <SectionHeader title="Recent Matches" icon="logo-playstation" />
+                {advancedStats.matches.details.map((match: any, idx: number) => {
+                    const isWon = match.result === 'Won';
+                    const dateStr = match.date ? new Date(match.date).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    }) : 'N/A';
+
+                    return (
+                        <View key={idx} style={styles.matchCard}>
+                            <View style={styles.matchCardHeader}>
+                                <View style={styles.matchTypeBadge}>
+                                    <Text style={styles.matchTypeText}>{match.matchType || 'Match'}</Text>
+                                </View>
+                                <Text style={styles.matchDate}>{dateStr}</Text>
+                            </View>
+
+                            <View style={styles.matchTeamsRow}>
+                                <View style={styles.teamInfo}>
+                                    <Text style={styles.teamNameText} numberOfLines={1}>
+                                        {match.playerTeam?.name || 'My Team'}
+                                    </Text>
+                                    <Text style={styles.scoreText}>
+                                        {match.playerTeamScore ? `${match.playerTeamScore.runs || 0}/${match.playerTeamScore.wickets || 0} (${match.playerTeamScore.overs || 0} ov)` : '-'}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.vsText}>VS</Text>
+
+                                <View style={[styles.teamInfo, { alignItems: 'flex-end' }]}>
+                                    <Text style={styles.teamNameText} numberOfLines={1}>
+                                        {match.opponent?.name || 'Opponent'}
+                                    </Text>
+                                    <Text style={styles.scoreText}>
+                                        {match.opponentScore ? `${match.opponentScore.runs || 0}/${match.opponentScore.wickets || 0} (${match.opponentScore.overs || 0} ov)` : '-'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.matchFooter}>
+                                <Text style={styles.venueText} numberOfLines={1}>
+                                    <Ionicons name="location" size={12} color="#999" /> {match.venue || 'TBD'}
+                                </Text>
+                                <View style={[styles.resultBadge, { backgroundColor: isWon ? '#E8F5E9' : '#FFEBEE' }]}>
+                                    <Text style={[styles.resultText, { color: isWon ? '#2E7D32' : '#C62828' }]}>
+                                        {isWon ? 'Won' : 'Lost'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    );
+                })}
+            </View>
+        );
+    };
+
+    if (loadingStats && !advancedStats) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#E31C25" />
+            </View>
+        );
+    }
+
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <StatusBar barStyle="light-content" />
@@ -250,8 +407,33 @@ export default function ProfileDetailsPage() {
                         </View>
                     ) : (
                         <View style={{ paddingBottom: 40 }}>
-                            {hasKabaddiProfile && renderKabaddiStats(user.playerProfile.kabaddi)}
-                            {hasCricketProfile && renderCricketStats(user.playerProfile.cricket)}
+                            {showKabaddi && renderKabaddiStats(getMergedKabaddiStats())}
+                            {showCricket && renderCricketStats(getMergedCricketStats())}
+
+                            {advancedStats && (
+                                <View style={{ marginTop: 20 }}>
+                                    <SectionHeader title="Platform Activity" icon="analytics" />
+                                    <View style={styles.highlightGrid}>
+                                        <LinearGradient colors={['#333', '#111']} style={styles.mainStatBox}>
+                                            <Text style={styles.mainStatLabel}>MATCHES</Text>
+                                            <Text style={styles.mainStatValue}>{advancedStats.stats?.totalMatches || 0}</Text>
+                                            <Text style={styles.mainStatSub}>Won: {advancedStats.stats?.matchesWon || 0} | Lost: {advancedStats.stats?.matchesLost || 0}</Text>
+                                        </LinearGradient>
+                                        <View style={{ flex: 1, gap: 10 }}>
+                                            <View style={styles.subStatBox}>
+                                                <Text style={styles.subStatValue}>{advancedStats.leagues?.total || 0}</Text>
+                                                <Text style={styles.subStatLabel}>Leagues</Text>
+                                            </View>
+                                            <View style={styles.subStatBox}>
+                                                <Text style={styles.subStatValue}>{advancedStats.teams?.total || 0}</Text>
+                                                <Text style={styles.subStatLabel}>Teams</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+
+                            {renderRecentMatches()}
                         </View>
                     )}
                 </Animated.View>
@@ -262,6 +444,7 @@ export default function ProfileDetailsPage() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F5F7FA' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' },
     headerContainer: { width: '100%' },
     headerGradient: { paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 60, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
     headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
@@ -340,5 +523,21 @@ const styles = StyleSheet.create({
     emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 15 },
     emptyText: { textAlign: 'center', color: '#999', marginVertical: 10, fontSize: 13 },
     createBtn: { backgroundColor: '#E31C25', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginTop: 10 },
-    createBtnText: { color: '#fff', fontWeight: 'bold' }
+    createBtnText: { color: '#fff', fontWeight: 'bold' },
+    
+    // Match styles
+    matchCard: { backgroundColor: '#fff', padding: 15, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#eee', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
+    matchCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    matchTypeBadge: { backgroundColor: '#F0F2F5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    matchTypeText: { fontSize: 11, fontWeight: 'bold', color: '#666' },
+    matchDate: { fontSize: 11, color: '#999' },
+    matchTeamsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 5 },
+    teamInfo: { flex: 1, flexDirection: 'column' },
+    teamNameText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+    scoreText: { fontSize: 12, color: '#E31C25', fontWeight: '600', marginTop: 4 },
+    vsText: { fontSize: 12, fontWeight: 'bold', color: '#ccc', marginHorizontal: 15 },
+    matchFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 10, marginTop: 4 },
+    venueText: { fontSize: 11, color: '#999', flex: 1 },
+    resultBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    resultText: { fontSize: 10, fontWeight: 'bold' }
 });

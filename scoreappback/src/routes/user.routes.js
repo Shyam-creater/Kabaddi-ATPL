@@ -39,5 +39,6 @@ router.get('/:userId/followers', getFollowers);
 router.get('/:userId/following', getFollowing);
 
 router.get('/:userId', getUserProfile);
+router.get('/:id/stats', require('../controllers/admin.controller').getPlayerDetailedStats);
 
 module.exports = router;
