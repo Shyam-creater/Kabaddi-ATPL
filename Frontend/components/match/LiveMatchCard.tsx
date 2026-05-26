@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { useSharedValue, withRepeat, withTiming, useAnimatedStyle, withSequence } from 'react-native-reanimated';
 import VideoPlayerModal from '../common/VideoPlayerModal';
 
@@ -90,19 +90,49 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = ({ match, onPress }) => {
                     >
                         {/* Header */}
                         <View style={styles.headerRow}>
-                            <View style={[styles.statusBadge, match.status === 'UPCOMING' && styles.upcomingBadge, match.status === 'COMPLETED' && styles.completedBadge]}>
-                                {match.status === 'LIVE' ? (
-                                    <Animated.View style={[styles.pulsingDot, animatedStyle]} />
-                                ) : (
-                                    <Ionicons
-                                        name={match.status === 'UPCOMING' ? 'calendar-outline' : 'checkmark-circle-outline'}
-                                        size={10} color="#fff"
-                                        style={{ marginRight: 4 }}
-                                    />
+                            <View style={styles.badgeRow}>
+                                <View style={[styles.statusBadge, match.status === 'UPCOMING' && styles.upcomingBadge, match.status === 'COMPLETED' && styles.completedBadge]}>
+                                    {match.status === 'LIVE' ? (
+                                        <Animated.View style={[styles.pulsingDot, animatedStyle]} />
+                                    ) : (
+                                        <Ionicons
+                                            name={match.status === 'UPCOMING' ? 'calendar-outline' : 'checkmark-circle-outline'}
+                                            size={10} color="#fff"
+                                            style={{ marginRight: 4 }}
+                                        />
+                                    )}
+                                    <Text style={styles.statusText}>{match.status}</Text>
+                                </View>
+                                {match.sport && (
+                                    <View style={styles.sportBadge}>
+                                        <MaterialCommunityIcons 
+                                            name={match.sport === 'cricket' ? 'cricket' : match.sport === 'football' ? 'soccer' : 'shield-half-full'} 
+                                            size={10} 
+                                            color="#FFD700" 
+                                            style={{ marginRight: 2 }} 
+                                        />
+                                        <Text style={styles.sportText}>{match.sport.toUpperCase()}</Text>
+                                    </View>
                                 )}
-                                <Text style={styles.statusText}>{match.status}</Text>
                             </View>
                             <Text style={styles.seriesText}>{match.series}</Text>
+                        </View>
+
+                        {/* Title & Details Info */}
+                        <View style={styles.detailsRow}>
+                            <Text style={styles.matchTitleText} numberOfLines={1}>{match.title || 'League Match'}</Text>
+                            <View style={styles.subDetailInfo}>
+                                {match.date && (match.status === 'COMPLETED' || match.status === 'UPCOMING') && (
+                                    <Text style={styles.dateText}>
+                                        <Ionicons name="time-outline" size={10} color="rgba(255,255,255,0.7)" /> {new Date(match.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                    </Text>
+                                )}
+                                {match.venue && (
+                                    <Text style={styles.venueText} numberOfLines={1}>
+                                        <Ionicons name="location-outline" size={10} color="rgba(255,255,255,0.7)" /> {match.venue}
+                                    </Text>
+                                )}
+                            </View>
                         </View>
 
                         {/* Scoreboard */}
@@ -270,6 +300,56 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 10,
         fontWeight: '700',
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    sportBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+    },
+    sportText: {
+        color: '#FFF',
+        fontSize: 9,
+        fontWeight: 'bold',
+    },
+    detailsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+        paddingBottom: 4,
+        borderBottomWidth: 0.5,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+    },
+    matchTitleText: {
+        color: '#FFF',
+        fontSize: 12,
+        fontWeight: '700',
+        flex: 1,
+        marginRight: 8,
+    },
+    subDetailInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    dateText: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 10,
+        fontWeight: '500',
+    },
+    venueText: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 10,
+        fontWeight: '500',
+        maxWidth: 120,
     },
 });
 

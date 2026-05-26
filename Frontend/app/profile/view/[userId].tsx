@@ -33,6 +33,9 @@ export default function PublicProfileDetails() {
     const { user: currentUser } = useAppSelector(state => state.auth);
     const [isBlocked, setIsBlocked] = useState(false);
     const [followStatus, setFollowStatus] = useState<'none' | 'pending' | 'accepted'>('none');
+    const [auctionData, setAuctionData] = useState<any>(null);
+    const [selectedSport, setSelectedSport] = useState<string>('');
+
 
     useEffect(() => {
         if (currentUser && currentUser.blockedUsers && userId) {
@@ -91,6 +94,22 @@ export default function PublicProfileDetails() {
                     } else if (userData.isRequested) {
                         setFollowStatus('pending');
                     }
+
+                    // Set default selected sport from profile if available
+                    if (userData.sports && userData.sports.length > 0) {
+                        setSelectedSport(userData.sports[0]);
+                    }
+
+                    // Fetch auction info from general player list by matching name
+                    try {
+                        const playersResponse = await api.get('/players');
+                        const matchedPlayer = playersResponse.data.find(
+                            (p: any) => p.name?.trim().toLowerCase() === userData.name?.trim().toLowerCase()
+                        );
+                        setAuctionData(matchedPlayer || null);
+                    } catch (e) {
+                        console.log('Auction details fetch error', e);
+                    }
                 }
                 
                 try {
@@ -110,6 +129,7 @@ export default function PublicProfileDetails() {
 
         fetchUserProfile();
     }, [userId]);
+
 
     const handleUnblockUser = () => {
         Alert.alert('Unblock User', 'Do you want to unblock this user?', [
@@ -192,7 +212,30 @@ export default function PublicProfileDetails() {
 
     const hasCricketProfile = !!((user?.playerProfile?.cricket || (advancedStats?.stats?.totalMatches > 0)) && user?.sports?.includes('Cricket'));
     const hasKabaddiProfile = !!((user?.playerProfile?.kabaddi || (advancedStats?.stats?.totalMatches > 0)) && user?.sports?.includes('Kabaddi'));
-    const hasProfile = hasCricketProfile || hasKabaddiProfile || !!(advancedStats?.stats?.totalMatches > 0);
+    const hasFootballProfile = !!(user?.playerProfile?.football && user?.sports?.includes('Football'));
+    const hasProfile = hasCricketProfile || hasKabaddiProfile || hasFootballProfile || !!(advancedStats?.stats?.totalMatches > 0);
+
+
+    const getMergedFootballStats = () => {
+        const footballProfile = user?.playerProfile?.football || {};
+        const careerSummary = footballProfile.careerSummary || {};
+        
+        return {
+            ...footballProfile,
+            role: footballProfile.position || 'Player',
+            jerseyNumber: footballProfile.jerseyNumber || '-',
+            preferredFoot: footballProfile.preferredFoot || 'N/A',
+            careerSummary: {
+                totalGoals: careerSummary.totalGoals || 0,
+                totalAssists: careerSummary.totalAssists || 0,
+                matchesPlayed: careerSummary.matchesPlayed || 0,
+                cleanSheets: careerSummary.cleanSheets || 0,
+                passingAccuracy: careerSummary.passingAccuracy || 0,
+            },
+            seasonStats: footballProfile.seasonStats || []
+        };
+    };
+
 
     const getMergedCricketStats = () => {
         const cricketProfile = user?.playerProfile?.cricket || {};
@@ -338,14 +381,72 @@ export default function PublicProfileDetails() {
                     <Text style={styles.listValue}>{data.records?.mostTacklePointsInMatch || 0}</Text>
                 </View>
                 <View style={styles.listItem}>
-                    <Text style={styles.listLabel}>Cards (G/Y/R)</Text>
-                    <View style={{ flexDirection: 'row', gap: 5 }}>
-                        <View style={[styles.cardBadge, { backgroundColor: '#4CAF50' }]}><Text style={styles.cardText}>{data.discipline?.greenCards || 0}</Text></View>
-                        <View style={[styles.cardBadge, { backgroundColor: '#FFD700' }]}><Text style={styles.cardText}>{data.discipline?.yellowCards || 0}</Text></View>
-                        <View style={[styles.cardBadge, { backgroundColor: '#F44336' }]}><Text style={styles.cardText}>{data.discipline?.redCards || 0}</Text></View>
+                    <Text style={styles.listLabel}>Cards (Green / Yellow / Red)</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={[styles.refereeCard, { backgroundColor: '#4CAF50' }]}><Text style={styles.cardText}>{data.discipline?.greenCards || 0}</Text></View>
+                        <View style={[styles.refereeCard, { backgroundColor: '#FFD700' }]}><Text style={styles.cardText}>{data.discipline?.yellowCards || 0}</Text></View>
+                        <View style={[styles.refereeCard, { backgroundColor: '#F44336' }]}><Text style={styles.cardText}>{data.discipline?.redCards || 0}</Text></View>
                     </View>
                 </View>
             </View>
+
+            {/* Fitness & Medical Clearance Status */}
+            {data.fitness && (
+                <View style={styles.fitnessCard}>
+                    <LinearGradient
+                        colors={
+                            data.fitness.fitnessStatus === 'Fit'
+                                ? ['#E8F5E9', '#C8E6C9']
+                                : data.fitness.fitnessStatus === 'Recovering'
+                                ? ['#FFF9C4', '#FFF59D']
+                                : ['#FFEBEE', '#FFCDD2']
+                        }
+                        style={styles.fitnessGradient}
+                    >
+                        <View style={styles.fitnessHeader}>
+                            <Ionicons
+                                name={
+                                    data.fitness.fitnessStatus === 'Fit'
+                                        ? 'shield-checkmark'
+                                        : data.fitness.fitnessStatus === 'Recovering'
+                                        ? 'shield'
+                                        : 'alert-circle'
+                                }
+                                size={20}
+                                color={
+                                    data.fitness.fitnessStatus === 'Fit'
+                                        ? '#2E7D32'
+                                        : data.fitness.fitnessStatus === 'Recovering'
+                                        ? '#F57F17'
+                                        : '#C62828'
+                                }
+                            />
+                            <Text style={[
+                                styles.fitnessStatusText,
+                                {
+                                    color:
+                                        data.fitness.fitnessStatus === 'Fit'
+                                            ? '#2E7D32'
+                                            : data.fitness.fitnessStatus === 'Recovering'
+                                            ? '#F57F17'
+                                            : '#C62828'
+                                }
+                            ]}>
+                                Medical Clearance: {data.fitness.fitnessStatus || 'Fit'}
+                            </Text>
+                        </View>
+                        {data.fitness.injuries ? (
+                            <Text style={styles.fitnessInjuriesText}>Injury Logs: {data.fitness.injuries}</Text>
+                        ) : null}
+                        {data.fitness.lastMatchPlayedDate ? (
+                            <Text style={styles.fitnessLastPlayedText}>
+                                Last Scored Game: {new Date(data.fitness.lastMatchPlayedDate).toLocaleDateString()}
+                            </Text>
+                        ) : null}
+                    </LinearGradient>
+                </View>
+            )}
+
         </View>
     );
 
@@ -426,8 +527,114 @@ export default function PublicProfileDetails() {
         </View>
     );
 
-    const showCricket = hasCricketProfile || (hasProfile && !hasKabaddiProfile);
-    const showKabaddi = hasKabaddiProfile;
+    const renderFootballStats = (data: any) => (
+        <View>
+            <View style={styles.roleCard}>
+                <LinearGradient colors={['#E8F5E9', '#fff']} style={styles.roleGradient}>
+                    <Text style={[styles.roleTitle, { color: '#2E7D32' }]}>FOOTBALL PROFILE</Text>
+                    <View style={styles.roleRow}>
+                        <View style={styles.roleBadge}><Text style={styles.roleText}>{data.role || 'Player'}</Text></View>
+                        <View style={styles.roleBadge}><Text style={styles.roleText}>Jersey #{data.jerseyNumber}</Text></View>
+                        <View style={styles.roleBadge}><Text style={styles.roleText}>Preferred Foot: {data.preferredFoot}</Text></View>
+                    </View>
+                </LinearGradient>
+            </View>
+
+            {/* Pitch positioning mini field */}
+            <SectionHeader title="Pitch Positioning" icon="football" />
+            {renderSoccerField(data.role)}
+
+            <View style={styles.highlightGrid}>
+                <LinearGradient colors={['#2E7D32', '#4CAF50']} style={styles.mainStatBox}>
+                    <Text style={styles.mainStatLabel}>TOTAL GOALS</Text>
+                    <Text style={styles.mainStatValue}>{data.careerSummary?.totalGoals || 0}</Text>
+                    <Text style={styles.mainStatSub}>{data.careerSummary?.matchesPlayed || 0} Matches Played</Text>
+                </LinearGradient>
+                <View style={{ flex: 1, gap: 10 }}>
+                    <View style={styles.subStatBox}>
+                        <Text style={styles.subStatValue}>{data.careerSummary?.totalAssists || 0}</Text>
+                        <Text style={styles.subStatLabel}>Assists</Text>
+                    </View>
+                    <View style={styles.subStatBox}>
+                        <Text style={styles.subStatValue}>{data.careerSummary?.cleanSheets || 0}</Text>
+                        <Text style={styles.subStatLabel}>Clean Sheets</Text>
+                    </View>
+                </View>
+            </View>
+
+            <SectionHeader title="Technical Ratios" icon="analytics" />
+            <View style={styles.gridContainer}>
+                <StatCard label="Passing Acc." value={`${data.careerSummary?.passingAccuracy || 0}%`} icon="locate" color="#2E7D32" />
+                <StatCard label="Shots on Target" value={`${data.careerSummary?.shotsOnTarget || 0}%`} icon="eye" color="#E31C25" />
+                <StatCard label="Experience" value={`${data.experienceYears || 0} Yrs`} icon="hourglass" color="#FFA726" />
+            </View>
+
+            {data.seasonStats && data.seasonStats.length > 0 && (
+                <View>
+                    <SectionHeader title="Season Performance" icon="calendar" />
+                    <View style={styles.tableCard}>
+                        <View style={styles.tableHeader}>
+                            <Text style={[styles.th, { flex: 1.2, textAlign: 'left' }]}>Season</Text>
+                            <Text style={styles.th}>Mat</Text>
+                            <Text style={styles.th}>Goals</Text>
+                            <Text style={styles.th}>Ast</Text>
+                            <Text style={styles.th}>Min</Text>
+                        </View>
+                        {data.seasonStats.map((item: any, idx: number) => (
+                            <View key={idx} style={[styles.tr, idx % 2 === 0 && styles.trAlt]}>
+                                <Text style={[styles.td, { flex: 1.2, textAlign: 'left', fontWeight: 'bold' }]}>{item.season}</Text>
+                                <Text style={styles.td}>{item.matches}</Text>
+                                <Text style={styles.td}>{item.goals}</Text>
+                                <Text style={styles.td}>{item.assists}</Text>
+                                <Text style={styles.td}>{item.minutesPlayed}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
+        </View>
+    );
+
+    const renderSoccerField = (position: string) => {
+        const normalizedPos = (position || '').trim().toLowerCase();
+        let markerStyle: any = { top: '45%', left: '46%' }; // Midfield
+        
+        if (normalizedPos.includes('forward') || normalizedPos.includes('striker') || normalizedPos.includes('wing') || normalizedPos.includes('attac')) {
+            markerStyle = { top: '15%', left: '46%' };
+        } else if (normalizedPos.includes('midfield')) {
+            markerStyle = { top: '45%', left: '46%' };
+        } else if (normalizedPos.includes('defen') || normalizedPos.includes('back')) {
+            markerStyle = { top: '72%', left: '46%' };
+        } else if (normalizedPos.includes('goalkeeper') || normalizedPos.includes('keeper') || normalizedPos.includes('gk')) {
+            markerStyle = { top: '88%', left: '46%' };
+        }
+
+        return (
+            <View style={styles.soccerFieldContainer}>
+                <LinearGradient colors={['#2E7D32', '#1b5e20']} style={styles.soccerField}>
+                    {/* Penalty Area Top */}
+                    <View style={styles.fieldPenaltyAreaTop} />
+                    {/* Penalty Area Bottom */}
+                    <View style={styles.fieldPenaltyAreaBottom} />
+                    {/* Center Circle */}
+                    <View style={styles.fieldCenterCircle} />
+                    {/* Center Line */}
+                    <View style={styles.fieldCenterLine} />
+                    {/* Player Position Marker */}
+                    <View style={[styles.fieldPlayerMarker, markerStyle]}>
+                        <View style={styles.fieldPlayerMarkerPulse} />
+                        <Text style={styles.fieldPlayerMarkerText}>{position || 'Player'}</Text>
+                    </View>
+                </LinearGradient>
+            </View>
+        );
+    };
+
+    const activeSportToShow = selectedSport || (user?.sports && user.sports[0]) || 'Cricket';
+    const showCricket = activeSportToShow === 'Cricket' && hasCricketProfile;
+    const showKabaddi = activeSportToShow === 'Kabaddi' && hasKabaddiProfile;
+    const showFootball = activeSportToShow === 'Football' && hasFootballProfile;
+
 
     const renderRecentMatches = () => {
         if (!advancedStats?.matches?.details || advancedStats.matches.details.length === 0) {
@@ -518,6 +725,52 @@ export default function PublicProfileDetails() {
                         style={styles.heroOverlay}
                     />
 
+                    {/* Auction Banner overlay */}
+                    {auctionData && (
+                        <View style={styles.auctionBadgeOverlay}>
+                            <LinearGradient
+                                colors={
+                                    auctionData.auctionStatus === 'SOLD'
+                                        ? ['#FFD700', '#FFA000']
+                                        : auctionData.auctionStatus === 'LIVE'
+                                        ? ['#E31C25', '#FF4081']
+                                        : ['#475569', '#334155']
+                                }
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.auctionBadgeGradient}
+                            >
+                                <View style={styles.auctionBadgeContent}>
+                                    <MaterialCommunityIcons
+                                        name={
+                                            auctionData.auctionStatus === 'SOLD'
+                                                ? 'crown'
+                                                : auctionData.auctionStatus === 'LIVE'
+                                                ? 'gavel'
+                                                : 'calendar-clock'
+                                        }
+                                        size={14}
+                                        color={auctionData.auctionStatus === 'SOLD' ? '#1A1A1A' : '#fff'}
+                                        style={{ marginRight: 6 }}
+                                    />
+                                    <Text style={[
+                                        styles.auctionBadgeText,
+                                        { color: auctionData.auctionStatus === 'SOLD' ? '#1A1A1A' : '#fff' }
+                                    ]}>
+                                        {auctionData.auctionStatus === 'SOLD'
+                                            ? `SOLD to ${auctionData.team?.name || auctionData.team?.code || 'Franchise'} for ₹${auctionData.soldPrice?.toLocaleString()}`
+                                            : auctionData.auctionStatus === 'LIVE'
+                                            ? `LIVE BID • Base Price: ₹${auctionData.basePrice?.toLocaleString()}`
+                                            : auctionData.auctionStatus === 'UNSOLD'
+                                            ? `UNSOLD • Base Price: ₹${auctionData.basePrice?.toLocaleString()}`
+                                            : `Category ${auctionData.category || 'A'} • Base Price: ₹${auctionData.basePrice?.toLocaleString()}`}
+                                    </Text>
+                                </View>
+                            </LinearGradient>
+                        </View>
+                    )}
+
+
                     {/* Header Buttons */}
                     <View style={styles.headerButtons}>
                         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
@@ -587,8 +840,42 @@ export default function PublicProfileDetails() {
                             </View>
                         ) : (
                             <View style={{ paddingBottom: 40 }}>
+                                {/* Horizontal Sport Tabs Switcher */}
+                                {user?.sports && user.sports.length > 1 && (
+                                    <View style={styles.sportSwitcherContainer}>
+                                        {user.sports.map((sport: string) => {
+                                            const isSelected = activeSportToShow === sport;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={sport}
+                                                    style={[styles.sportProfileTabBtn, isSelected && styles.activeSportProfileTabBtn]}
+                                                    onPress={() => setSelectedSport(sport)}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <MaterialCommunityIcons
+                                                        name={
+                                                            sport === 'Cricket'
+                                                                ? 'cricket'
+                                                                : sport === 'Kabaddi'
+                                                                ? 'run'
+                                                                : 'football'
+                                                        }
+                                                        size={16}
+                                                        color={isSelected ? '#fff' : '#666'}
+                                                    />
+                                                    <Text style={[styles.sportProfileTabBtnText, isSelected && styles.activeSportProfileTabBtnText]}>
+                                                        {sport}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                )}
+
                                 {showKabaddi && renderKabaddiStats(getMergedKabaddiStats())}
                                 {showCricket && renderCricketStats(getMergedCricketStats())}
+                                {showFootball && renderFootballStats(getMergedFootballStats())}
+
                                 
                                 {advancedStats && (
                                     <View>
@@ -877,5 +1164,199 @@ const styles = StyleSheet.create({
     matchFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 10, marginTop: 4 },
     venueText: { fontSize: 11, color: '#999', flex: 1 },
     resultBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-    resultText: { fontSize: 10, fontWeight: 'bold' }
+    resultText: { fontSize: 10, fontWeight: 'bold' },
+    
+    // New Profile View Styles
+    refereeCard: {
+        width: 20,
+        height: 28,
+        borderRadius: 3,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 1,
+        shadowOffset: { width: 0, height: 1 },
+    },
+    fitnessCard: {
+        borderRadius: 16,
+        overflow: 'hidden',
+        marginBottom: 20,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    fitnessGradient: {
+        padding: 16,
+    },
+    fitnessHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    fitnessStatusText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    fitnessInjuriesText: {
+        fontSize: 12,
+        color: '#555',
+        marginTop: 6,
+        fontWeight: '600',
+    },
+    fitnessLastPlayedText: {
+        fontSize: 11,
+        color: '#666',
+        marginTop: 4,
+    },
+    auctionBadgeOverlay: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 105 : 95,
+        left: 20,
+        borderRadius: 20,
+        overflow: 'hidden',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    auctionBadgeGradient: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    auctionBadgeContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    auctionBadgeText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        letterSpacing: 0.5,
+    },
+    sportSwitcherContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOpacity: 0.02,
+        shadowRadius: 3,
+        borderWidth: 1,
+        borderColor: '#eee',
+        gap: 6,
+    },
+    sportProfileTabBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        borderRadius: 8,
+        gap: 6,
+    },
+    activeSportProfileTabBtn: {
+        backgroundColor: '#E31C25',
+    },
+    sportProfileTabBtnText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#666',
+    },
+    activeSportProfileTabBtnText: {
+        color: '#fff',
+    },
+    soccerFieldContainer: {
+        height: 160,
+        borderRadius: 16,
+        overflow: 'hidden',
+        marginVertical: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    soccerField: {
+        flex: 1,
+        position: 'relative',
+        backgroundColor: '#2e7d32',
+    },
+    fieldCenterLine: {
+        position: 'absolute',
+        top: '50%',
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: 'rgba(255,255,255,0.4)',
+    },
+    fieldCenterCircle: {
+        position: 'absolute',
+        top: '35%',
+        left: '35%',
+        width: '30%',
+        height: '30%',
+        borderRadius: 100,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.4)',
+        backgroundColor: 'transparent',
+    },
+    fieldPenaltyAreaTop: {
+        position: 'absolute',
+        top: 0,
+        left: '20%',
+        width: '60%',
+        height: '25%',
+        borderBottomWidth: 2,
+        borderLeftWidth: 2,
+        borderRightWidth: 2,
+        borderColor: 'rgba(255,255,255,0.4)',
+    },
+    fieldPenaltyAreaBottom: {
+        position: 'absolute',
+        bottom: 0,
+        left: '20%',
+        width: '60%',
+        height: '25%',
+        borderTopWidth: 2,
+        borderLeftWidth: 2,
+        borderRightWidth: 2,
+        borderColor: 'rgba(255,255,255,0.4)',
+    },
+    fieldPlayerMarker: {
+        position: 'absolute',
+        transform: [{ translateX: -40 }, { translateY: -15 }],
+        width: 80,
+        alignItems: 'center',
+    },
+    fieldPlayerMarkerPulse: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#FFD700',
+        borderWidth: 2,
+        borderColor: '#fff',
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    fieldPlayerMarkerText: {
+        color: '#fff',
+        fontSize: 9,
+        fontWeight: 'bold',
+        marginTop: 4,
+        textShadowColor: 'rgba(0,0,0,0.8)',
+        textShadowRadius: 3,
+        textShadowOffset: { width: 0, height: 1 },
+        textAlign: 'center',
+    },
+
 });

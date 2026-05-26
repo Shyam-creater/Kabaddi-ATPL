@@ -131,21 +131,46 @@ export default function HomeScreen() {
   const [kabaddiProfiles, setKabaddiProfiles] = useState<any[]>([]);
   const [footballProfiles, setFootballProfiles] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('Cricket');
+  const [topBatsmen, setTopBatsmen] = useState<any[]>([]);
+  const [topBowlers, setTopBowlers] = useState<any[]>([]);
+  const [topFootballers, setTopFootballers] = useState<any[]>([]);
+  const [leaderboardTab, setLeaderboardTab] = useState<'runs' | 'wickets' | 'goals'>('runs');
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+  const [topHighScores, setTopHighScores] = useState<any[]>([]);
+  const [topTeams, setTopTeams] = useState<any[]>([]);
+  const [hubTab, setHubTab] = useState<'players' | 'teams'>('players');
+  const [loadingHub, setLoadingHub] = useState(true);
+
+
+
+
+  const normalizeLeaderboardStat = (p: any, tab: 'runs' | 'wickets' | 'goals') => {
+    if (!p) return 0;
+    if (tab === 'goals') return p.goals ?? p.value ?? 0;
+    const v = tab === 'runs' ? (p.runs ?? p.totalRuns ?? p.totalRun ?? p.value ?? p.statValue) : (p.wickets ?? p.totalWickets ?? p.totalWicket ?? p.value ?? p.statValue);
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+
+  const getRankTeamCode = (p: any) => {
+    return p?.team?.code || p?.teamCode || p?.teamName || p?.franchise?.code || p?.franchise?.name || 'Free Agent';
+  };
+
+  const getRankAvatarUri = (p: any) => {
+    return p?.image || p?.profilePicture || 'https://via.placeholder.com/150';
+  };
+
+  const topList = (leaderboardTab === 'runs' ? topBatsmen : leaderboardTab === 'wickets' ? topBowlers : topFootballers);
+  const displayedTopPlayers = Array.isArray(topList) ? topList : [];
+
+
+
+
 
   useEffect(() => {
     if (!activeBanner) return;
-
-    // Show first time
     setBannerVisible(true);
-    setModalVisible(true);
-
-    // Show again every 5 minutes
-    const interval = setInterval(() => {
-      setBannerVisible(true);
-      setModalVisible(true);
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
   }, [activeBanner]);
 
   // Auto-cycle quotes every 10 seconds
@@ -196,15 +221,18 @@ export default function HomeScreen() {
   const fetchData = async () => {
     setLoadingMatches(true);
 
-    // 1. Fetch Matches
+    // 1. Fetch Matches (LIVE + recent COMPLETED, or fall back to UPCOMING)
     try {
-      const matches = await MatchService.getMatches('LIVE', 'HomeScreen');
-      if (matches.length === 0) {
-        const upcoming = await MatchService.getMatches('UPCOMING', 'HomeScreen');
-        setLiveMatches(upcoming);
-      } else {
-        setLiveMatches(matches);
+      const allMatches = await MatchService.getMatches(undefined, 'HomeScreen');
+      const live = allMatches.filter((m: Match) => m.status === 'LIVE');
+      const completed = allMatches.filter((m: Match) => m.status === 'COMPLETED').slice(0, 3);
+      const upcoming = allMatches.filter((m: Match) => m.status === 'UPCOMING').slice(0, 3);
+      
+      let merged = [...live, ...completed];
+      if (merged.length === 0) {
+        merged = upcoming;
       }
+      setLiveMatches(merged);
     } catch (e) {
       console.warn('Matches fetch failed:', e);
     }
@@ -257,8 +285,83 @@ export default function HomeScreen() {
     });
     fetchItem('/content/blogs', setBlogsData);
 
+    // Fetch top scorers, wicket takers & footballers for Home Leaderboard
+    try {
+      setLoadingLeaderboard(true);
+      const [batRes, bowlRes, ftRes] = await Promise.all([
+        api.get('/players?top=batsman'),
+        api.get('/players?top=bowler'),
+        api.get('/user/list?sport=Football')
+      ]);
+      setTopBatsmen(Array.isArray(batRes.data) ? batRes.data.slice(0, 5) : []);
+      setTopBowlers(Array.isArray(bowlRes.data) ? bowlRes.data.slice(0, 5) : []);
+      
+      if (ftRes.data?.success) {
+        const ftUsers = Array.isArray(ftRes.data.data) ? ftRes.data.data : [];
+        const sortedFt = ftUsers
+          .filter((u: any) => u.playerProfile?.football?.careerSummary?.totalGoals !== undefined)
+          .sort((a: any, b: any) => {
+            const ga = a.playerProfile?.football?.careerSummary?.totalGoals || 0;
+            const gb = b.playerProfile?.football?.careerSummary?.totalGoals || 0;
+            return gb - ga;
+          })
+          .map((u: any) => ({
+            _id: u._id,
+            name: u.name,
+            image: u.profilePicture,
+            team: u.playerProfile?.football?.currentTeam || 'Free Agent',
+            goals: u.playerProfile?.football?.careerSummary?.totalGoals || 0,
+            value: u.playerProfile?.football?.careerSummary?.totalGoals || 0
+          }));
+        setTopFootballers(sortedFt.slice(0, 5));
+      }
+    } catch (e) {
+      console.warn('Leaderboard fetch failed:', e);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+
+    // Fetch Top High Scores and Top Teams for Hub
+    try {
+      setLoadingHub(true);
+      const [ckUsersRes, teamsRes] = await Promise.all([
+        api.get('/user/list?sport=Cricket'),
+        api.get('/teams')
+      ]);
+
+      if (ckUsersRes.data?.success) {
+        const ckUsers = Array.isArray(ckUsersRes.data.data) ? ckUsersRes.data.data : [];
+        const sortedByHighScore = ckUsers
+          .filter((u: any) => u.playerProfile?.cricket?.careerSummary?.highestScore !== undefined)
+          .sort((a: any, b: any) => {
+            const ha = a.playerProfile?.cricket?.careerSummary?.highestScore || 0;
+            const hb = b.playerProfile?.cricket?.careerSummary?.highestScore || 0;
+            return hb - ha;
+          })
+          .map((u: any) => ({
+            _id: u._id,
+            name: u.name,
+            image: u.profilePicture,
+            team: u.playerProfile?.cricket?.currentTeam || 'Free Agent',
+            highScore: u.playerProfile?.cricket?.careerSummary?.highestScore || 0
+          }));
+        setTopHighScores(sortedByHighScore.slice(0, 5));
+      }
+
+      const allTeamsList = Array.isArray(teamsRes.data) ? teamsRes.data : [];
+      const sortedTeams = allTeamsList
+        .sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
+      setTopTeams(sortedTeams.slice(0, 5));
+
+    } catch (e) {
+      console.warn('Performance Hub fetch failed:', e);
+    } finally {
+      setLoadingHub(false);
+    }
+
     setLoadingMatches(false);
   };
+
 
   useEffect(() => {
     fetchData();
@@ -592,8 +695,36 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* --- 1. HERO CAROUSEL (Live Matches) --- */}
-        <View style={styles.carouselContainer}>
+        {/* --- 1. HERO CAROUSEL (Live & Recent Matches) --- */}
+        <Animated.View entering={FadeInDown.delay(50).duration(500)} style={styles.sectionContainer}>
+          <TouchableOpacity 
+            activeOpacity={0.95}
+            style={styles.titleCard}
+            onPress={() => router.push('/matches')}
+          >
+            <View style={styles.titleCardLeft}>
+              <LinearGradient
+                colors={['#E31C25', '#FF4081']}
+                style={styles.titleIconContainer}
+              >
+                <Ionicons name="flame" size={16} color="#fff" />
+              </LinearGradient>
+              <View style={styles.titleCardTextContainer}>
+                <Text style={styles.titleCardTitle}>Match Center</Text>
+                <Text style={styles.titleCardSubtitle}>Live & Completed Matches</Text>
+              </View>
+            </View>
+            <View style={styles.titleCardRight}>
+              <View style={styles.liveIndicatorBadge}>
+                <View style={styles.liveIndicatorDot} />
+                <Text style={styles.liveIndicatorText}>LIVE</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#888" />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <View style={[styles.carouselContainer, { marginTop: 5 }]}>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.carouselScroll}>
             {liveMatches.length > 0 ? (
               liveMatches.map((match) => (
@@ -619,14 +750,33 @@ export default function HomeScreen() {
         {/* --- DETAILED MATCH SCOREBOARD SECTION --- */}
         {liveMatches.length > 0 && (
           <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.sectionContainer}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleWrapper}>
-                <View style={[styles.premiumHeaderBar, { backgroundColor: '#E31C25' }]} />
-                <Text style={styles.sectionHeaderTitle}>
-                  {liveMatches[0].status === 'LIVE' ? '🔴 Live Match Center' : '🏏 Featured Match'}
-                </Text>
+            <TouchableOpacity 
+              activeOpacity={0.95}
+              style={styles.titleCard}
+              onPress={() => router.push(`/matches/details/${liveMatches[0]._id}` as any)}
+            >
+              <View style={styles.titleCardLeft}>
+                <LinearGradient
+                  colors={liveMatches[0].status === 'LIVE' ? ['#E31C25', '#FF4081'] : ['#4A90E2', '#357ABD']}
+                  style={styles.titleIconContainer}
+                >
+                  <MaterialCommunityIcons 
+                    name={liveMatches[0].status === 'LIVE' ? 'pulse' : 'cricket'} 
+                    size={16} 
+                    color="#fff" 
+                  />
+                </LinearGradient>
+                <View style={styles.titleCardTextContainer}>
+                  <Text style={styles.titleCardTitle}>
+                    {liveMatches[0].status === 'LIVE' ? 'Live Match Center' : 'Featured Match'}
+                  </Text>
+                  <Text style={styles.titleCardSubtitle}>Real-time scoreboard details</Text>
+                </View>
               </View>
-            </View>
+              <View style={styles.titleCardRight}>
+                <Ionicons name="chevron-forward" size={16} color="#888" />
+              </View>
+            </TouchableOpacity>
             <DetailedMatchCard
               match={liveMatches[0]}
               onPress={() => router.push(`/matches/details/${liveMatches[0]._id}` as any)}
@@ -634,11 +784,165 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
+        {/* --- PREMIUM PERFORMANCE HUB --- */}
+        <Animated.View entering={FadeInDown.delay(180).duration(600).springify()} style={styles.sectionContainer}>
+          <TouchableOpacity 
+            activeOpacity={0.95}
+            style={styles.titleCard}
+            onPress={() => router.push(hubTab === 'players' ? '/profile/stats' : '/points-table')}
+          >
+            <View style={styles.titleCardLeft}>
+              <LinearGradient
+                colors={['#FF9800', '#FFB74D']}
+                style={styles.titleIconContainer}
+              >
+                <MaterialCommunityIcons name="trophy-award" size={16} color="#fff" />
+              </LinearGradient>
+              <View style={styles.titleCardTextContainer}>
+                <Text style={styles.titleCardTitle}>Season Elite Performers</Text>
+                <Text style={styles.titleCardSubtitle}>Top Players & Team Standings</Text>
+              </View>
+            </View>
+            <View style={styles.titleCardRight}>
+              <Ionicons name="chevron-forward" size={16} color="#888" />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.performanceHubCard}>
+            <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.performanceHubGradient}>
+              {/* Header Tab Switcher */}
+              <View style={styles.hubTabs}>
+                <TouchableOpacity
+                  onPress={() => setHubTab('players')}
+                  style={[styles.hubTab, hubTab === 'players' && styles.activeHubTab]}
+                >
+                  <Ionicons name="people" size={16} color={hubTab === 'players' ? '#FFD700' : '#888'} />
+                  <Text style={[styles.hubTabText, hubTab === 'players' && styles.activeHubTabText]}>Player High Scores</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setHubTab('teams')}
+                  style={[styles.hubTab, hubTab === 'teams' && styles.activeHubTab]}
+                >
+                  <Ionicons name="shield-checkmark" size={16} color={hubTab === 'teams' ? '#FFD700' : '#888'} />
+                  <Text style={[styles.hubTabText, hubTab === 'teams' && styles.activeHubTabText]}>Top Teams</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loadingHub ? (
+                <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 20 }} />
+              ) : hubTab === 'players' ? (
+                <View style={styles.hubList}>
+                  {topHighScores.map((player: any, idx: number) => (
+                    <TouchableOpacity
+                      key={player._id || idx}
+                      style={[
+                        styles.hubRow,
+                        idx === 0 && { borderColor: 'rgba(255, 215, 0, 0.25)', backgroundColor: 'rgba(255, 215, 0, 0.05)' }
+                      ]}
+                      onPress={() => router.push(`/profile/view/${player._id}` as any)}
+                    >
+                      {idx === 0 ? (
+                        <View style={[styles.hubRankBadge, { backgroundColor: '#FFD700' }]}>
+                          <MaterialCommunityIcons name="crown" size={10} color="#1A1A1A" />
+                        </View>
+                      ) : idx === 1 ? (
+                        <View style={[styles.hubRankBadge, { backgroundColor: '#C0C0C0' }]}>
+                          <Text style={styles.hubRankBadgeText}>2</Text>
+                        </View>
+                      ) : idx === 2 ? (
+                        <View style={[styles.hubRankBadge, { backgroundColor: '#CD7F32' }]}>
+                          <Text style={styles.hubRankBadgeText}>3</Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.hubRankBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                          <Text style={[styles.hubRankBadgeText, { color: '#aaa' }]}>{idx + 1}</Text>
+                        </View>
+                      )}
+                      <Image source={{ uri: getRankAvatarUri(player) }} style={styles.hubAvatar} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.hubPlayerName}>{player.name}</Text>
+                        <Text style={styles.hubPlayerTeam}>{player.team}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.hubScoreValue}>{player.highScore}</Text>
+                        <Text style={styles.hubScoreLabel}>HIGH SCORE</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                  {topHighScores.length === 0 && (
+                    <Text style={styles.emptyHubText}>No batsman high score data available</Text>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.hubList}>
+                  {topTeams.map((team: any, idx: number) => (
+                    <TouchableOpacity
+                      key={team._id || idx}
+                      style={[
+                        styles.hubRow,
+                        idx === 0 && { borderColor: 'rgba(255, 215, 0, 0.25)', backgroundColor: 'rgba(255, 215, 0, 0.05)' }
+                      ]}
+                      onPress={() => router.push('/points-table')}
+                    >
+                      {idx === 0 ? (
+                        <View style={[styles.hubRankBadge, { backgroundColor: '#FFD700' }]}>
+                          <MaterialCommunityIcons name="crown" size={10} color="#1A1A1A" />
+                        </View>
+                      ) : idx === 1 ? (
+                        <View style={[styles.hubRankBadge, { backgroundColor: '#C0C0C0' }]}>
+                          <Text style={styles.hubRankBadgeText}>2</Text>
+                        </View>
+                      ) : idx === 2 ? (
+                        <View style={[styles.hubRankBadge, { backgroundColor: '#CD7F32' }]}>
+                          <Text style={styles.hubRankBadgeText}>3</Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.hubRankBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                          <Text style={[styles.hubRankBadgeText, { color: '#aaa' }]}>{idx + 1}</Text>
+                        </View>
+                      )}
+                      {team.logo ? (
+                        <Image source={{ uri: team.logo }} style={styles.hubAvatar} />
+                      ) : (
+                        <View style={[styles.hubAvatar, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                          <Ionicons name="shield" size={16} color="#fff" />
+                        </View>
+                      )}
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.hubPlayerName}>{team.name}</Text>
+                        <Text style={styles.hubPlayerTeam}>{team.sport ? team.sport.toUpperCase() : 'CRICKET'}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.hubScoreValue}>{team.points || 0}</Text>
+                        <Text style={styles.hubScoreLabel}>POINTS</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                  {topTeams.length === 0 && (
+                    <Text style={styles.emptyHubText}>No team standings data available</Text>
+                  )}
+                </View>
+              )}
+
+              {/* View History CTA */}
+              <TouchableOpacity
+                style={styles.hubCtaBtn}
+                onPress={() => router.push(hubTab === 'players' ? '/profile/stats' : '/points-table')}
+              >
+                <Text style={styles.hubCtaBtnText}>View Standings & Entire History</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFD700" />
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </Animated.View>
+
         {/* --- 2. QUICK ACTIONS GRID (PREMIUM) --- */}
         <Animated.View entering={FadeInDown.delay(100).duration(500).springify().damping(12)} style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleWrapper}>
               <View style={[styles.premiumHeaderBar, { backgroundColor: '#E31C25' }]} />
+              <MaterialCommunityIcons name="compass-outline" size={22} color="#E31C25" style={{ marginRight: 6 }} />
               <Text style={styles.sectionHeaderTitle}>Start Exploring</Text>
             </View>
           </View>
@@ -653,14 +957,14 @@ export default function HomeScreen() {
                   onPress={() => router.push(action.route as any)}
                   activeOpacity={0.7}
                 >
-                  <LinearGradient
-                    colors={[`${action.color}20`, `${action.color}10`]}
-                    style={styles.gridIconCard}
-                  >
-                    <View style={[styles.gridIconCircle, { backgroundColor: action.color }]}>
+                  <View style={styles.gridIconCard}>
+                    <LinearGradient
+                      colors={[action.color, `${action.color}dd`]}
+                      style={styles.gridIconCircle}
+                    >
                       <MaterialCommunityIcons name={action.icon as any} size={22} color="#fff" />
-                    </View>
-                  </LinearGradient>
+                    </LinearGradient>
+                  </View>
                   <Text style={styles.gridLabel}>{action.name}</Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -673,6 +977,7 @@ export default function HomeScreen() {
           <View style={[styles.sectionHeader, { paddingRight: 16 }]}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.premiumHeaderBar, { backgroundColor: '#FF9800' }]} />
+              <Ionicons name="star-outline" size={22} color="#FF9800" style={{ marginRight: 6 }} />
               <Text style={styles.sectionTitle}>Trending Stars</Text>
             </View>
             <TouchableOpacity>
@@ -740,12 +1045,17 @@ export default function HomeScreen() {
           delay={450}
         />
 
+        {/* Hub moved above */}
+
+
+
         {/* --- 4. FAN POLL (Premium Design) --- */}
         {activePoll && (
           <Animated.View entering={FadeInDown.delay(400).duration(500).springify()} style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <View style={[styles.premiumHeaderBar, { backgroundColor: '#E31C25' }]} />
+                <MaterialCommunityIcons name="poll" size={22} color="#E31C25" style={{ marginRight: 6 }} />
                 <Text style={styles.sectionTitle}>Fan Pulse</Text>
                 <View style={styles.liveBadge}>
                   <View style={styles.liveDot} />
@@ -799,6 +1109,7 @@ export default function HomeScreen() {
           <View style={[styles.sectionHeader, { paddingHorizontal: 16 }]}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.premiumHeaderBar, { backgroundColor: '#1976D2' }]} />
+              <Ionicons name="newspaper-outline" size={22} color="#1976D2" style={{ marginRight: 6 }} />
               <Text style={styles.sectionTitle}>Top Headlines</Text>
             </View>
             <TouchableOpacity>
@@ -860,7 +1171,9 @@ export default function HomeScreen() {
                   <View style={styles.quoteIconContainer}>
                     <FontAwesome5 name="quote-left" size={28} color="#FFD700" />
                   </View>
-                  <Text style={styles.quoteText}>"{quotesData[quoteIndex % quotesData.length]?.text}"</Text>
+<Text style={styles.quoteText}>“{quotesData[quoteIndex % quotesData.length]?.text}”</Text>
+
+
                   <View style={styles.quoteAuthorRow}>
                     <View style={styles.quoteAuthorLine} />
                     <Text style={styles.quoteAuthor}>{quotesData[quoteIndex % quotesData.length]?.author}</Text>
@@ -885,17 +1198,22 @@ export default function HomeScreen() {
 
         {/* --- 8. MATCH HIGHLIGHTS (Premium) --- */}
         {highlightsData.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(800).duration(500).springify()} style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
+          <Animated.View entering={FadeInDown.delay(800).duration(500).springify()} style={styles.horizontalSectionContainer}>
+            <View style={styles.horizontalSectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <View style={[styles.premiumHeaderBar, { backgroundColor: '#E31C25' }]} />
+                <Ionicons name="videocam-outline" size={22} color="#E31C25" style={{ marginRight: 6 }} />
                 <Text style={styles.sectionTitle}>Match Highlights</Text>
               </View>
               <TouchableOpacity>
                 <Text style={styles.seeAll}>See All</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 8 }}
+            >
               {highlightsData.map((video, index) => (
                 <Animated.View key={video._id} entering={FadeInRight.delay(index * 100)}>
                   <TouchableOpacity
@@ -938,6 +1256,7 @@ export default function HomeScreen() {
           <View style={[styles.sectionHeader, { paddingHorizontal: 16 }]}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.premiumHeaderBar, { backgroundColor: '#FFD700' }]} />
+              <Ionicons name="basket-outline" size={22} color="#FFD700" style={{ marginRight: 6 }} />
               <Text style={[styles.sectionTitle, { color: '#fff' }]}>Aattum TPL Store</Text>
             </View>
             <TouchableOpacity onPress={() => router.push('/store' as any)}>
@@ -1012,6 +1331,7 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.premiumHeaderBar, { backgroundColor: '#1DA1F2' }]} />
+              <Ionicons name="chatbubbles-outline" size={22} color="#1DA1F2" style={{ marginRight: 6 }} />
               <Text style={styles.sectionTitle}>Social Wall</Text>
             </View>
           </View>
@@ -1048,17 +1368,22 @@ export default function HomeScreen() {
 
         {/* --- 13. BLOGS SECTION --- */}
         {blogsData.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(1300).duration(500).springify()} style={styles.sectionContainer}>
-            <View style={[styles.sectionHeader, { paddingHorizontal: 0 }]}>
+          <Animated.View entering={FadeInDown.delay(1300).duration(500).springify()} style={styles.horizontalSectionContainer}>
+            <View style={styles.horizontalSectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <View style={[styles.premiumHeaderBar, { backgroundColor: '#7C3AED' }]} />
+                <Ionicons name="book-outline" size={22} color="#7C3AED" style={{ marginRight: 6 }} />
                 <Text style={styles.sectionTitle}>Cricket Blogs</Text>
               </View>
               <TouchableOpacity>
                 <Text style={styles.seeAll}>See All</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 8, paddingBottom: 8 }}
+            >
               {blogsData.map((blog, index) => (
                 <Animated.View key={blog._id} entering={FadeInRight.delay(index * 100)}>
                   <TouchableOpacity
@@ -1335,7 +1660,7 @@ const styles = StyleSheet.create({
     height: 220,
   },
   carouselScroll: {
-    paddingLeft: 20,
+    paddingLeft: 16,
   },
   heroSlide: {
     width: width - 40,
@@ -1369,6 +1694,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 28,
   },
+  horizontalSectionContainer: {
+    marginBottom: 28,
+  },
+  horizontalSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+    paddingHorizontal: 16,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1376,22 +1711,25 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
   sectionTitleWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   premiumHeaderBar: {
-    width: 6,
-    height: 24,
-    borderRadius: 3,
-    marginRight: 10,
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    marginRight: 8,
   },
   sectionIconBadge: {
     width: 32,
@@ -1404,13 +1742,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#1e293b',
     letterSpacing: 0.3,
   },
   sectionHeaderTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#1e293b',
     letterSpacing: 0.5,
   },
   seeAll: {
@@ -1438,7 +1776,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   gridIconCircle: {
     width: 44,
@@ -1448,9 +1792,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 3,
   },
   gridLabel: {
     fontSize: 11,
@@ -2661,8 +3005,482 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
+  // Leaderboard Styles
+  leaderboardTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+    marginVertical: 14,
+    gap: 8,
+  },
+  leaderboardTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  activeLeaderboardTab: {
+    backgroundColor: '#E31C25',
+    elevation: 3,
+    shadowColor: '#E31C25',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  leaderboardTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666',
+  },
+  activeLeaderboardTabText: {
+    color: '#fff',
+  },
+  leaderboardList: {
+    gap: 12,
+  },
+  leaderboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+  },
+  leaderboardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  leaderboardRankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goldRank: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  silverRank: {
+    backgroundColor: '#9CA3AF',
+  },
+  bronzeRank: {
+    backgroundColor: '#D97706',
+  },
+  rankNumberText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#4B5563',
+  },
+  leaderboardAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  leaderboardInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  leaderboardName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  leaderboardTeam: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  leaderboardRight: {
+    alignItems: 'flex-end',
+  },
+  leaderboardStatValue: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#E31C25',
+  },
+  leaderboardStatLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#9CA3AF',
+    marginTop: 1,
+  },
+  emptyLeaderboardText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    paddingVertical: 16,
+  },
+  podiumContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginVertical: 20,
+    paddingHorizontal: 8,
+    gap: 12,
+  },
+  podiumColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  podiumAvatarWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  podiumCrown: {
+    marginBottom: -4,
+    zIndex: 2,
+  },
+  podiumAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F3F4F6',
+  },
+  podiumAvatarFirst: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 2.5,
+    borderColor: '#FFD700',
+  },
+  podiumAvatarSecond: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#B0BEC5',
+  },
+  podiumAvatarThird: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: '#CA7F35',
+  },
+  podiumRankBadge: {
+    position: 'absolute',
+    bottom: -4,
+    alignSelf: 'center',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+    zIndex: 3,
+  },
+  podiumRankText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  podiumName: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#111827',
+    textAlign: 'center',
+    marginTop: 4,
+    width: '90%',
+  },
+  podiumTeam: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  podiumPedestal: {
+    width: '100%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: -1 },
+  },
+  podiumStatVal: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  podiumStatLabel: {
+    fontSize: 7,
+    fontWeight: '800',
+    color: '#555',
+    marginTop: 1,
+  },
+  miniLeaderboardList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  miniLeaderboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  miniRankText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6B7280',
+    width: 20,
+    textAlign: 'center',
+  },
+  miniAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginLeft: 6,
+    backgroundColor: '#F3F4F6',
+  },
+  miniInfo: {
+    flex: 1,
+    marginLeft: 10,
+    justifyContent: 'center',
+  },
+  miniName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  miniTeam: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  miniRight: {
+    alignItems: 'flex-end',
+  },
+  miniStatVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#E31C25',
+  },
+  miniStatLabel: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#9CA3AF',
+    marginTop: 1,
+  },
+  
+  // Performance Hub Styles
+  performanceHubCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  performanceHubGradient: {
+    padding: 16,
+  },
+  hubTabs: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 16,
+    gap: 6,
+  },
+  hubTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  activeHubTab: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  hubTabText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#888',
+  },
+  activeHubTabText: {
+    color: '#FFD700',
+  },
+  hubList: {
+    gap: 10,
+  },
+  hubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.02)',
+  },
+  hubRankBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  hubRankBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  hubAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  hubPlayerName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  hubPlayerTeam: {
+    fontSize: 10,
+    color: '#aaa',
+    marginTop: 2,
+  },
+  hubScoreValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFD700',
+  },
+  hubScoreLabel: {
+    fontSize: 7,
+    fontWeight: '800',
+    color: '#888',
+    marginTop: 1,
+  },
+  emptyHubText: {
+    textAlign: 'center',
+    color: '#888',
+    fontStyle: 'italic',
+    paddingVertical: 16,
+  },
+  hubCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.2)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  hubCtaBtnText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  titleCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 14,
+  },
+  titleCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  titleIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  titleCardTextContainer: {
+    flex: 1,
+  },
+  titleCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  titleCardSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  titleCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  liveIndicatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(227, 28, 37, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  liveIndicatorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E31C25',
+  },
+  liveIndicatorText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#E31C25',
+  },
 });
+
 
 // --- REUSABLE COMPONENTS ---
 
@@ -2677,6 +3495,15 @@ function RenderProfileSection({ title, profiles, color, delay }: any) {
       <View style={[styles.sectionHeader, { paddingRight: 16, marginBottom: 15 }]}>
         <View style={styles.sectionTitleRow}>
           <View style={[styles.premiumHeaderBar, { backgroundColor: color }]} />
+          {title.includes('Cricket') && (
+            <MaterialCommunityIcons name="cricket" size={22} color={color} style={{ marginRight: 6 }} />
+          )}
+          {title.includes('Kabaddi') && (
+            <MaterialCommunityIcons name="shield-half-full" size={22} color={color} style={{ marginRight: 6 }} />
+          )}
+          {title.includes('Football') && (
+            <Ionicons name="football" size={22} color={color} style={{ marginRight: 6 }} />
+          )}
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/players')}>
