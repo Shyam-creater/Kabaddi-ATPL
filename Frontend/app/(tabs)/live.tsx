@@ -9,6 +9,7 @@ import {
   Dimensions,
   StatusBar,
   ImageBackground,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,8 +25,8 @@ interface MatchCardData {
   id: string;
   league: string;
   sport: string;
-  team1: { name: string; short: string; score: string | number; overs?: string };
-  team2: { name: string; short: string; score: string | number; overs?: string };
+  team1: { name: string; short: string; logo?: string; score: string | number; overs?: string };
+  team2: { name: string; short: string; logo?: string; score: string | number; overs?: string };
   status: string;
   venue: string;
   viewers: string;
@@ -102,12 +103,6 @@ export default function MyScoreScreen() {
     const live = result.filter(m => m.status === 'LIVE');
     const upcoming = result.filter(m => m.status === 'UPCOMING');
 
-    if (activeFilter === 'Live Now') {
-      // Special case: Only show live items if "Live Now" is selected? 
-      // Or maybe "Live Now" just means don't show completed? 
-      // Let's assume standard behavior: Show Live in carousel, Upcoming in list.
-    }
-
     setFilteredLiveMatches(live);
     setFilteredUpcomingMatches(upcoming);
 
@@ -153,18 +148,18 @@ export default function MyScoreScreen() {
       id: m._id,
       league: m.series || (sport === 'cricket' ? 'TPL' : sport === 'kabaddi' ? 'PKL' : 'CFC'),
       sport,
-      team1: { name: m.teamA.name, short: m.teamA.code, score: s1, overs: o1 },
-      team2: { name: m.teamB.name, short: m.teamB.code, score: s2, overs: o2 },
+      team1: { name: m.teamA.name, short: m.teamA.code, logo: m.teamA.logo, score: s1, overs: o1 },
+      team2: { name: m.teamB.name, short: m.teamB.code, logo: m.teamB.logo, score: s2, overs: o2 },
       status: m.status,
       venue: m.venue || 'TPL Stadium',
-      viewers: '1.2k', // Mock
+      viewers: '1.5k', // Mock viewers count
       image: sport === 'football'
         ? 'https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2000'
         : sport === 'kabaddi'
           ? 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=2000'
           : 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=2000',
       dateStr: new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      videoUrl: m.liveStreamUrl || undefined,  // Only for LIVE cards
+      videoUrl: m.liveStreamUrl || m.hlsUrl || (m.youtubeId ? `https://www.youtube.com/watch?v=${m.youtubeId}` : undefined),
     };
   };
 
@@ -300,53 +295,100 @@ const FeatureMatchCard = ({ match, onWatch }: { match: MatchCardData; onWatch: (
         imageStyle={{ borderRadius: 16 }}
       >
         <LinearGradient
-          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.85)']}
           style={styles.gradientOverlay}
         />
 
-        <View style={styles.liveBadge}>
-          <View style={styles.pulsingDot} />
-          <Text style={styles.liveText}>LIVE</Text>
-        </View>
-
-        <View style={styles.sportBadge}>
-          <Text style={styles.sportText}>{match.sport}</Text>
-        </View>
-
-        <View style={styles.playButtonContainer}>
-          <View style={styles.playButtonCircle}>
-            <Ionicons name="play" size={32} color="#fff" style={{ marginLeft: 4 }} />
+        <View style={styles.topBadgesRow}>
+          <View style={styles.liveBadge}>
+            <View style={styles.pulsingDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </View>
+          <View style={styles.viewerBadge}>
+            <Ionicons name="eye" size={12} color="#fff" style={{ marginRight: 4 }} />
+            <Text style={styles.viewerText}>{match.viewers} watching</Text>
+          </View>
+          <View style={styles.sportBadge}>
+            <MaterialCommunityIcons
+              name={
+                match.sport === 'football'
+                  ? 'soccer'
+                  : match.sport === 'kabaddi'
+                    ? 'human-handsup'
+                    : 'cricket'
+              }
+              size={11}
+              color="#fff"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.sportText}>{match.sport.toUpperCase()}</Text>
           </View>
         </View>
+
+        <TouchableOpacity 
+          style={styles.playOverlayButton} 
+          onPress={() => { if (match.videoUrl) onWatch(match); }}
+          activeOpacity={0.8}
+        >
+          <View style={styles.playButtonCircle}>
+            <Ionicons name="play" size={28} color="#fff" style={{ marginLeft: 4 }} />
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.glassPanel}>
           <View style={styles.matchTeamsRow}>
-            <Text style={styles.leagueNameSmall}>{match.league} • {match.venue}</Text>
+            <Ionicons name="trophy" size={11} color="#FFD700" style={{ marginRight: 4 }} />
+            <Text style={styles.leagueNameSmall} numberOfLines={1}>{match.league} • {match.venue}</Text>
           </View>
 
-          <View style={styles.scoreRow}>
-            <View style={styles.teamInfo}>
-              <Text style={styles.teamAbbr}>{match.team1.short}</Text>
-              <View style={styles.teamScoreBox}>
-                <Text style={styles.scoreBig}>{match.team1.score}</Text>
-                <Text style={styles.oversSmall}>{match.team1.overs}</Text>
+          <View style={styles.verticalScoreboard}>
+            {/* Team 1 Row */}
+            <View style={styles.verticalScoreRow}>
+              <View style={styles.verticalTeamInfo}>
+                {match.team1.logo ? (
+                  <Image source={{ uri: match.team1.logo }} style={styles.miniTeamLogo} />
+                ) : (
+                  <View style={[styles.miniTeamLogoFallback, { backgroundColor: '#E31C25' }]}>
+                    <Text style={styles.miniTeamLogoText}>{match.team1.short[0]}</Text>
+                  </View>
+                )}
+                <Text style={styles.verticalTeamName} numberOfLines={1}>{match.team1.name}</Text>
+                <Text style={styles.verticalTeamAbbr}>({match.team1.short})</Text>
+              </View>
+              <View style={styles.verticalScoreInfo}>
+                <Text style={styles.verticalScoreText}>{match.team1.score}</Text>
+                {match.team1.overs ? (
+                  <Text style={styles.verticalOversText}>{match.team1.overs}</Text>
+                ) : null}
               </View>
             </View>
 
-            <Text style={styles.vsText}>VS</Text>
-
-            <View style={styles.teamInfo}>
-              <View style={styles.teamScoreBox}>
-                <Text style={styles.scoreBig}>{match.team2.score}</Text>
-                <Text style={styles.oversSmall}>{match.team2.overs}</Text>
+            {/* Team 2 Row */}
+            <View style={styles.verticalScoreRow}>
+              <View style={styles.verticalTeamInfo}>
+                {match.team2.logo ? (
+                  <Image source={{ uri: match.team2.logo }} style={styles.miniTeamLogo} />
+                ) : (
+                  <View style={[styles.miniTeamLogoFallback, { backgroundColor: '#3a3a3a' }]}>
+                    <Text style={styles.miniTeamLogoText}>{match.team2.short[0]}</Text>
+                  </View>
+                )}
+                <Text style={styles.verticalTeamName} numberOfLines={1}>{match.team2.name}</Text>
+                <Text style={styles.verticalTeamAbbr}>({match.team2.short})</Text>
               </View>
-              <Text style={styles.teamAbbr}>{match.team2.short}</Text>
+              <View style={styles.verticalScoreInfo}>
+                <Text style={styles.verticalScoreText}>{match.team2.score}</Text>
+                {match.team2.overs ? (
+                  <Text style={styles.verticalOversText}>{match.team2.overs}</Text>
+                ) : null}
+              </View>
             </View>
           </View>
 
           <TouchableOpacity
             style={styles.watchButton}
             onPress={() => { if (match.videoUrl) onWatch(match); }}
+            activeOpacity={0.85}
           >
             <LinearGradient
               colors={match.videoUrl ? ['#E31C25', '#b01017'] : ['#555', '#333']}
@@ -354,9 +396,9 @@ const FeatureMatchCard = ({ match, onWatch }: { match: MatchCardData; onWatch: (
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Ionicons name="play-circle" size={14} color="#fff" style={{ marginRight: 4 }} />
+              <Ionicons name="play-circle" size={15} color="#fff" style={{ marginRight: 6 }} />
               <Text style={styles.watchButtonText}>
-                {match.videoUrl ? 'Watch Live' : 'Stream Pending'}
+                {match.videoUrl ? 'Watch Live Stream' : 'Stream Pending'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -371,36 +413,62 @@ const UpcomingCard = ({ match }: { match: MatchCardData }) => (
   <View style={styles.upcomingCard}>
     <View style={styles.upcomingHeader}>
       <View style={styles.leagueBadge}>
-        <Text style={styles.upcomingLeague}>{match.league} {match.sport !== 'cricket' && `• ${match.sport}`}</Text>
+        <MaterialCommunityIcons
+          name={
+            match.sport === 'football'
+              ? 'soccer'
+              : match.sport === 'kabaddi'
+                ? 'human-handsup'
+                : 'cricket'
+          }
+          size={12}
+          color="#E31C25"
+          style={{ marginRight: 4 }}
+        />
+        <Text style={styles.upcomingLeague}>{match.league} {match.sport !== 'cricket' && `• ${match.sport.toUpperCase()}`}</Text>
       </View>
       <View style={styles.timeBadge}>
-        <Ionicons name="time-outline" size={12} color="#E31C25" />
+        <Ionicons name="time-outline" size={12} color="#E31C25" style={{ marginRight: 4 }} />
         <Text style={styles.upcomingTime}>{match.dateStr}</Text>
       </View>
     </View>
 
     <View style={styles.upcomingTeams}>
       <View style={styles.upcomingTeam}>
-        <View style={styles.smallLogo}><Text style={styles.smallLogoText}>{match.team1.short[0]}</Text></View>
-        <Text style={styles.upcomingTeamName}>{match.team1.name}</Text>
+        {match.team1.logo ? (
+          <Image source={{ uri: match.team1.logo }} style={styles.upcomingLogo} />
+        ) : (
+          <View style={[styles.upcomingLogoFallback, { backgroundColor: '#E31C25' }]}>
+            <Text style={styles.upcomingLogoText}>{match.team1.short[0]}</Text>
+          </View>
+        )}
+        <Text style={styles.upcomingTeamName} numberOfLines={1}>{match.team1.name}</Text>
       </View>
+
       <View style={styles.vsDivider}>
         <Text style={styles.upcomingVs}>VS</Text>
       </View>
-      <View style={styles.upcomingTeam}>
-        <Text style={[styles.upcomingTeamName, { textAlign: 'right' }]}>{match.team2.name}</Text>
-        <View style={[styles.smallLogo, { backgroundColor: '#3a3a3a' }]}><Text style={styles.smallLogoText}>{match.team2.short[0]}</Text></View>
+
+      <View style={[styles.upcomingTeam, { justifyContent: 'flex-end' }]}>
+        <Text style={[styles.upcomingTeamName, { textAlign: 'right' }]} numberOfLines={1}>{match.team2.name}</Text>
+        {match.team2.logo ? (
+          <Image source={{ uri: match.team2.logo }} style={styles.upcomingLogo} />
+        ) : (
+          <View style={[styles.upcomingLogoFallback, { backgroundColor: '#3a3a3a' }]}>
+            <Text style={[styles.upcomingLogoText, { color: '#fff' }]}>{match.team2.short[0]}</Text>
+          </View>
+        )}
       </View>
     </View>
 
     <View style={styles.upcomingFooter}>
       <View style={styles.venueRow}>
-        <Ionicons name="location-sharp" size={12} color="#666" />
-        <Text style={styles.upcomingVenue}>{match.venue}</Text>
+        <Ionicons name="location" size={12} color="#666" style={{ marginRight: 4 }} />
+        <Text style={styles.upcomingVenue} numberOfLines={1}>{match.venue}</Text>
       </View>
-      <TouchableOpacity style={styles.remindButton}>
+      <TouchableOpacity style={styles.remindButton} activeOpacity={0.7}>
         <Text style={styles.remindText}>Notify Me</Text>
-        <Ionicons name="notifications-outline" size={14} color="#E31C25" />
+        <Ionicons name="notifications-outline" size={13} color="#E31C25" />
       </TouchableOpacity>
     </View>
   </View>
@@ -431,34 +499,43 @@ const styles = StyleSheet.create({
   carouselContent: { paddingHorizontal: 20, paddingBottom: 25 },
 
   featuredSlide: { width: width * 0.9, marginRight: 15 },
-  featuredCard: { borderRadius: 20, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 10, backgroundColor: '#1a1a1a', overflow: 'hidden', height: 240, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  featuredCard: { borderRadius: 20, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 10, backgroundColor: '#1a1a1a', overflow: 'hidden', height: 260, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   cardInfoContainer: { flex: 1, justifyContent: 'space-between' },
   gradientOverlay: { ...StyleSheet.absoluteFillObject },
 
-  liveBadge: { position: 'absolute', top: 15, left: 15, flexDirection: 'row', alignItems: 'center', backgroundColor: '#E31C25', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  topBadgesRow: { position: 'absolute', top: 15, left: 15, right: 15, flexDirection: 'row', alignItems: 'center', zIndex: 10 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E31C25', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   pulsingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff', marginRight: 6 },
   liveText: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
 
-  sportBadge: { position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  sportText: { color: '#fff', fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
+  viewerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', marginLeft: 8, marginRight: 'auto' },
+  viewerText: { color: '#fff', fontSize: 10, fontWeight: '600' },
 
-  playButtonContainer: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' },
-  playButtonCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(227, 28, 37, 0.9)', justifyContent: 'center', alignItems: 'center', shadowColor: '#E31C25', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 20, elevation: 10, borderWidth: 2, borderColor: '#fff' },
+  sportBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  sportText: { color: '#fff', fontSize: 10, fontWeight: '600' },
 
-  glassPanel: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(0,0,0,0.75)', padding: 15 },
-  matchTeamsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 8 },
-  leagueNameSmall: { color: '#ccc', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  teamInfo: { flexDirection: 'row', alignItems: 'center' },
-  teamAbbr: { color: '#fff', fontSize: 16, fontWeight: '800', marginHorizontal: 8 },
-  teamScoreBox: { alignItems: 'center' },
-  scoreBig: { color: '#fff', fontSize: 18, fontWeight: '900' },
-  oversSmall: { color: '#aaa', fontSize: 10, fontWeight: '600' },
-  vsText: { color: '#666', fontSize: 12, fontWeight: '900', fontStyle: 'italic' },
+  playOverlayButton: { position: 'absolute', top: 0, bottom: 100, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', zIndex: 5 },
+  playButtonCircle: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(227, 28, 37, 0.95)', justifyContent: 'center', alignItems: 'center', shadowColor: '#E31C25', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 15, elevation: 8, borderWidth: 2, borderColor: '#fff' },
 
-  watchButton: { borderRadius: 20, overflow: 'hidden', marginTop: 5, alignSelf: 'stretch' },
+  glassPanel: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(0,0,0,0.85)', paddingHorizontal: 16, paddingVertical: 12 },
+  matchTeamsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  leagueNameSmall: { color: '#aaa', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  verticalScoreboard: { gap: 6, marginBottom: 10 },
+  verticalScoreRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  verticalTeamInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  miniTeamLogo: { width: 20, height: 20, borderRadius: 10, marginRight: 8, backgroundColor: '#fff' },
+  miniTeamLogoFallback: { width: 20, height: 20, borderRadius: 10, marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  miniTeamLogoText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  verticalTeamName: { color: '#fff', fontSize: 13, fontWeight: '700', maxWidth: 180 },
+  verticalTeamAbbr: { color: 'rgba(255,255,255,0.5)', fontSize: 11, marginLeft: 4, fontWeight: '500' },
+  verticalScoreInfo: { flexDirection: 'row', alignItems: 'center' },
+  verticalScoreText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  verticalOversText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginLeft: 6, fontWeight: '600' },
+
+  watchButton: { borderRadius: 12, overflow: 'hidden', marginTop: 4, alignSelf: 'stretch' },
   watchButtonGradient: { flexDirection: 'row', paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  watchButtonText: { color: '#fff', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  watchButtonText: { color: '#fff', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   matchesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20, marginBottom: 15, paddingLeft: 20 },
   seeAllText: { color: '#E31C25', fontSize: 14, fontWeight: '600' },
@@ -467,33 +544,34 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.03)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3
   },
-  upcomingHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18 },
-  leagueBadge: { backgroundColor: 'rgba(0,0,0,0.04)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  upcomingLeague: { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-  timeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(227, 28, 37, 0.08)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  upcomingTime: { color: '#E31C25', fontSize: 12, fontWeight: '700', marginLeft: 5 },
+  upcomingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  leagueBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(227, 28, 37, 0.05)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  upcomingLeague: { color: '#222', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  timeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(227, 28, 37, 0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  upcomingTime: { color: '#E31C25', fontSize: 11, fontWeight: '700', marginLeft: 4 },
 
-  upcomingTeams: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  upcomingTeams: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   upcomingTeam: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  smallLogo: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#eee', marginHorizontal: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  smallLogoText: { color: '#333', fontSize: 16, fontWeight: '800' },
-  upcomingTeamName: { color: '#222', fontSize: 16, fontWeight: '700', flex: 1, letterSpacing: 0.3 },
+  upcomingLogo: { width: 28, height: 28, borderRadius: 14, marginHorizontal: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee' },
+  upcomingLogoFallback: { width: 28, height: 28, borderRadius: 14, marginHorizontal: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#eee' },
+  upcomingLogoText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  upcomingTeamName: { color: '#1a1a1a', fontSize: 14, fontWeight: '700', flex: 1, letterSpacing: 0.2 },
   vsDivider: { width: 30, alignItems: 'center' },
-  upcomingVs: { color: '#E31C25', fontSize: 14, fontWeight: '900', fontStyle: 'italic' },
+  upcomingVs: { color: '#E31C25', fontSize: 12, fontWeight: '900', fontStyle: 'italic' },
 
-  upcomingFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f5f5f5' },
-  venueRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  upcomingVenue: { color: '#666', fontSize: 12, marginLeft: 6, fontWeight: '600' },
-  remindButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#eee' },
-  remindText: { color: '#E31C25', fontSize: 12, fontWeight: '700', marginRight: 6 },
+  upcomingFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f5f5f5' },
+  venueRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
+  upcomingVenue: { color: '#666', fontSize: 11, marginLeft: 4, fontWeight: '600' },
+  remindButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(227, 28, 37, 0.2)' },
+  remindText: { color: '#E31C25', fontSize: 11, fontWeight: '700', marginRight: 4 },
 });

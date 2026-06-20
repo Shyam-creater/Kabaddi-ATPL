@@ -196,6 +196,7 @@ export default function MatchesScreen() {
 
 
 const MatchCard = ({ match }: { match: Match }) => {
+    const router = useRouter();
     const isLive = match.status === 'LIVE';
     const [videoVisible, setVideoVisible] = useState(false);
 
@@ -235,7 +236,11 @@ const MatchCard = ({ match }: { match: Match }) => {
                 />
             )}
 
-            <TouchableOpacity style={styles.matchCard} activeOpacity={0.9}>
+            <TouchableOpacity 
+                style={styles.matchCard} 
+                activeOpacity={0.9}
+                onPress={() => router.push(`/matches/details/${match._id}` as any)}
+            >
                 <View style={[styles.matchHeader, match.sport === 'kabaddi' ? { backgroundColor: '#FF9800' } : match.sport === 'football' ? { backgroundColor: '#4CAF50' } : { backgroundColor: '#2196F3' }]}>
                     <Text style={styles.seriesName}>{match.series}</Text>
                     <View style={styles.sportBadge}>

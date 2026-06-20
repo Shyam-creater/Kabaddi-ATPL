@@ -1,29 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Dimensions } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Stack } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MotiView } from 'moti';
 import api from '../../services/api';
 import AppHeader from '../../components/common/AppHeader';
+import TeamDetailsModal from '../../components/common/TeamDetailsModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
+
+interface Player {
+    user?: string;
+    name: string;
+    role?: string;
+    position?: string;
+    jerseyNumber?: number;
+    number?: number;
+    isCaptain?: boolean;
+    image?: string;
+}
 
 interface Team {
     _id: string;
     name: string;
     code: string;
     logo: string;
+    sport: 'cricket' | 'football' | 'kabaddi';
     city?: string;
     captain?: string;
-    players?: any[];
+    coach?: string;
+    matchesPlayed?: number;
+    won?: number;
+    lost?: number;
+    draw?: number;
+    points?: number;
+    nrr?: number;
+    goalsFor?: number;
+    goalsAgainst?: number;
+    goalDifference?: number;
+    scoreDiff?: number;
+    players?: Player[];
 }
 
+const SPORTS_TABS = [
+    { id: 'all', name: 'All Teams', icon: 'trophy-outline', lib: 'Ionicons' },
+    { id: 'cricket', name: 'Cricket', icon: 'cricket', lib: 'MaterialCommunityIcons' },
+    { id: 'football', name: 'Football', icon: 'soccer', lib: 'MaterialCommunityIcons' },
+    { id: 'kabaddi', name: 'Kabaddi', icon: 'human-handsup', lib: 'MaterialCommunityIcons' }
+];
+
 export default function TeamsScreen() {
-    const router = useRouter();
     const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedSport, setSelectedSport] = useState<'all' | 'cricket' | 'football' | 'kabaddi'>('all');
+    
+    // Modal states
+    const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
     const fetchTeams = async () => {
         try {
@@ -46,6 +82,27 @@ export default function TeamsScreen() {
         setRefreshing(false);
     };
 
+    const getSportColor = (sport: string) => {
+        switch (sport?.toLowerCase()) {
+            case 'cricket': return '#10b981'; // Green
+            case 'football': return '#E31C25'; // Red
+            case 'kabaddi': return '#3b82f6';  // Blue
+            default: return '#6B7280';
+        }
+    };
+
+    const getSportIcon = (sport: string, color: string) => {
+        const name = sport?.toLowerCase();
+        if (name === 'cricket') return <MaterialCommunityIcons name="cricket" size={12} color={color} />;
+        if (name === 'football') return <MaterialCommunityIcons name="soccer" size={12} color={color} />;
+        if (name === 'kabaddi') return <MaterialCommunityIcons name="human-handsup" size={12} color={color} />;
+        return <Ionicons name="trophy-outline" size={12} color={color} />;
+    };
+
+    const filteredTeams = selectedSport === 'all'
+        ? teams
+        : teams.filter(t => t.sport?.toLowerCase() === selectedSport);
+
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
@@ -61,6 +118,51 @@ export default function TeamsScreen() {
                 </View>
             </View>
 
+            {/* Sport Tab Selector */}
+            <View style={styles.tabContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScrollContainer}>
+                    {SPORTS_TABS.map((tab, idx) => {
+                        const isSelected = selectedSport === tab.id;
+                        return (
+                            <MotiView
+                                key={tab.id}
+                                from={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{
+                                    type: 'spring',
+                                    damping: 12,
+                                    stiffness: 100,
+                                    delay: idx * 40,
+                                }}
+                            >
+                                <TouchableOpacity
+                                    onPress={() => setSelectedSport(tab.id as any)}
+                                    style={[styles.sportTab, isSelected && styles.activeSportTab]}
+                                    activeOpacity={0.7}
+                                >
+                                    {tab.lib === 'Ionicons' ? (
+                                        <Ionicons
+                                            name={tab.icon as any}
+                                            size={16}
+                                            color={isSelected ? '#fff' : '#666'}
+                                        />
+                                    ) : (
+                                        <MaterialCommunityIcons
+                                            name={tab.icon as any}
+                                            size={16}
+                                            color={isSelected ? '#fff' : '#666'}
+                                        />
+                                    )}
+                                    <Text style={[styles.sportTabText, isSelected && styles.activeSportTabText]}>
+                                        {tab.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            </MotiView>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+
             <ScrollView
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
@@ -68,50 +170,77 @@ export default function TeamsScreen() {
             >
                 {loading ? (
                     <ActivityIndicator size="large" color="#E31C25" style={{ marginTop: 50 }} />
-                ) : teams.length > 0 ? (
+                ) : filteredTeams.length > 0 ? (
                     <View style={styles.grid}>
-                        {teams.map((team, index) => (
-                            <TouchableOpacity
-                                key={team._id}
-                                style={[styles.card, { marginTop: index % 2 === 1 ? 20 : 0 }]}
-                                activeOpacity={0.9}
-                            >
-                                <View style={styles.cardHeader}>
-                                    <LinearGradient
-                                        colors={['#ffffff', '#f0f2f5']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={styles.logoContainer}
+                        {filteredTeams.map((team, index) => {
+                            const teamSportColor = getSportColor(team.sport);
+                            return (
+                                <MotiView
+                                    key={`${selectedSport}_${team._id}`}
+                                    from={{ opacity: 0, scale: 0.65, translateY: 35 }}
+                                    animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                                    transition={{
+                                        type: 'spring',
+                                        damping: 14,
+                                        stiffness: 110,
+                                        delay: index * 60,
+                                    }}
+                                    style={{ width: CARD_WIDTH, marginTop: index % 2 === 1 ? 20 : 0, marginBottom: 16 }}
+                                >
+                                    <TouchableOpacity
+                                        style={styles.card}
+                                        activeOpacity={0.9}
+                                        onPress={() => {
+                                            setSelectedTeam(team);
+                                            setModalVisible(true);
+                                        }}
                                     >
-                                        <Image
-                                            source={{ uri: team.logo || 'https://via.placeholder.com/150' }}
-                                            style={styles.logo}
-                                            resizeMode="contain"
-                                        />
-                                    </LinearGradient>
-                                    <View style={styles.codeBadge}>
-                                        <Text style={styles.codeText}>{team.code}</Text>
-                                    </View>
-                                </View>
+                                        <View style={styles.cardHeader}>
+                                            {/* Sport Badge (Top-Left) */}
+                                            <View style={[styles.cardSportBadge, { backgroundColor: `${teamSportColor}15`, borderColor: teamSportColor }]}>
+                                                {getSportIcon(team.sport, teamSportColor)}
+                                                <Text style={[styles.cardSportText, { color: teamSportColor }]}>
+                                                    {team.sport}
+                                                </Text>
+                                            </View>
 
-                                <View style={styles.cardBody}>
-                                    <Text style={styles.teamName} numberOfLines={2}>{team.name}</Text>
-
-                                    <View style={styles.divider} />
-
-                                    <View style={styles.infoContainer}>
-                                        <View style={styles.infoItem}>
-                                            <Ionicons name="location" size={12} color="#9CA3AF" />
-                                            <Text style={styles.infoText} numberOfLines={1}>{team.city || 'TBA'}</Text>
+                                            <LinearGradient
+                                                colors={['#ffffff', '#f0f2f5']}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 1 }}
+                                                style={styles.logoContainer}
+                                            >
+                                                <Image
+                                                    source={{ uri: team.logo || 'https://via.placeholder.com/150' }}
+                                                    style={styles.logo}
+                                                    resizeMode="contain"
+                                                />
+                                            </LinearGradient>
+                                            <View style={styles.codeBadge}>
+                                                <Text style={styles.codeText}>{team.code}</Text>
+                                            </View>
                                         </View>
-                                        <View style={styles.infoItem}>
-                                            <Ionicons name="person" size={12} color="#9CA3AF" />
-                                            <Text style={styles.infoText} numberOfLines={1}>{team.captain || 'TBA'}</Text>
+
+                                        <View style={styles.cardBody}>
+                                            <Text style={styles.teamName} numberOfLines={2}>{team.name}</Text>
+
+                                            <View style={styles.divider} />
+
+                                            <View style={styles.infoContainer}>
+                                                <View style={styles.infoItem}>
+                                                    <Ionicons name="location" size={12} color="#9CA3AF" />
+                                                    <Text style={styles.infoText} numberOfLines={1}>{team.city || 'TBA'}</Text>
+                                                </View>
+                                                <View style={styles.infoItem}>
+                                                    <Ionicons name="person" size={12} color="#9CA3AF" />
+                                                    <Text style={styles.infoText} numberOfLines={1}>{team.captain || 'TBA'}</Text>
+                                                </View>
+                                            </View>
                                         </View>
-                                    </View>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
+                                    </TouchableOpacity>
+                                </MotiView>
+                            );
+                        })}
                     </View>
                 ) : (
                     <View style={styles.emptyContainer}>
@@ -119,11 +248,21 @@ export default function TeamsScreen() {
                             <Ionicons name="shield-outline" size={48} color="#D1D5DB" />
                         </View>
                         <Text style={styles.emptyText}>No teams found</Text>
-                        <Text style={styles.emptySubText}>Teams will appear here once added.</Text>
+                        <Text style={styles.emptySubText}>Try selecting another sport category.</Text>
                     </View>
                 )}
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Team Details Squad & Stats Modal */}
+            <TeamDetailsModal
+                visible={modalVisible}
+                team={selectedTeam}
+                onClose={() => {
+                    setModalVisible(false);
+                    setSelectedTeam(null);
+                }}
+            />
         </View>
     );
 }
@@ -160,6 +299,39 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    // Tab styles
+    tabContainer: {
+        marginVertical: 10,
+        paddingBottom: 5,
+    },
+    tabScrollContainer: {
+        paddingHorizontal: 20,
+        gap: 10,
+    },
+    sportTab: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        gap: 6,
+    },
+    activeSportTab: {
+        backgroundColor: '#E31C25',
+        borderColor: '#E31C25',
+    },
+    sportTabText: {
+        color: '#64748B',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    activeSportTabText: {
+        color: '#fff',
+        fontWeight: '700',
+    },
     listContent: {
         paddingHorizontal: 16,
         paddingBottom: 20,
@@ -170,10 +342,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     card: {
-        width: CARD_WIDTH,
+        width: '100%',
         backgroundColor: '#fff',
         borderRadius: 24,
-        marginBottom: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.08,
@@ -220,6 +391,23 @@ const styles = StyleSheet.create({
     codeText: {
         color: '#fff',
         fontSize: 10,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+    },
+    cardSportBadge: {
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 8,
+        borderWidth: 1,
+        gap: 3,
+    },
+    cardSportText: {
+        fontSize: 8,
         fontWeight: '800',
         textTransform: 'uppercase',
     },

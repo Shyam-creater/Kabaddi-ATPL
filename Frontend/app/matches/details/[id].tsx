@@ -229,23 +229,32 @@ export default function MatchDetailsScreen() {
                         <View style={styles.teamScoreCol}>
                             <Text style={styles.bannerTeamCode}>{match.teamA.code}</Text>
                             <Text style={styles.bannerScore}>
-                                {typeof match.scoreA === 'object' ? `${match.scoreA.runs}/${match.scoreA.wickets}` : match.scoreA}
+                                {typeof match.scoreA === 'object' ? `${match.scoreA.runs}/${match.scoreA.wickets}` : (match.scoreA ?? 0)}
                             </Text>
-                            <Text style={styles.bannerOvers}>
-                                {typeof match.scoreA === 'object' ? `(${match.scoreA.overs} ov)` : ''}
-                            </Text>
+                            {isCricket && typeof match.scoreA === 'object' && (
+                                <Text style={styles.bannerOvers}>({match.scoreA.overs} ov)</Text>
+                            )}
                         </View>
 
-                        <Text style={styles.bannerVs}>VS</Text>
+                        <View style={styles.vsCenterCol}>
+                            <Text style={styles.bannerVs}>VS</Text>
+                            {!isCricket && match.status === 'LIVE' && (
+                                <View style={styles.timeBadgeDetail}>
+                                    <Text style={styles.timeBadgeDetailText}>
+                                        {match.sport === 'football' ? `${match.half || '1st'} ${match.time || '00:00'}` : `${match.period || '1st Half'}`}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
 
                         <View style={[styles.teamScoreCol, { alignItems: 'flex-end' }]}>
                             <Text style={styles.bannerTeamCode}>{match.teamB.code}</Text>
                             <Text style={styles.bannerScore}>
-                                {typeof match.scoreB === 'object' ? `${match.scoreB.runs}/${match.scoreB.wickets}` : match.scoreB}
+                                {typeof match.scoreB === 'object' ? `${match.scoreB.runs}/${match.scoreB.wickets}` : (match.scoreB ?? 0)}
                             </Text>
-                            <Text style={styles.bannerOvers}>
-                                {typeof match.scoreB === 'object' ? `(${match.scoreB.overs} ov)` : ''}
-                            </Text>
+                            {isCricket && typeof match.scoreB === 'object' && (
+                                <Text style={styles.bannerOvers}>({match.scoreB.overs} ov)</Text>
+                            )}
                         </View>
                     </View>
 
@@ -284,49 +293,59 @@ export default function MatchDetailsScreen() {
                 {/* Tab Contents */}
                 {activeTab === 'scorecard' && (
                     <View style={styles.tabContent}>
-                        {/* Innings selector tab */}
-                        <View style={styles.inningsSelectorRow}>
-                            <TouchableOpacity
-                                style={[styles.inningsTab, activeInningsTab === 'innings1' && styles.activeInningsTab]}
-                                onPress={() => setActiveInningsTab('innings1')}
-                            >
-                                <Text style={[styles.inningsTabText, activeInningsTab === 'innings1' && styles.activeInningsTabText]}>
-                                    {innings1BattingTeam.code} Innings
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.inningsTab, activeInningsTab === 'innings2' && styles.activeInningsTab]}
-                                onPress={() => setActiveInningsTab('innings2')}
-                            >
-                                <Text style={[styles.inningsTabText, activeInningsTab === 'innings2' && styles.activeInningsTabText]}>
-                                    {innings2BattingTeam.code} Innings
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Innings Content */}
-                        {activeInningsTab === 'innings1' ? (
-                            <InningsScorecard
-                                battingTeam={innings1BattingTeam}
-                                score={innings1Score}
-                                batsmen={innings1Batsmen}
-                                bowlers={innings1Bowlers}
-                                calculateSR={calculateSR}
-                                calculateEconomy={calculateEconomy}
-                                getExtrasString={getExtrasString}
-                                currentBatters={match.currentBatters}
-                            />
+                        {!isCricket ? (
+                            match.sport === 'football' ? (
+                                <FootballScorecard match={match} />
+                            ) : (
+                                <KabaddiScorecard match={match} />
+                            )
                         ) : (
-                            <InningsScorecard
-                                battingTeam={innings2BattingTeam}
-                                score={innings2Score}
-                                batsmen={innings2Batsmen}
-                                bowlers={innings2Bowlers}
-                                calculateSR={calculateSR}
-                                calculateEconomy={calculateEconomy}
-                                getExtrasString={getExtrasString}
-                                currentBatters={match.currentBatters}
-                            />
+                            <>
+                                {/* Innings selector tab */}
+                                <View style={styles.inningsSelectorRow}>
+                                    <TouchableOpacity
+                                        style={[styles.inningsTab, activeInningsTab === 'innings1' && styles.activeInningsTab]}
+                                        onPress={() => setActiveInningsTab('innings1')}
+                                    >
+                                        <Text style={[styles.inningsTabText, activeInningsTab === 'innings1' && styles.activeInningsTabText]}>
+                                            {innings1BattingTeam.code} Innings
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.inningsTab, activeInningsTab === 'innings2' && styles.activeInningsTab]}
+                                        onPress={() => setActiveInningsTab('innings2')}
+                                    >
+                                        <Text style={[styles.inningsTabText, activeInningsTab === 'innings2' && styles.activeInningsTabText]}>
+                                            {innings2BattingTeam.code} Innings
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Innings Content */}
+                                {activeInningsTab === 'innings1' ? (
+                                    <InningsScorecard
+                                        battingTeam={innings1BattingTeam}
+                                        score={innings1Score}
+                                        batsmen={innings1Batsmen}
+                                        bowlers={innings1Bowlers}
+                                        calculateSR={calculateSR}
+                                        calculateEconomy={calculateEconomy}
+                                        getExtrasString={getExtrasString}
+                                        currentBatters={match.currentBatters}
+                                    />
+                                ) : (
+                                    <InningsScorecard
+                                        battingTeam={innings2BattingTeam}
+                                        score={innings2Score}
+                                        batsmen={innings2Batsmen}
+                                        bowlers={innings2Bowlers}
+                                        calculateSR={calculateSR}
+                                        calculateEconomy={calculateEconomy}
+                                        getExtrasString={getExtrasString}
+                                        currentBatters={match.currentBatters}
+                                    />
+                                )}
+                            </>
                         )}
                     </View>
                 )}
@@ -339,30 +358,36 @@ export default function MatchDetailsScreen() {
                         {match.commentary && match.commentary.length > 0 ? (
                             [...match.commentary]
                                 .sort((a, b) => {
-                                    if (a.over !== b.over) return b.over - a.over;
-                                    return b.ball - a.ball;
+                                    if (isCricket) {
+                                        if (a.over !== b.over) return b.over - a.over;
+                                        return b.ball - a.ball;
+                                    }
+                                    return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
                                 })
                                 .map((comm, idx) => {
-                                    const isBoundary = comm.runs === 4 || comm.runs === 6;
-                                    const isWicket = comm.event?.toLowerCase().includes('wicket');
+                                    const isBoundary = isCricket && (comm.runs === 4 || comm.runs === 6);
+                                    const isWicket = isCricket && comm.event?.toLowerCase().includes('wicket');
+                                    const isGoal = !isCricket && comm.event?.toLowerCase().includes('goal');
+
                                     return (
-                                        <View key={idx} style={[styles.commRow, isBoundary && styles.commBoundaryRow, isWicket && styles.commWicketRow]}>
+                                        <View key={idx} style={[styles.commRow, isBoundary && styles.commBoundaryRow, (isWicket || isGoal) && styles.commWicketRow]}>
                                             <View style={styles.commMeta}>
                                                 <Text style={styles.commOver}>
-                                                    {comm.over}.{comm.ball}
+                                                    {isCricket ? `${comm.over}.${comm.ball}` : (comm.time || '0\'')}
                                                 </Text>
                                                 <View style={[
                                                     styles.commBadge,
                                                     isWicket && styles.commWicketBadge,
+                                                    isGoal && styles.commWicketBadge,
                                                     comm.runs === 4 && styles.commFourBadge,
                                                     comm.runs === 6 && styles.commSixBadge,
                                                     comm.runs === 0 && styles.commDotBadge
                                                 ]}>
                                                     <Text style={[
                                                         styles.commBadgeText,
-                                                        (isWicket || isBoundary) ? { color: '#FFF' } : comm.runs === 0 ? { color: '#888' } : { color: '#333' }
+                                                        (isWicket || isGoal || isBoundary) ? { color: '#FFF' } : comm.runs === 0 ? { color: '#888' } : { color: '#333' }
                                                     ]}>
-                                                        {isWicket ? 'W' : comm.runs}
+                                                        {isWicket ? 'W' : isGoal ? 'G' : (comm.runs ?? '')}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -432,47 +457,227 @@ export default function MatchDetailsScreen() {
                             <Text style={styles.cardHeaderTitle}>Key Stats Comparison</Text>
                         </View>
                         
-                        {/* Run Rate comparison */}
-                        <StatBar
-                            title="Current Run Rate"
-                            valA={typeof match.scoreA === 'object' && match.scoreA.overs > 0 ? ((match.scoreA.runs / match.scoreA.overs).toFixed(2)) : '0.00'}
-                            valB={typeof match.scoreB === 'object' && match.scoreB.overs > 0 ? ((match.scoreB.runs / match.scoreB.overs).toFixed(2)) : '0.00'}
-                            teamA={match.teamA.code}
-                            teamB={match.teamB.code}
-                        />
+                        {isCricket ? (
+                            <>
+                                {/* Run Rate comparison */}
+                                <StatBar
+                                    title="Current Run Rate"
+                                    valA={typeof match.scoreA === 'object' && match.scoreA.overs > 0 ? ((match.scoreA.runs / match.scoreA.overs).toFixed(2)) : '0.00'}
+                                    valB={typeof match.scoreB === 'object' && match.scoreB.overs > 0 ? ((match.scoreB.runs / match.scoreB.overs).toFixed(2)) : '0.00'}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
 
-                        {/* Wickets Lost */}
-                        <StatBar
-                            title="Wickets Lost"
-                            valA={typeof match.scoreA === 'object' ? String(match.scoreA.wickets || 0) : '0'}
-                            valB={typeof match.scoreB === 'object' ? String(match.scoreB.wickets || 0) : '0'}
-                            teamA={match.teamA.code}
-                            teamB={match.teamB.code}
-                        />
+                                {/* Wickets Lost */}
+                                <StatBar
+                                    title="Wickets Lost"
+                                    valA={typeof match.scoreA === 'object' ? String(match.scoreA.wickets || 0) : '0'}
+                                    valB={typeof match.scoreB === 'object' ? String(match.scoreB.wickets || 0) : '0'}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
 
-                        {/* Boundaries Fours */}
-                        <StatBar
-                            title="Total Fours (4s)"
-                            valA={String(match.battingLineup?.filter((b: any) => match.teamAPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.fours || 0), 0) || 0)}
-                            valB={String(match.battingLineup?.filter((b: any) => match.teamBPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.fours || 0), 0) || 0)}
-                            teamA={match.teamA.code}
-                            teamB={match.teamB.code}
-                        />
+                                {/* Boundaries Fours */}
+                                <StatBar
+                                    title="Total Fours (4s)"
+                                    valA={String(match.battingLineup?.filter((b: any) => match.teamAPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.fours || 0), 0) || 0)}
+                                    valB={String(match.battingLineup?.filter((b: any) => match.teamBPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.fours || 0), 0) || 0)}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
 
-                        {/* Boundaries Sixes */}
-                        <StatBar
-                            title="Total Sixes (6s)"
-                            valA={String(match.battingLineup?.filter((b: any) => match.teamAPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.sixes || 0), 0) || 0)}
-                            valB={String(match.battingLineup?.filter((b: any) => match.teamBPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.sixes || 0), 0) || 0)}
-                            teamA={match.teamA.code}
-                            teamB={match.teamB.code}
-                        />
+                                {/* Boundaries Sixes */}
+                                <StatBar
+                                    title="Total Sixes (6s)"
+                                    valA={String(match.battingLineup?.filter((b: any) => match.teamAPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.sixes || 0), 0) || 0)}
+                                    valB={String(match.battingLineup?.filter((b: any) => match.teamBPlayers?.some((p: any) => p.name === b.name)).reduce((sum: number, b: any) => sum + (b.sixes || 0), 0) || 0)}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
+                            </>
+                        ) : match.sport === 'football' ? (
+                            <>
+                                <StatBar
+                                    title="Possession (%)"
+                                    valA={String(match.possession?.teamA || 50)}
+                                    valB={String(match.possession?.teamB || 50)}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
+                                <StatBar
+                                    title="Goals Scored"
+                                    valA={String(match.scoreA || 0)}
+                                    valB={String(match.scoreB || 0)}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <StatBar
+                                    title="Raid Points"
+                                    valA={String(match.raidPointsA || 0)}
+                                    valB={String(match.raidPointsB || 0)}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
+                                <StatBar
+                                    title="Total Points"
+                                    valA={String(match.scoreA || 0)}
+                                    valB={String(match.scoreB || 0)}
+                                    teamA={match.teamA.code}
+                                    teamB={match.teamB.code}
+                                />
+                            </>
+                        )}
                     </View>
                 )}
             </ScrollView>
         </SafeAreaView>
     );
 }
+
+// FootballScorecard Component
+const FootballScorecard = ({ match }: any) => {
+    return (
+        <View style={styles.scorecardContainer}>
+            <Text style={styles.sectionHeaderTitleDetails}>Goals & Events</Text>
+            {match.goalScorers && match.goalScorers.length > 0 ? (
+                match.goalScorers.map((gs: any, idx: number) => (
+                    <View key={idx} style={styles.squadPlayerRow}>
+                        <Ionicons 
+                            name={gs.type === 'own_goal' ? 'alert-circle' : 'football'} 
+                            size={16} 
+                            color={gs.type === 'own_goal' ? '#C62828' : '#2E7D32'} 
+                            style={{ marginRight: 10 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.squadPlayerName}>{gs.player}</Text>
+                            <Text style={styles.squadPlayerRole}>{gs.team === 'A' ? match.teamA.code : match.teamB.code} • {gs.type || 'Goal'}</Text>
+                        </View>
+                        <Text style={styles.goalMinuteText}>{gs.minute}'</Text>
+                    </View>
+                ))
+            ) : (
+                <Text style={styles.emptyTableText}>No goals recorded yet</Text>
+            )}
+
+            <Text style={[styles.sectionHeaderTitleDetails, { marginTop: 20 }]}>Match Stats</Text>
+            <View style={styles.statsSummaryGrid}>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>Possession</Text>
+                    <Text style={styles.statsSummaryValue}>{match.possession?.teamA || 50}% - {match.possession?.teamB || 50}%</Text>
+                </View>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>Yellow Cards</Text>
+                    <Text style={styles.statsSummaryValue}>{match.yellowCards || 0}</Text>
+                </View>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>Red Cards</Text>
+                    <Text style={styles.statsSummaryValue}>{match.redCards || 0}</Text>
+                </View>
+            </View>
+
+            <Text style={[styles.sectionHeaderTitleDetails, { marginTop: 24 }]}>Player Performance</Text>
+            <View style={styles.tableHeaderRow}>
+                <Text style={[styles.tableColHeader, { flex: 4 }]}>Player</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Goals</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Assists</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Cards</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'right' }]}>Mins</Text>
+            </View>
+
+            {match.playerStats && match.playerStats.length > 0 ? (
+                match.playerStats.map((ps: any, idx: number) => {
+                    const cards = [];
+                    if (ps.yellowCards > 0) cards.push(`${ps.yellowCards}🟨`);
+                    if (ps.redCards > 0) cards.push(`${ps.redCards}🟥`);
+                    const cardsStr = cards.join(' ') || '-';
+
+                    return (
+                        <View key={idx} style={styles.tableDataRow}>
+                            <View style={{ flex: 4 }}>
+                                <Text style={[styles.tableDataText, { fontWeight: '600' }]} numberOfLines={1}>{ps.name}</Text>
+                                <Text style={{ fontSize: 9, color: '#888' }}>{ps.team === 'A' ? match.teamA.code : match.teamB.code} • {ps.position || 'Player'}</Text>
+                            </View>
+                            <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center', fontWeight: 'bold' }]}>{ps.goals || 0}</Text>
+                            <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center' }]}>{ps.assists || 0}</Text>
+                            <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center', fontSize: 10 }]}>{cardsStr}</Text>
+                            <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'right', color: '#666' }]}>{ps.minutesPlayed || 0}'</Text>
+                        </View>
+                    );
+                })
+            ) : (
+                <Text style={styles.emptyTableText}>No player performance stats recorded yet</Text>
+            )}
+        </View>
+    );
+};
+
+// KabaddiScorecard Component
+const KabaddiScorecard = ({ match }: any) => {
+    return (
+        <View style={styles.scorecardContainer}>
+            <Text style={styles.sectionHeaderTitleDetails}>Points Summary</Text>
+            <View style={styles.statsSummaryGrid}>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>Raid Points</Text>
+                    <Text style={styles.statsSummaryValue}>{match.raidPointsA || 0} - {match.raidPointsB || 0}</Text>
+                </View>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>Super Tackles</Text>
+                    <Text style={styles.statsSummaryValue}>{match.superTackles || 0}</Text>
+                </View>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>All Out</Text>
+                    <Text style={styles.statsSummaryValue}>{match.allOut ? 'Yes' : 'No'}</Text>
+                </View>
+            </View>
+
+            {match.scoreByRaid && match.scoreByRaid.length > 0 && (
+                <>
+                    <Text style={[styles.sectionHeaderTitleDetails, { marginTop: 20 }]}>Raid Timeline</Text>
+                    {match.scoreByRaid.map((r: any, idx: number) => (
+                        <View key={idx} style={styles.squadPlayerRow}>
+                            <MaterialCommunityIcons name="run" size={16} color="#E31C25" style={{ marginRight: 10 }} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.squadPlayerName}>{r.player || 'Raider'}</Text>
+                                <Text style={styles.squadPlayerRole}>Raid #{r.raidNumber} • {r.team === 'A' ? match.teamA.code : match.teamB.code} ({r.reason || 'Touch Point'})</Text>
+                            </View>
+                            <Text style={styles.goalMinuteText}>+{r.points} Pts</Text>
+                        </View>
+                    ))}
+                </>
+            )}
+
+            <Text style={[styles.sectionHeaderTitleDetails, { marginTop: 24 }]}>Player Performance</Text>
+            <View style={styles.tableHeaderRow}>
+                <Text style={[styles.tableColHeader, { flex: 4 }]}>Player</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Raid Pts</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Tackle Pts</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Sup Tack</Text>
+                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'right' }]}>High 5s</Text>
+            </View>
+
+            {match.playerStats && match.playerStats.length > 0 ? (
+                match.playerStats.map((ps: any, idx: number) => (
+                    <View key={idx} style={styles.tableDataRow}>
+                        <View style={{ flex: 4 }}>
+                            <Text style={[styles.tableDataText, { fontWeight: '600' }]} numberOfLines={1}>{ps.name}</Text>
+                            <Text style={{ fontSize: 9, color: '#888' }}>{ps.team === 'A' ? match.teamA.code : match.teamB.code} • {ps.position || 'Player'}</Text>
+                        </View>
+                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center', fontWeight: 'bold' }]}>{ps.raidPoints || 0}</Text>
+                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center' }]}>{ps.tacklePoints || 0}</Text>
+                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center' }]}>{ps.superTackles || 0}</Text>
+                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'right', color: '#666' }]}>{ps.highFives || 0}</Text>
+                    </View>
+                ))
+            ) : (
+                <Text style={styles.emptyTableText}>No player performance stats recorded yet</Text>
+            )}
+        </View>
+    );
+};
 
 // InningsScorecard Component
 const InningsScorecard = ({
@@ -1107,5 +1312,59 @@ const styles = StyleSheet.create({
     progressBarFillB: {
         height: '100%',
         backgroundColor: '#4A90E2',
+    },
+    sectionHeaderTitleDetails: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#1a1a1a',
+        marginBottom: 12,
+        letterSpacing: 0.2,
+    },
+    goalMinuteText: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        color: '#E31C25',
+    },
+    statsSummaryGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    statsSummaryItem: {
+        flex: 1,
+        backgroundColor: '#F8F9FA',
+        padding: 12,
+        borderRadius: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#EBEBEB',
+    },
+    statsSummaryLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#888',
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    statsSummaryValue: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#1a1a1a',
+    },
+    vsCenterCol: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    timeBadgeDetail: {
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginTop: 6,
+    },
+    timeBadgeDetailText: {
+        color: '#fff',
+        fontSize: 9,
+        fontWeight: '800',
     },
 });
