@@ -3,6 +3,7 @@ import { ExpoConfig } from '@expo/config-types';
 const config: ExpoConfig = {
     name: "ATPL Score",
     slug: "AattumTPL-App",
+    owner: "k_shyam",
     version: "2.0.1",
     orientation: "portrait",
     icon: "./assets/images/iconn.png", // 👈 APP ICON (iOS + Android)

@@ -227,16 +227,16 @@ const DetailedMatchCard: React.FC<DetailedMatchCardProps> = ({ match, onPress })
                 </View>
 
                 {/* Toss & Target Banner */}
-                {(match.tossWinner || match.target || match.statusText) && (
+                {!!(match.tossWinner || match.target || match.statusText) && (
                     <View style={styles.metaBanner}>
                         <View style={styles.metaRow}>
-                            {match.tossWinner && (
+                            {!!match.tossWinner && (
                                 <Text style={styles.metaText} numberOfLines={1}>
                                     <Ionicons name="ribbon-outline" size={12} color="#FFD700" />{' '}
                                     Toss: {match.tossWinner} elected to {match.tossDecision}
                                 </Text>
                             )}
-                            {match.target && (
+                            {!!match.target && (
                                 <Text style={styles.targetText}>
                                     Target: <Text style={styles.targetHighlight}>{match.target}</Text>
                                 </Text>

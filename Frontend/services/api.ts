@@ -2,8 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'http://192.168.31.253:6899/api';
-// const BASE_URL = 'http://localhost:6899/api'; // Live Server
+const BASE_URL = 'https://back.aattumtpl.com/api';
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' }

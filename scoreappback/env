@@ -1,0 +1,5 @@
+PORT=6899
+MONGO_URI=mongodb+srv://AatumTPL_score:fxMFvkOeZccOUdS1@cluster0.qg4sw19.mongodb.net/AattumTpl
+JWT_SECRET=a718bcb1b57b40f14d4f20ef5eec3f47dfc19d484b190d4407e9040e2e3dc61b0d02c1aa389337eb78627c955b7b483a69f745065a15e56e58123ca76b8de94d
+
+

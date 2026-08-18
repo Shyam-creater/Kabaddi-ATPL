@@ -258,17 +258,17 @@ export default function MatchDetailsScreen() {
                         </View>
                     </View>
 
-                    {(match.tossWinner || match.target || match.statusText) && (
+                    {!!(match.tossWinner || match.target || match.statusText) && (
                         <View style={styles.bannerFooter}>
-                            {match.tossWinner && (
+                            {!!match.tossWinner && (
                                 <Text style={styles.bannerToss}>
                                     Toss: {match.tossWinner} won and chose to {match.tossDecision}
                                 </Text>
                             )}
-                            {match.target && (
+                            {!!match.target && (
                                 <Text style={styles.bannerTarget}>Target: {match.target} runs</Text>
                             )}
-                            {match.statusText && (
+                            {!!match.statusText && (
                                 <Text style={styles.bannerStatusText}>{match.statusText}</Text>
                             )}
                         </View>

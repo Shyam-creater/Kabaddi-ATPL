@@ -2,7 +2,7 @@ import io, { Socket } from 'socket.io-client';
 
 // Match backend socket URL
 // NOTE: change if your backend runs on a different IP/port
-const SOCKET_URL = 'http://192.168.31.253:6899';
+const SOCKET_URL = 'https://back.aattumtpl.com';
 
 class SocketService {
   private socket: Socket | null = null;

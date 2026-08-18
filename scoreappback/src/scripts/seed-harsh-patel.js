@@ -145,16 +145,12 @@ async function seedHarshPatel() {
             tournament1 = new CricketTournament({
                 name: 'ATPL T20 League 2024',
                 description: 'ATPL Twenty20 League Season 2024',
-                year: 2024,
-                season: 'Summer',
-                format: 'T20',
+                format: 'League',
                 status: 'COMPLETED',
                 startDate: new Date('2024-03-01'),
                 endDate: new Date('2024-05-31'),
                 createdBy: savedPlayer._id,
-                rounds: 4,
-                matches: 60,
-                completed: 60
+                matches: []
             });
             tournament1 = await tournament1.save();
             console.log('✅ Tournament 1 created');
@@ -165,16 +161,12 @@ async function seedHarshPatel() {
             tournament2 = new CricketTournament({
                 name: 'ATPL T20 League 2023',
                 description: 'ATPL Twenty20 League Season 2023',
-                year: 2023,
-                season: 'Summer',
-                format: 'T20',
+                format: 'League',
                 status: 'COMPLETED',
                 startDate: new Date('2023-03-01'),
                 endDate: new Date('2023-05-31'),
                 createdBy: savedPlayer._id,
-                rounds: 4,
-                matches: 56,
-                completed: 56
+                matches: []
             });
             tournament2 = await tournament2.save();
             console.log('✅ Tournament 2 created');

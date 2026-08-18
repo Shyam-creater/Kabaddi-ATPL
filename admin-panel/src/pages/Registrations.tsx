@@ -5,7 +5,7 @@ import api from '../services/api';
 import { jsPDF } from 'jspdf';
 
 // Build correct image URL from stored path
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://192.168.31.63:6899/api').replace('/api', '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://back.aattumtpl.com/api').replace('/api', '');
 const getImageUrl = (url: string) => {
     if (!url) return '';
     // If it's a data: URI, return as-is

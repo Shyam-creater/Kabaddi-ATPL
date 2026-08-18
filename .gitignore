@@ -7,4 +7,3 @@ android/.gradle/
 android/app/build/
 ios/Pods/
 coverage/
-backend.zip
