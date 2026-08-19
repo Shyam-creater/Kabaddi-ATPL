@@ -230,7 +230,7 @@ export default function ProfilePage() {
                             </View>
                             <View style={styles.gridRow}>
                                 <View style={styles.gridItem}><View style={styles.gridIconBox}><Ionicons name="calendar" size={14} color="#fff" /></View><View><Text style={styles.gridLabel}>BIRTHDAY</Text><Text style={styles.gridValue}>{formatDOB(user?.dob)}</Text></View></View>
-                                <View style={styles.gridItem}><View style={styles.gridIconBox}><Ionicons name="trophy" size={14} color="#fff" /></View><View><Text style={styles.gridLabel}>SPORTS</Text><Text style={styles.gridValue} numberOfLines={1}>{user?.sports?.length ? user.sports.join(', ') : 'Not set'}</Text></View></View>
+                                <View style={styles.gridItem}><View style={styles.gridIconBox}><Ionicons name="trophy" size={14} color="#fff" /></View><View><Text style={styles.gridLabel}>SPORTS</Text><Text style={styles.gridValue} numberOfLines={1}>{(user?.sports && user.sports.length > 0) ? user.sports.join(', ') : 'Kabaddi'}</Text></View></View>
                             </View>
                         </View>
                     </Animated.View>

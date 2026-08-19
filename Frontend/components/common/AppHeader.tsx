@@ -186,23 +186,7 @@ export default function AppHeader() {
                   <View style={styles.textStack}>
                     <Text style={styles.mainTitle}>ATPL</Text>
                     <Text style={styles.subTitle}>SCORE</Text>
-                    {user?.atplId && (
-                      <TouchableOpacity 
-                        style={styles.idBadge} 
-                        onPress={async () => {
-                          await Clipboard.setStringAsync(user.atplId);
-                          if (Platform.OS === 'android') {
-                            ToastAndroid.show('ID Copied!', ToastAndroid.SHORT);
-                          } else {
-                            Alert.alert('Copied', 'ID copied to clipboard!');
-                          }
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.idText}>{user.atplId}</Text>
-                        <Ionicons name="copy-outline" size={10} color="#FFD700" style={{ marginLeft: 3 }} />
-                      </TouchableOpacity>
-                    )}
+                   
                   </View>
                 </View>
               </View>

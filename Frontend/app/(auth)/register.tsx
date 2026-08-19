@@ -33,23 +33,16 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedSports, setSelectedSports] = useState<string[]>([]);
+  const [selectedSports, setSelectedSports] = useState<string[]>(['Kabaddi']);
 
-  const sports = ['Cricket', 'Kabaddi', 'Football'];
+  const sports = ['Kabaddi'];
 
   const toggleSport = (sport: string) => {
-    setSelectedSports(prev =>
-      prev.includes(sport) ? prev.filter(s => s !== sport) : [...prev, sport]
-    );
+    setSelectedSports(['Kabaddi']);
   };
 
   const handleRegister = async () => {
-    if (selectedSports.length === 0) {
-      Alert.alert('Required', 'Please select at least one sport');
-      return;
-    }
-
-    const res = await dispatch(registerUser({ name, email, phone, password, sports: selectedSports }));
+    const res = await dispatch(registerUser({ name, email, phone, password, sports: ['Kabaddi'] }));
 
     console.log('REGISTER RESPONSE 👉', res);
 
@@ -200,37 +193,6 @@ export default function RegisterScreen() {
                   />
                 </TouchableOpacity>
               </LinearGradient>
-            </View>
-
-            {/* Sports Selection */}
-            <View style={styles.sportsSection}>
-              <Text style={styles.sportsLabel}>Select Your Sports</Text>
-              <View style={styles.sportsContainer}>
-                {sports.map(sport => (
-                  <TouchableOpacity
-                    key={sport}
-                    onPress={() => toggleSport(sport)}
-                    style={[
-                      styles.sportButton,
-                      selectedSports.includes(sport) && styles.sportButtonActive
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={selectedSports.includes(sport) ? ['#E31C25', '#A00F15'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
-                      style={styles.sportButtonGradient}
-                    >
-                      <Ionicons
-                        name={sport === 'Cricket' ? 'baseball' : sport === 'Kabaddi' ? 'hand-right' : 'football'}
-                        size={16}
-                        color={selectedSports.includes(sport) ? '#fff' : '#888'}
-                      />
-                      <Text style={[styles.sportButtonText, selectedSports.includes(sport) && styles.sportButtonTextActive]}>
-                        {sport}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
             <TouchableOpacity

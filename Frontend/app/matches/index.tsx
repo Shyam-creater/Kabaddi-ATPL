@@ -11,9 +11,6 @@ import api from '../../services/api';
 import { useAppSelector } from '../../store/hooks';
 
 const SPORTS = [
-    { id: 'all', label: 'All' },
-    { id: 'cricket', label: 'Cricket' },
-    { id: 'football', label: 'Football' },
     { id: 'kabaddi', label: 'Kabaddi' },
 ];
 
@@ -27,7 +24,7 @@ export default function MatchesScreen() {
     const router = useRouter();
     const { user: currentUser } = useAppSelector(state => state.auth);
     const [activeTab, setActiveTab] = useState('LIVE');
-    const [activeSport, setActiveSport] = useState('all');
+    const [activeSport, setActiveSport] = useState('kabaddi');
     const [matches, setMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);

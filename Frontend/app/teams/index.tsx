@@ -45,9 +45,6 @@ interface Team {
 }
 
 const SPORTS_TABS = [
-    { id: 'all', name: 'All Teams', icon: 'trophy-outline', lib: 'Ionicons' },
-    { id: 'cricket', name: 'Cricket', icon: 'cricket', lib: 'MaterialCommunityIcons' },
-    { id: 'football', name: 'Football', icon: 'soccer', lib: 'MaterialCommunityIcons' },
     { id: 'kabaddi', name: 'Kabaddi', icon: 'human-handsup', lib: 'MaterialCommunityIcons' }
 ];
 
@@ -55,7 +52,7 @@ export default function TeamsScreen() {
     const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [selectedSport, setSelectedSport] = useState<'all' | 'cricket' | 'football' | 'kabaddi'>('all');
+    const [selectedSport, setSelectedSport] = useState<'all' | 'cricket' | 'football' | 'kabaddi'>('kabaddi');
     
     // Modal states
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);

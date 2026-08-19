@@ -16,12 +16,9 @@ const userSchema = new mongoose.Schema({
     phone: { type: String },
     city: { type: String },
     address: { type: String },
-    leagueLimit: { type: Number, default: 5 },
     dob: { type: Date },
-    sports: [{ type: String }], // Array of strings for selected sports
+    sports: { type: [String], default: ['Kabaddi'] },
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-
-    // Follow System
     followers: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },

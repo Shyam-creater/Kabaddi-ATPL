@@ -12,7 +12,7 @@ export default function NetworkPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedCategory, setSelectedCategory] = useState('Kabaddi');
 
     useEffect(() => {
         fetchNetwork();
@@ -132,7 +132,7 @@ export default function NetworkPage() {
 
             {/* Category Tabs */}
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 15, marginBottom: 5 }}>
-                {['All', 'Cricket', 'Kabaddi', 'Football'].map((cat) => (
+                {['Kabaddi'].map((cat) => (
                     <TouchableOpacity
                         key={cat}
                         onPress={() => setSelectedCategory(cat)}

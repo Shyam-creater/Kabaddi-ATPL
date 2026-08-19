@@ -37,14 +37,11 @@ interface MatchCardData {
 }
 
 const SPORTS_TABS = [
-  { id: 'all', name: 'All Sports', icon: 'trophy' },
-  { id: 'cricket', name: 'Cricket', icon: 'cricket' },
   { id: 'kabaddi', name: 'Kabaddi', icon: 'human-handsup' },
-  { id: 'football', name: 'Football', icon: 'soccer' },
 ];
 
 export default function MyScoreScreen() {
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('kabaddi');
   const [activeFilter, setActiveFilter] = useState('All Matches');
   const [venueFilters, setVenueFilters] = useState<string[]>(['All Matches', 'Live Now']);
   const [videoVisible, setVideoVisible] = useState(false);

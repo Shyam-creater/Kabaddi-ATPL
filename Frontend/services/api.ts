@@ -2,7 +2,16 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'https://back.aattumtpl.com/api';
+import { Platform } from 'react-native';
+
+// Set to true to use your local backend (scoreappback), or false for live server
+export const USE_LOCAL_BACKEND = true;
+
+const LOCAL_BASE_URL = 'http://192.168.1.46:6899/api';
+const LIVE_BASE_URL = 'https://back.aattumtpl.com/api';
+
+const BASE_URL = USE_LOCAL_BACKEND ? LOCAL_BASE_URL : LIVE_BASE_URL;
+
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' }

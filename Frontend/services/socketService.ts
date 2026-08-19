@@ -1,7 +1,11 @@
 import io, { Socket } from 'socket.io-client';
-import api from './api';
+import { Platform } from 'react-native';
+import api, { USE_LOCAL_BACKEND } from './api';
 
-const SOCKET_URL = 'https://back.aattumtpl.com';
+const LOCAL_SOCKET_URL = 'http://192.168.1.46:6899';
+const LIVE_SOCKET_URL = 'https://back.aattumtpl.com';
+
+const SOCKET_URL = USE_LOCAL_BACKEND ? LOCAL_SOCKET_URL : LIVE_SOCKET_URL;
 
 class SocketService {
     socket: Socket | null = null;

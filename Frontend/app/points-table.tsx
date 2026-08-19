@@ -7,13 +7,11 @@ import api from '../services/api';
 import AppHeader from '../components/common/AppHeader';
 
 const SPORTS = [
-    { id: 'cricket', name: 'Cricket', icon: 'cricket' },
-    { id: 'football', name: 'Football', icon: 'soccer' },
     { id: 'kabaddi', name: 'Kabaddi', icon: 'human-handsup' }
 ];
 
 export default function PointsTableScreen() {
-    const [selectedSport, setSelectedSport] = useState<'cricket' | 'football' | 'kabaddi'>('cricket');
+    const [selectedSport, setSelectedSport] = useState<'cricket' | 'football' | 'kabaddi'>('kabaddi');
     const [teams, setTeams] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);

@@ -13,7 +13,7 @@ export default function AuctionScreen() {
     const [filteredPlayers, setFilteredPlayers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [activeSport, setActiveSport] = useState('Cricket');
+    const [activeSport, setActiveSport] = useState('Kabaddi');
     const [activeCategory, setActiveCategory] = useState('All');
 
     const fetchPlayers = async () => {
@@ -76,9 +76,7 @@ export default function AuctionScreen() {
 
             <View style={styles.filterHeader}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sportTabsContainer}>
-                    {renderSportTab('Cricket', 'baseball-outline')}
                     {renderSportTab('Kabaddi', 'body-outline')}
-                    {renderSportTab('Football', 'football-outline')}
                 </ScrollView>
                 <View style={styles.catContainer}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>

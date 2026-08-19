@@ -11,9 +11,7 @@ import socketService from '../../services/socketService';
 const { width } = Dimensions.get('window');
 
 const SPORTS = [
-    { id: 'cricket', name: 'Cricket', icon: 'cricket' },
-    { id: 'football', name: 'Football', icon: 'soccer' },
-    { id: 'kabaddi', name: 'Kabaddi', icon: 'human-handsup' } // Approximation for Kabaddi
+    { id: 'kabaddi', name: 'Kabaddi', icon: 'human-handsup' }
 ];
 
 interface Tournament {
@@ -34,7 +32,7 @@ interface Tournament {
 
 export default function TournamentScreen() {
     const router = useRouter();
-    const [selectedSport, setSelectedSport] = useState('cricket');
+    const [selectedSport, setSelectedSport] = useState('kabaddi');
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);

@@ -41,7 +41,7 @@ export default function LoginScreen() {
     const handleLogin = async () => {
         if (loginMethod === 'email') {
             if (!email || !password) {
-                Alert.alert('Required', 'Please enter email and password');
+                Alert.alert('Required', 'Please enter Mobile Number / Email and password');
                 return;
             }
             const res = await dispatch(loginUser({ email, password }));
@@ -126,14 +126,14 @@ export default function LoginScreen() {
                         <Text style={styles.welcomeText}>Welcome Back!</Text>
                         <Text style={styles.instructionText}>Please sign in to continue</Text>
 
-                        {/* Login Method Toggle */}
+                        {/* Tab Selector */}
                         <View style={styles.toggleContainer}>
                             <TouchableOpacity
                                 onPress={() => setLoginMethod('email')}
                                 style={[styles.toggleButton, loginMethod === 'email' && styles.toggleButtonActive]}
                             >
                                 <Text style={[styles.toggleButtonText, loginMethod === 'email' && styles.toggleButtonTextActive]}>
-                                    Email
+                                    Mobile / Email
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -146,20 +146,19 @@ export default function LoginScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Email Input */}
+                        {/* Mobile Number or Email Input */}
                         {loginMethod === 'email' && (
                             <View style={styles.inputWrapper}>
                                 <LinearGradient
                                     colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
                                     style={styles.inputGradient}
                                 >
-                                    <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
+                                    <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
                                     <TextInput
-                                        placeholder="Email Address"
+                                        placeholder="Mobile Number or Email"
                                         placeholderTextColor="#666"
                                         value={email}
                                         onChangeText={setEmail}
-                                        keyboardType="email-address"
                                         autoCapitalize="none"
                                         style={styles.input}
                                     />

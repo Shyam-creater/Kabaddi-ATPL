@@ -19,16 +19,13 @@ import api from '../../services/api';
 import AppHeader from '../../components/common/AppHeader';
 
 const SPORTS_TABS = [
-    { id: 'All', name: 'All Players', icon: 'trophy-outline' },
-    { id: 'Cricket', name: 'Cricket', icon: 'cricket' },
-    { id: 'Kabaddi', name: 'Kabaddi', icon: 'human-handsup' },
-    { id: 'Football', name: 'Football', icon: 'soccer' },
+    { id: 'Kabaddi', name: 'Kabaddi Players', icon: 'human-handsup' },
 ];
 
 export default function PlayersScreen() {
     const router = useRouter();
     const { user: currentUser } = useAppSelector(state => state.auth);
-    const [activeTab, setActiveTab] = useState('All');
+    const [activeTab, setActiveTab] = useState('Kabaddi');
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -36,9 +33,7 @@ export default function PlayersScreen() {
 
     const fetchPlayers = async () => {
         try {
-            const endpoint = activeTab === 'All'
-                ? '/user/list'
-                : `/user/list?sport=${activeTab}`;
+            const endpoint = `/user/list?sport=Kabaddi`;
 
             const response = await api.get(endpoint);
             if (response.data.success) {

@@ -19,7 +19,7 @@ exports.register = async (req, res, next) => {
             email, 
             phone, 
             password,
-            sports: sports || []
+            sports: (sports && sports.length > 0) ? sports : ['Kabaddi']
         });
 
         const token = generateToken(user._id);
@@ -31,25 +31,32 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const { email, password, atplId, loginType } = req.body; // loginType: 'user' or 'admin'
+        const { email, phone, password, atplId, loginType } = req.body; // loginType: 'user' or 'admin'
         
         let user;
-        // Login with ATPL ID (no password required)
+        // Login with ATPL ID (no password required, case-insensitive)
         if (atplId) {
-            user = await User.findOne({ atplId });
+            const cleanAtplId = atplId.toString().trim();
+            user = await User.findOne({ atplId: new RegExp('^' + cleanAtplId + '$', 'i') });
             if (!user) return next(new ApiError(404, 'ATPL ID not found'));
         } 
-        // Login with email (password required)
-        else if (email) {
-            user = await User.findOne({ email });
-            if (!user) return next(new ApiError(404, 'Email not found'));
+        // Login with email or phone (password required)
+        else if (email || phone) {
+            const input = (email || phone).toString().trim();
+            user = await User.findOne({
+                $or: [
+                    { email: input.toLowerCase() },
+                    { phone: input }
+                ]
+            });
+            if (!user) return next(new ApiError(404, 'Account not found with this Mobile Number or Email'));
             
             if (!password) return next(new ApiError(400, 'Password required'));
             const isMatch = await user.matchPassword(password);
             if (!isMatch) return next(new ApiError(401, 'Invalid password'));
         } 
         else {
-            return next(new ApiError(400, 'Email or ATPL ID required'));
+            return next(new ApiError(400, 'Mobile Number, Email or ATPL ID required'));
         }
 
         // Role-based login restrictions

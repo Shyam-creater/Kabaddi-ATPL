@@ -18,8 +18,14 @@ exports.getBlockedUsers = async (req, res, next) => {
 
 exports.getProfile = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        let user = await User.findById(req.user.id).select('-password');
         if (!user) return next(new ApiError(404, 'User not found'));
+
+        // Ensure legacy users without atplId get an auto-generated atplId
+        if (!user.atplId) {
+            await user.save();
+            user = await User.findById(req.user.id).select('-password');
+        }
 
         const userObj = user.toObject();
         if (userObj.followers) userObj.followers = userObj.followers.filter(f => f.status === 'accepted');
@@ -43,19 +49,20 @@ exports.updateProfile = async (req, res, next) => {
         const logEntry = `\n[${new Date().toISOString()}] Update Request: name=${name}, sports=${JSON.stringify(sports)}`;
         fs.appendFileSync(logPath, logEntry);
 
+        const updateFields = {};
+        if (name !== undefined) updateFields.name = name;
+        if (phone !== undefined) updateFields.phone = phone;
+        if (city !== undefined) updateFields.city = city;
+        if (address !== undefined) updateFields.address = address;
+        if (gender !== undefined) updateFields.gender = gender;
+        if (dob !== undefined) updateFields.dob = dob;
+        if (profilePicture !== undefined) updateFields.profilePicture = profilePicture;
+        if (sports !== undefined) updateFields.sports = sports;
+        if (req.body.playerProfile !== undefined) updateFields.playerProfile = req.body.playerProfile;
+
         const user = await User.findByIdAndUpdate(
             req.user.id,
-            {
-                name,
-                phone,
-                city,
-                address,
-                gender,
-                dob,
-                profilePicture, // Correct field name
-                sports,
-                playerProfile: req.body.playerProfile // Allow updating the nested profile
-            },
+            updateFields,
             { new: true, runValidators: true }
         ).select('-password');
 
@@ -440,15 +447,8 @@ exports.unfollowUser = async (req, res, next) => {
 exports.getSuggestedCricketers = async (req, res, next) => {
     try {
         const { category } = req.query;
-        // Construct query based on category
-        let sportFilter = ['Cricket']; // Default
-        if (category) {
-            // Map frontend category names if needed, or use directly
-            // User mentioned: cricket, kabaddi, football
-            // Ensure case matching. 'Kabaddi' vs 'kabaddi'
-            const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-            sportFilter = [formattedCategory];
-        }
+        const targetCategory = category ? (category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()) : 'Kabaddi';
+        const categoryRegex = new RegExp(targetCategory, 'i');
 
         // Find users who have the selected sport in sports array and are NOT current user
         // Also exclude users already followed
@@ -463,29 +463,41 @@ exports.getSuggestedCricketers = async (req, res, next) => {
             }
         }
 
-        const suggested = await User.find({
+        let suggested = await User.find({
             _id: { $nin: excludeIds },
-            sports: { $in: sportFilter },
-            role: { $ne: 'admin' }
+            sports: { $elemMatch: { $regex: categoryRegex } },
+            role: { $nin: ['admin', 'superadmin'] }
         })
-            .select('name profilePicture playerProfile.cricket.role playerProfile.kabaddi.role playerProfile.football.role')
+            .select('name profilePicture sports playerProfile')
             .limit(10); // Show top 10
+
+        // Fallback: If no users matched the exact sports filter, fetch any non-admin users
+        if (!suggested || suggested.length === 0) {
+            suggested = await User.find({
+                _id: { $nin: excludeIds },
+                role: { $nin: ['admin', 'superadmin'] }
+            })
+                .select('name profilePicture sports playerProfile')
+                .limit(10);
+        }
 
         // Map to simpler structure
         const result = suggested.map(u => {
             let role = 'Player';
-            // Determine role based on category or first available
             if (u.playerProfile) {
-                if (sportFilter.includes('Cricket') && u.playerProfile.cricket) role = u.playerProfile.cricket.role || 'Cricketer';
-                else if (sportFilter.includes('Kabaddi') && u.playerProfile.kabaddi) role = u.playerProfile.kabaddi.role || 'Raider/Defender';
-                else if (sportFilter.includes('Football') && u.playerProfile.football) role = u.playerProfile.football.role || 'Footballer';
+                if (u.playerProfile.kabaddi && u.playerProfile.kabaddi.role) {
+                    role = u.playerProfile.kabaddi.role;
+                } else if (u.playerProfile.cricket && u.playerProfile.cricket.role) {
+                    role = u.playerProfile.cricket.role;
+                } else if (u.playerProfile.football && u.playerProfile.football.role) {
+                    role = u.playerProfile.football.role;
+                }
             }
 
             let isFollowing = false;
             let isRequested = false;
 
             if (currentUser && currentUser.following) {
-                // Safe check for following status
                 const followEntry = currentUser.following.find(f => f && f.user && f.user.toString() === u._id.toString());
                 if (followEntry) {
                     if (followEntry.status === 'accepted') isFollowing = true;

@@ -292,8 +292,8 @@ export default function ProfileDetailsPage() {
         </View>
     );
 
-    const showCricket = hasCricketProfile || (hasProfile && !hasKabaddiProfile);
-    const showKabaddi = hasKabaddiProfile;
+    const showCricket = false;
+    const showKabaddi = true;
 
     const renderRecentMatches = () => {
         if (!advancedStats?.matches?.details || advancedStats.matches.details.length === 0) {

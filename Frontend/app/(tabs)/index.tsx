@@ -130,7 +130,7 @@ export default function HomeScreen() {
   const [cricketProfiles, setCricketProfiles] = useState<any[]>([]);
   const [kabaddiProfiles, setKabaddiProfiles] = useState<any[]>([]);
   const [footballProfiles, setFootballProfiles] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('Cricket');
+  const [selectedCategory, setSelectedCategory] = useState('Kabaddi');
   const [topBatsmen, setTopBatsmen] = useState<any[]>([]);
   const [topBowlers, setTopBowlers] = useState<any[]>([]);
   const [topFootballers, setTopFootballers] = useState<any[]>([]);
@@ -194,21 +194,9 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchAllSuggested = async () => {
       try {
-        const [cricket, kabaddi, football] = await Promise.all([
-          userService.getSuggestedCricketers('Cricket'),
-          userService.getSuggestedCricketers('Kabaddi'),
-          userService.getSuggestedCricketers('Football')
-        ]);
-
-        if (cricket?.data?.success) setCricketProfiles(cricket.data.data);
-        else if (Array.isArray(cricket?.data)) setCricketProfiles(cricket.data);
-
-        if (kabaddi?.data?.success) setKabaddiProfiles(kabaddi.data.data);
-        else if (Array.isArray(kabaddi?.data)) setKabaddiProfiles(kabaddi.data);
-
-        if (football?.data?.success) setFootballProfiles(football.data.data);
-        else if (Array.isArray(football?.data)) setFootballProfiles(football.data);
-
+        const kabaddi = await userService.getSuggestedCricketers('Kabaddi');
+        const profilesList = kabaddi?.data?.data || (Array.isArray(kabaddi?.data) ? kabaddi.data : []);
+        setKabaddiProfiles(profilesList);
       } catch (error) {
         console.error('Failed to fetch suggested profiles', error);
       }
@@ -1019,30 +1007,12 @@ export default function HomeScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* --- 4. SECTION BY SECTION PROFILES --- */}
-
-        {/* Cricket Section */}
+        {/* --- 4. KABADDI PROFILES SECTION --- */}
         <RenderProfileSection
-          title="Cricket Professionals"
-          profiles={cricketProfiles}
-          color="#E31C25"
-          delay={350}
-        />
-
-        {/* Kabaddi Section */}
-        <RenderProfileSection
-          title="Kabaddi Legends"
+          title="Kabaddi Professionals"
           profiles={kabaddiProfiles}
           color="#FF9800"
           delay={400}
-        />
-
-        {/* Football Section */}
-        <RenderProfileSection
-          title="Football Stars"
-          profiles={footballProfiles}
-          color="#4CAF50"
-          delay={450}
         />
 
         {/* Hub moved above */}
@@ -1373,7 +1343,7 @@ export default function HomeScreen() {
               <View style={styles.sectionTitleRow}>
                 <View style={[styles.premiumHeaderBar, { backgroundColor: '#7C3AED' }]} />
                 <Ionicons name="book-outline" size={22} color="#7C3AED" style={{ marginRight: 6 }} />
-                <Text style={styles.sectionTitle}>Cricket Blogs</Text>
+                <Text style={styles.sectionTitle}>Kabaddi Blogs</Text>
               </View>
               <TouchableOpacity>
                 <Text style={styles.seeAll}>See All</Text>

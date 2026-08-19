@@ -630,10 +630,10 @@ export default function PublicProfileDetails() {
         );
     };
 
-    const activeSportToShow = selectedSport || (user?.sports && user.sports[0]) || 'Cricket';
-    const showCricket = activeSportToShow === 'Cricket' && hasCricketProfile;
-    const showKabaddi = activeSportToShow === 'Kabaddi' && hasKabaddiProfile;
-    const showFootball = activeSportToShow === 'Football' && hasFootballProfile;
+    const activeSportToShow = 'Kabaddi';
+    const showCricket = false;
+    const showKabaddi = true;
+    const showFootball = false;
 
 
     const renderRecentMatches = () => {

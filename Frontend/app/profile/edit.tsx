@@ -13,6 +13,7 @@ import {
     Keyboard,
     TouchableWithoutFeedback,
     Modal,
+    Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,9 +23,8 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
 
-const STEPS = ['Personal Info'];
+const STEPS = ['Personal Info', 'Sports Details'];
 
 export default function CreateProfile() {
     const router = useRouter();
@@ -43,8 +43,9 @@ export default function CreateProfile() {
     const [profileImage, setProfileImage] = useState(user?.profilePicture || null);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Step 2: Sports Selection
-    const [selectedSport, setSelectedSport] = useState<string>(user?.sports?.[0] || '');
+    // Step 2: Sports Details (Kabaddi Only)
+    const [activeSports, setActiveSports] = useState<string[]>(['Kabaddi']);
+    const [selectedSport, setSelectedSport] = useState<string>('Kabaddi');
 
     // Default Structures for Robust Initialization
     const defaultCricket = {
@@ -65,6 +66,12 @@ export default function CreateProfile() {
         discipline: { greenCards: '', yellowCards: '', redCards: '', suspensions: '' },
         achievementStats: { mvpAwards: '', bestRaiderAwards: '', bestDefenderAwards: '', allRounderAwards: '', teamTitlesWon: '' },
         fitness: { injuries: '', fitnessStatus: 'Fit', lastMatchPlayedDate: '' }
+    };
+
+    const defaultFootball = {
+        age: '', height: '', weight: '', state: '', country: '', position: 'Forward', currentTeam: '', jerseyNumber: '', preferredFoot: 'Right', experienceYears: '',
+        careerSummary: { matchesPlayed: '', totalGoals: '', totalAssists: '', cleanSheets: '', shotsOnTarget: '', passingAccuracy: '' },
+        seasonStats: []
     };
 
     const initCricket = (userData: any) => ({
@@ -88,17 +95,34 @@ export default function CreateProfile() {
         fitness: { ...defaultKabaddi.fitness, ...(userData?.fitness || {}) }
     });
 
+    const initFootball = (userData: any) => ({
+        ...defaultFootball,
+        ...(userData || {}),
+        careerSummary: { ...defaultFootball.careerSummary, ...(userData?.careerSummary || {}) },
+        seasonStats: userData?.seasonStats || []
+    });
+
     const [cricketDetails, setCricketDetails] = useState(initCricket(user?.playerProfile?.cricket));
     const [kabaddiDetails, setKabaddiDetails] = useState(initKabaddi(user?.playerProfile?.kabaddi));
+    const [footballDetails, setFootballDetails] = useState(initFootball(user?.playerProfile?.football));
 
     useEffect(() => {
         if (user) {
             setPhone(user.phone || '');
             setCity(user.city || '');
-            setAddress(user.address || ''); // Sync Address
+            setAddress(user.address || '');
             setGender(user.gender || 'Male');
+            if (user.sports && user.sports.length > 0) {
+                setActiveSports(user.sports);
+                if (!user.sports.includes(selectedSport)) {
+                    setSelectedSport(user.sports[0]);
+                }
+            }
             if (user.dob) setDob(new Date(user.dob));
             if (user.profilePicture) setProfileImage(user.profilePicture);
+            if (user.playerProfile?.cricket) setCricketDetails(initCricket(user.playerProfile.cricket));
+            if (user.playerProfile?.kabaddi) setKabaddiDetails(initKabaddi(user.playerProfile.kabaddi));
+            if (user.playerProfile?.football) setFootballDetails(initFootball(user.playerProfile.football));
         }
     }, [user]);
 
@@ -120,7 +144,11 @@ export default function CreateProfile() {
     };
 
     const handleNext = () => {
-        handleSave();
+        if (currentStep === 0) {
+            setCurrentStep(1);
+        } else {
+            handleSave();
+        }
     };
 
     const handleBack = () => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.back();
@@ -140,58 +168,26 @@ export default function CreateProfile() {
             phone, city, address, gender,
             dob: dob instanceof Date ? dob.toISOString().split('T')[0] : dob,
             profilePicture: profileImage,
+            sports: activeSports,
+            playerProfile: cleanNumbers({
+                cricket: cricketDetails,
+                kabaddi: kabaddiDetails,
+                football: footballDetails
+            })
         };
 
         const result = await dispatch(updateUserProfile(updateData));
         if (updateUserProfile.fulfilled.match(result)) {
-            Alert.alert('Success', 'Profile updated!', [{ text: 'OK', onPress: () => router.back() }]);
+            Alert.alert('Success', 'Profile updated successfully!', [{ text: 'OK', onPress: () => router.back() }]);
         } else {
             Alert.alert('Error', typeof result.payload === 'string' ? result.payload : 'Update failed');
         }
     };
 
-    const renderInput = (label: string, value: string, setter: (val: string) => void, placeholder: string, keyboard: any = 'default', isSmall = false) => (
+    const renderInput = (label: string, value: string | number, setter: (val: string) => void, placeholder: string, keyboard: any = 'default', isSmall = false) => (
         <View style={isSmall ? styles.statInput : styles.inputGroup}>
             <Text style={isSmall ? styles.statLabel : styles.label}>{label}</Text>
-            <TextInput style={isSmall ? styles.inputSmall : styles.input} value={String(value || '')} onChangeText={setter} placeholder={placeholder} keyboardType={keyboard} />
-        </View>
-    );
-
-    const renderArraySection = (title: string, data: any[], setData: any, fields: any[]) => (
-        <View>
-            <View style={styles.arrayHeader}>
-                <Text style={styles.sectionHeader}>{title}</Text>
-                <TouchableOpacity onPress={() => setData([...data, {}])} style={styles.addButton}>
-                    <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-            </View>
-            {data.map((item, index) => (
-                <View key={index} style={styles.arrayItem}>
-                    <Text style={styles.itemIndex}>#{index + 1}</Text>
-                    {fields.map(f => (
-                        <View key={f.key} style={styles.inputGroup}>
-                            <Text style={styles.label}>{f.label}</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={String(item[f.key] || '')}
-                                onChangeText={(t) => {
-                                    const newData = [...data];
-                                    newData[index] = { ...item, [f.key]: t };
-                                    setData(newData);
-                                }}
-                                placeholder={f.placeholder}
-                                keyboardType={f.keyboard || 'default'}
-                            />
-                        </View>
-                    ))}
-                    <TouchableOpacity onPress={() => {
-                        const newData = data.filter((_, i) => i !== index);
-                        setData(newData);
-                    }} style={styles.removeButton}>
-                        <Text style={styles.removeText}>Remove</Text>
-                    </TouchableOpacity>
-                </View>
-            ))}
+            <TextInput style={isSmall ? styles.inputSmall : styles.input} value={String(value ?? '')} onChangeText={setter} placeholder={placeholder} placeholderTextColor="#aaa" keyboardType={keyboard} />
         </View>
     );
 
@@ -210,8 +206,7 @@ export default function CreateProfile() {
             </View>
             {renderInput('Phone Number', phone, setPhone, 'Enter Phone', 'phone-pad')}
             {renderInput('Address', address, setAddress, 'Enter Full Address')}
-            {renderInput('Location *', city, setCity, 'Enter District & State')}
-          
+            {renderInput('Location (City/State) *', city, setCity, 'Enter District & State')}
 
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Date of Birth *</Text>
@@ -276,14 +271,208 @@ export default function CreateProfile() {
         </View>
     );
 
+    const renderCricketForm = () => (
+        <View>
+            <Text style={styles.sectionHeader}>Cricket Profile & Info</Text>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Primary Role</Text>
+                <View style={styles.row}>
+                    {['Batsman', 'Bowler', 'All-rounder', 'Wicket Keeper'].map(r => (
+                        <TouchableOpacity 
+                            key={r} 
+                            style={[styles.chip, cricketDetails.role === r && styles.activeChip]} 
+                            onPress={() => setCricketDetails({ ...cricketDetails, role: r })}
+                        >
+                            <Text style={[styles.chipText, cricketDetails.role === r && styles.activeChipText]}>{r}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Batting Style</Text>
+                <View style={styles.row}>
+                    {['Right-hand bat', 'Left-hand bat'].map(bs => (
+                        <TouchableOpacity 
+                            key={bs} 
+                            style={[styles.chip, cricketDetails.battingStyle === bs && styles.activeChip]} 
+                            onPress={() => setCricketDetails({ ...cricketDetails, battingStyle: bs })}
+                        >
+                            <Text style={[styles.chipText, cricketDetails.battingStyle === bs && styles.activeChipText]}>{bs}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Bowling Style</Text>
+                <View style={styles.row}>
+                    {['Right-arm fast', 'Right-arm medium', 'Right-arm spin', 'Left-arm fast', 'Left-arm spin'].map(bw => (
+                        <TouchableOpacity 
+                            key={bw} 
+                            style={[styles.chip, cricketDetails.bowlingStyle === bw && styles.activeChip]} 
+                            onPress={() => setCricketDetails({ ...cricketDetails, bowlingStyle: bw })}
+                        >
+                            <Text style={[styles.chipText, cricketDetails.bowlingStyle === bw && styles.activeChipText]}>{bw}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            {renderInput('Jersey Number', cricketDetails.jerseyNumber, (v) => setCricketDetails({ ...cricketDetails, jerseyNumber: v }), 'e.g. 18 or 7', 'number-pad')}
+            {renderInput('Current Team / Club', cricketDetails.currentTeam, (v) => setCricketDetails({ ...cricketDetails, currentTeam: v }), 'e.g. Mumbai Warriors')}
+            {renderInput('Nickname', cricketDetails.nickname, (v) => setCricketDetails({ ...cricketDetails, nickname: v }), 'e.g. Chiku')}
+
+            <Text style={styles.sectionHeader}>Career Statistics Summary</Text>
+            <View style={styles.statsRow}>
+                {renderInput('TOTAL MATCHES', cricketDetails.careerSummary?.totalMatches, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, totalMatches: v } }), '0', 'number-pad', true)}
+                {renderInput('TOTAL RUNS', cricketDetails.careerSummary?.totalRuns, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, totalRuns: v } }), '0', 'number-pad', true)}
+                {renderInput('TOTAL WKTS', cricketDetails.careerSummary?.totalWickets, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, totalWickets: v } }), '0', 'number-pad', true)}
+            </View>
+            <View style={styles.statsRow}>
+                {renderInput('HIGHEST SCORE', cricketDetails.careerSummary?.highestScore, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, highestScore: v } }), '0', 'number-pad', true)}
+                {renderInput('BATTING AVG', cricketDetails.careerSummary?.battingAverage, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, battingAverage: v } }), '0.0', 'decimal-pad', true)}
+                {renderInput('STRIKE RATE', cricketDetails.careerSummary?.strikeRate, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, strikeRate: v } }), '0.0', 'decimal-pad', true)}
+            </View>
+            <View style={styles.statsRow}>
+                {renderInput('CENTURIES (100s)', cricketDetails.careerSummary?.centuries, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, centuries: v } }), '0', 'number-pad', true)}
+                {renderInput('HALF CENTURIES (50s)', cricketDetails.careerSummary?.halfCenturies, (v) => setCricketDetails({ ...cricketDetails, careerSummary: { ...cricketDetails.careerSummary, halfCenturies: v } }), '0', 'number-pad', true)}
+            </View>
+        </View>
+    );
+
+    const renderKabaddiForm = () => (
+        <View>
+            <Text style={styles.sectionHeader}>Kabaddi Profile & Info</Text>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Role</Text>
+                <View style={styles.row}>
+                    {['Raider', 'Defender', 'All-Rounder'].map(r => (
+                        <TouchableOpacity 
+                            key={r} 
+                            style={[styles.chip, kabaddiDetails.role === r && styles.activeChip]} 
+                            onPress={() => setKabaddiDetails({ ...kabaddiDetails, role: r })}
+                        >
+                            <Text style={[styles.chipText, kabaddiDetails.role === r && styles.activeChipText]}>{r}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Playing Position</Text>
+                <View style={styles.row}>
+                    {['Left Corner', 'Right Corner', 'Left Cover', 'Right Cover', 'Left Raider', 'Right Raider'].map(pos => (
+                        <TouchableOpacity 
+                            key={pos} 
+                            style={[styles.chip, kabaddiDetails.playingPosition === pos && styles.activeChip]} 
+                            onPress={() => setKabaddiDetails({ ...kabaddiDetails, playingPosition: pos })}
+                        >
+                            <Text style={[styles.chipText, kabaddiDetails.playingPosition === pos && styles.activeChipText]}>{pos}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            {renderInput('Jersey Number', kabaddiDetails.jerseyNumber, (v) => setKabaddiDetails({ ...kabaddiDetails, jerseyNumber: v }), 'e.g. 1', 'number-pad')}
+            {renderInput('Current Team / Franchise', kabaddiDetails.currentTeam, (v) => setKabaddiDetails({ ...kabaddiDetails, currentTeam: v }), 'e.g. U Mumba')}
+
+            <Text style={styles.sectionHeader}>Career Statistics</Text>
+            <View style={styles.statsRow}>
+                {renderInput('MATCHES PLAYED', kabaddiDetails.careerSummary?.matchesPlayed, (v) => setKabaddiDetails({ ...kabaddiDetails, careerSummary: { ...kabaddiDetails.careerSummary, matchesPlayed: v } }), '0', 'number-pad', true)}
+                {renderInput('TOTAL POINTS', kabaddiDetails.careerSummary?.totalPoints, (v) => setKabaddiDetails({ ...kabaddiDetails, careerSummary: { ...kabaddiDetails.careerSummary, totalPoints: v } }), '0', 'number-pad', true)}
+            </View>
+            <View style={styles.statsRow}>
+                {renderInput('RAID POINTS', kabaddiDetails.raidingStats?.totalRaidPoints, (v) => setKabaddiDetails({ ...kabaddiDetails, raidingStats: { ...kabaddiDetails.raidingStats, totalRaidPoints: v } }), '0', 'number-pad', true)}
+                {renderInput('TACKLE POINTS', kabaddiDetails.defenseStats?.totalTacklePoints, (v) => setKabaddiDetails({ ...kabaddiDetails, defenseStats: { ...kabaddiDetails.defenseStats, totalTacklePoints: v } }), '0', 'number-pad', true)}
+            </View>
+            <View style={styles.statsRow}>
+                {renderInput('SUPER 10s', kabaddiDetails.raidingStats?.super10s, (v) => setKabaddiDetails({ ...kabaddiDetails, raidingStats: { ...kabaddiDetails.raidingStats, super10s: v } }), '0', 'number-pad', true)}
+                {renderInput('HIGH 5s', kabaddiDetails.defenseStats?.high5s, (v) => setKabaddiDetails({ ...kabaddiDetails, defenseStats: { ...kabaddiDetails.defenseStats, high5s: v } }), '0', 'number-pad', true)}
+            </View>
+        </View>
+    );
+
+    const renderFootballForm = () => (
+        <View>
+            <Text style={styles.sectionHeader}>Football Profile & Info</Text>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Position</Text>
+                <View style={styles.row}>
+                    {['Forward', 'Midfielder', 'Defender', 'Goalkeeper'].map(pos => (
+                        <TouchableOpacity 
+                            key={pos} 
+                            style={[styles.chip, footballDetails.position === pos && styles.activeChip]} 
+                            onPress={() => setFootballDetails({ ...footballDetails, position: pos })}
+                        >
+                            <Text style={[styles.chipText, footballDetails.position === pos && styles.activeChipText]}>{pos}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>Preferred Foot</Text>
+                <View style={styles.row}>
+                    {['Right', 'Left', 'Both'].map(foot => (
+                        <TouchableOpacity 
+                            key={foot} 
+                            style={[styles.chip, footballDetails.preferredFoot === foot && styles.activeChip]} 
+                            onPress={() => setFootballDetails({ ...footballDetails, preferredFoot: foot })}
+                        >
+                            <Text style={[styles.chipText, footballDetails.preferredFoot === foot && styles.activeChipText]}>{foot}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            {renderInput('Jersey Number', footballDetails.jerseyNumber, (v) => setFootballDetails({ ...footballDetails, jerseyNumber: v }), 'e.g. 10', 'number-pad')}
+            {renderInput('Current Team / Club', footballDetails.currentTeam, (v) => setFootballDetails({ ...footballDetails, currentTeam: v }), 'e.g. Blue Tigers FC')}
+
+            <Text style={styles.sectionHeader}>Career Statistics</Text>
+            <View style={styles.statsRow}>
+                {renderInput('MATCHES PLAYED', footballDetails.careerSummary?.matchesPlayed, (v) => setFootballDetails({ ...footballDetails, careerSummary: { ...footballDetails.careerSummary, matchesPlayed: v } }), '0', 'number-pad', true)}
+                {renderInput('TOTAL GOALS', footballDetails.careerSummary?.totalGoals, (v) => setFootballDetails({ ...footballDetails, careerSummary: { ...footballDetails.careerSummary, totalGoals: v } }), '0', 'number-pad', true)}
+            </View>
+            <View style={styles.statsRow}>
+                {renderInput('TOTAL ASSISTS', footballDetails.careerSummary?.totalAssists, (v) => setFootballDetails({ ...footballDetails, careerSummary: { ...footballDetails.careerSummary, totalAssists: v } }), '0', 'number-pad', true)}
+                {renderInput('CLEAN SHEETS', footballDetails.careerSummary?.cleanSheets, (v) => setFootballDetails({ ...footballDetails, careerSummary: { ...footballDetails.careerSummary, cleanSheets: v } }), '0', 'number-pad', true)}
+            </View>
+        </View>
+    );
+
+    const renderStep2 = () => (
+        <View style={styles.form}>
+            {renderKabaddiForm()}
+        </View>
+    );
+
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
             <LinearGradient colors={['#fff', '#f8f9fa']} style={styles.container}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={handleBack} style={styles.backButton}><Ionicons name="arrow-back" size={24} color="#333" /></TouchableOpacity>
+                    <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#333" />
+                    </TouchableOpacity>
                     <Text style={styles.headerTitle}>{user?.playerProfile ? 'Edit Profile' : 'Create Profile'}</Text>
                     <View style={{ width: 40 }} />
                 </View>
+
+                {/* Step Indicator */}
+                <View style={styles.stepBarContainer}>
+                    <View style={styles.stepHeader}>
+                        <Text style={styles.stepTitleText}>
+                            Step {currentStep + 1} of {STEPS.length}: {STEPS[currentStep]}
+                        </Text>
+                    </View>
+                    <View style={styles.progressBarBackground}>
+                        <View style={[styles.progressBarFill, { width: currentStep === 0 ? '50%' : '100%' }]} />
+                    </View>
+                </View>
+
                 <ScrollView 
                     contentContainerStyle={styles.content}
                     keyboardDismissMode="on-drag"
@@ -291,14 +480,28 @@ export default function CreateProfile() {
                 >
                     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                         <View>
-                    {renderStep1()}
+                            {currentStep === 0 ? renderStep1() : renderStep2()}
                         </View>
                     </TouchableWithoutFeedback>
                 </ScrollView>
                 <View style={styles.footer}>
                     <TouchableOpacity onPress={handleNext} disabled={loading} style={styles.nextButtonWrapper}>
                         <LinearGradient colors={['#E31C25', '#A00F15']} style={styles.nextButton}>
-                            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.nextButtonText}>Save Profile</Text>}
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <View style={styles.nextButtonContent}>
+                                    <Text style={styles.nextButtonText}>
+                                        {currentStep === 0 ? 'Next: Sports Details' : 'Save Profile'}
+                                    </Text>
+                                    <Ionicons 
+                                        name={currentStep === 0 ? "arrow-forward" : "checkmark-circle"} 
+                                        size={20} 
+                                        color="#fff" 
+                                        style={{ marginLeft: 8 }}
+                                    />
+                                </View>
+                            )}
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -309,28 +512,30 @@ export default function CreateProfile() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 15, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
     backButton: { padding: 8, marginLeft: -8 },
     headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    
+    stepBarContainer: { backgroundColor: '#fff', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+    stepHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    stepTitleText: { fontSize: 13, fontWeight: '700', color: '#E31C25', letterSpacing: 0.5 },
+    progressBarBackground: { height: 6, backgroundColor: '#eee', borderRadius: 3, overflow: 'hidden' },
+    progressBarFill: { height: '100%', backgroundColor: '#E31C25', borderRadius: 3 },
+
     content: { padding: 20, paddingBottom: 100 },
     form: { backgroundColor: '#fff', padding: 20, borderRadius: 16, elevation: 1 },
     inputGroup: { marginBottom: 15 },
     label: { marginBottom: 5, color: '#666', fontWeight: '500' },
     input: { borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 10, backgroundColor: '#fafafa', color: '#333' },
     statInput: { flex: 1 },
-    inputSmall: { borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 10, textAlign: 'center', backgroundColor: '#fafafa' },
-    statLabel: { fontSize: 11, textAlign: 'center', marginBottom: 4, color: '#888' },
+    inputSmall: { borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 10, textAlign: 'center', backgroundColor: '#fafafa', color: '#333' },
+    statLabel: { fontSize: 11, textAlign: 'center', marginBottom: 4, color: '#888', fontWeight: '600' },
     statsRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-    sectionHeader: { fontSize: 16, fontWeight: 'bold', marginTop: 25, marginBottom: 15, color: '#E31C25', letterSpacing: 0.5 },
-    arrayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 },
-    addButton: { backgroundColor: '#E31C25', borderRadius: 15, padding: 5 },
-    arrayItem: { padding: 15, backgroundColor: '#f9f9f9', borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#eee' },
-    itemIndex: { fontWeight: 'bold', marginBottom: 5, color: '#999' },
-    removeButton: { marginTop: 5, alignSelf: 'flex-end' },
-    removeText: { color: 'red', fontSize: 12, fontWeight: '600' },
+    sectionHeader: { fontSize: 16, fontWeight: 'bold', marginTop: 15, marginBottom: 15, color: '#E31C25', letterSpacing: 0.5 },
     footer: { padding: 20, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
     nextButtonWrapper: { borderRadius: 12, overflow: 'hidden', elevation: 2 },
     nextButton: { padding: 16, alignItems: 'center', justifyContent: 'center' },
+    nextButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     nextButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
     avatarSection: { alignItems: 'center', marginBottom: 20 },
     avatarContainer: { width: 100, height: 100, borderRadius: 50, borderColor: '#fff', borderWidth: 4, shadowColor: '#000', elevation: 5, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' },
@@ -342,21 +547,16 @@ const styles = StyleSheet.create({
     dateInput: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 10, backgroundColor: '#fafafa' },
     dateText: { fontSize: 16, color: '#333' },
     row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    rowScroll: { flexDirection: 'row', marginBottom: 15 },
-    chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#f0f0f0', marginRight: 10, borderWidth: 1, borderColor: 'transparent' },
+    chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#f0f0f0', marginRight: 6, marginBottom: 6, borderWidth: 1, borderColor: 'transparent', flexDirection: 'row', alignItems: 'center' },
     activeChip: { backgroundColor: '#FFF5F5', borderColor: '#E31C25' },
-    chipText: { color: '#666' },
+    chipText: { color: '#666', fontSize: 13 },
     activeChipText: { color: '#E31C25', fontWeight: 'bold' },
-    stepTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 25, color: '#333' },
-    sportsGrid: { gap: 15 },
-    sportCard: { padding: 16, borderWidth: 1, borderColor: '#eee', borderRadius: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff' },
-    activeSportCard: { borderColor: '#E31C25', backgroundColor: '#FFF5F5' },
-    sportCardText: { fontSize: 16, marginLeft: 10, color: '#333', fontWeight: '500' },
-    activeSportCardText: { fontSize: 16, marginLeft: 10, color: '#E31C25', fontWeight: 'bold' },
-    radioCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
-    activeRadioCircle: { borderColor: '#E31C25' },
-    radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#E31C25' },
-    infoText: { textAlign: 'center', color: '#888', fontStyle: 'italic', marginTop: 20 },
+
+    sportTabContainer: { flexDirection: 'row', marginBottom: 20, backgroundColor: '#f5f5f5', borderRadius: 12, padding: 4, gap: 4 },
+    sportTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, gap: 6 },
+    activeSportTab: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+    sportTabText: { fontSize: 13, fontWeight: '600', color: '#666' },
+    activeSportTabText: { color: '#E31C25', fontWeight: 'bold' },
 
     // Date Picker Modal Styles
     modalOverlay: {
