@@ -20,7 +20,7 @@ const getTHUserFromToken = async (req) => {
                 if (thUser && thUser.role === 'TH') return thUser;
             }
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 };
 
@@ -98,29 +98,66 @@ exports.getAllMatches = async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch matches' });
     }
 };
+exports.getMatchById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        let match = await CricketMatch.findById(id).lean();
+        if (match) {
+            match.sport = 'cricket';
+            return res.json(match);
+        }
+        
+        match = await KabaddiMatch.findById(id).lean();
+        if (match) {
+            match.sport = 'kabaddi';
+            return res.json(match);
+        }
+
+        match = await FootballMatch.findById(id).lean();
+        if (match) {
+            match.sport = 'football';
+            return res.json(match);
+        }
+
+        return res.status(404).json({ message: 'Match not found' });
+    } catch (error) {
+        console.error('Error fetching match by id:', error);
+        res.status(500).json({ message: 'Failed to fetch match details', error: error.message });
+    }
+};
 
 exports.createMatch = async (req, res) => {
     try {
-        const { sport, teamAId, teamBId } = req.body;
+        let { sport, teamAId, teamBId } = req.body;
         const Model = getModel(sport);
         const matchData = { ...req.body };
 
+        if (!teamAId && matchData.teamA && matchData.teamA.name) {
+            const TeamModel = getTeamModel(sport);
+            const teamAInfo = await TeamModel.findOne({ name: new RegExp('^' + matchData.teamA.name.trim() + '$', 'i') }).lean();
+            if (teamAInfo) teamAId = teamAInfo._id.toString();
+        }
         if (teamAId) {
             const TeamModel = getTeamModel(sport);
-            const teamAInfo = await TeamModel.findById(teamAId);
+            const teamAInfo = await TeamModel.findById(teamAId).lean();
             if (!teamAInfo) return res.status(404).json({ message: 'Team A not found' });
             matchData.teamA = { name: teamAInfo.name, code: teamAInfo.code, logo: teamAInfo.logo };
             matchData.teamAId = teamAInfo._id;
-            matchData.teamAPlayers = teamAInfo.players;
+            matchData.teamAPlayers = (teamAInfo.players || []).map(p => ({...p, jerseyNumber: p.jerseyNumber || p.number}));
         }
 
+        if (!teamBId && matchData.teamB && matchData.teamB.name) {
+            const TeamModel = getTeamModel(sport);
+            const teamBInfo = await TeamModel.findOne({ name: new RegExp('^' + matchData.teamB.name.trim() + '$', 'i') }).lean();
+            if (teamBInfo) teamBId = teamBInfo._id.toString();
+        }
         if (teamBId) {
             const TeamModel = getTeamModel(sport);
-            const teamBInfo = await TeamModel.findById(teamBId);
+            const teamBInfo = await TeamModel.findById(teamBId).lean();
             if (!teamBInfo) return res.status(404).json({ message: 'Team B not found' });
             matchData.teamB = { name: teamBInfo.name, code: teamBInfo.code, logo: teamBInfo.logo };
             matchData.teamBId = teamBInfo._id;
-            matchData.teamBPlayers = teamBInfo.players;
+            matchData.teamBPlayers = (teamBInfo.players || []).map(p => ({...p, jerseyNumber: p.jerseyNumber || p.number}));
         }
 
         if (req.user) {
@@ -142,30 +179,64 @@ exports.updateMatch = async (req, res) => {
         let match = await Model.findById(id);
         if (!match) return res.status(404).json({ message: 'Match not found' });
 
-        if (req.user) {
+        if (req.user && !['admin', 'super_admin', 'TH'].includes(req.user.role)) {
             const ownerId = getOwnerId(req.user);
-            if (match.createdBy?.toString() !== ownerId?.toString()) {
+            const isCreator = match.createdBy && match.createdBy.toString() === ownerId?.toString();
+            const isScorer = match.assignedScorer && match.assignedScorer.toString() === ownerId?.toString();
+            
+            if (!isCreator && !isScorer) {
                 return res.status(403).json({ message: 'Not authorized to update this match' });
             }
         }
 
+        require("fs").appendFileSync("apilog.txt", "\\nINCOMING PLAYER STATS: " + JSON.stringify(req.body.playerStats) + "\\n");
+        if (req.body.playerStats && req.body.playerStats.length > 0) {
+            console.log(`[updateMatch] First stat:`, req.body.playerStats[0]);
+        }
+
         const updateData = { ...req.body };
-        if (teamAId) {
+
+        if (req.body.syncSquads) {
             const TeamModel = getTeamModel(sport);
-            const teamAInfo = await TeamModel.findById(teamAId);
+            
+            if (!match.teamAId && match.teamA && match.teamA.name) {
+                const teamAInfo = await TeamModel.findOne({ name: new RegExp('^' + match.teamA.name.trim() + '$', 'i') }).lean();
+                if (teamAInfo) updateData.teamAId = teamAInfo._id;
+            }
+            if (!match.teamBId && match.teamB && match.teamB.name) {
+                const teamBInfo = await TeamModel.findOne({ name: new RegExp('^' + match.teamB.name.trim() + '$', 'i') }).lean();
+                if (teamBInfo) updateData.teamBId = teamBInfo._id;
+            }
+
+            const activeTeamAId = updateData.teamAId || match.teamAId;
+            const activeTeamBId = updateData.teamBId || match.teamBId;
+
+            if (activeTeamAId) {
+                const teamAInfo = await TeamModel.findById(activeTeamAId).lean();
+                if (teamAInfo) updateData.teamAPlayers = (teamAInfo.players || []).map(p => ({...p, jerseyNumber: p.jerseyNumber || p.number}));
+            }
+            if (activeTeamBId) {
+                const teamBInfo = await TeamModel.findById(activeTeamBId).lean();
+                if (teamBInfo) updateData.teamBPlayers = (teamBInfo.players || []).map(p => ({...p, jerseyNumber: p.jerseyNumber || p.number}));
+            }
+        }
+
+        if (teamAId && teamAId !== match.teamAId?.toString()) {
+            const TeamModel = getTeamModel(sport);
+            const teamAInfo = await TeamModel.findById(teamAId).lean();
             if (!teamAInfo) return res.status(404).json({ message: 'Team A not found' });
             updateData.teamA = { name: teamAInfo.name, code: teamAInfo.code, logo: teamAInfo.logo };
             updateData.teamAId = teamAInfo._id;
-            updateData.teamAPlayers = teamAInfo.players;
+            updateData.teamAPlayers = (teamAInfo.players || []).map(p => ({...p, jerseyNumber: p.jerseyNumber || p.number}));
         }
 
-        if (teamBId) {
+        if (teamBId && teamBId !== match.teamBId?.toString()) {
             const TeamModel = getTeamModel(sport);
-            const teamBInfo = await TeamModel.findById(teamBId);
+            const teamBInfo = await TeamModel.findById(teamBId).lean();
             if (!teamBInfo) return res.status(404).json({ message: 'Team B not found' });
             updateData.teamB = { name: teamBInfo.name, code: teamBInfo.code, logo: teamBInfo.logo };
             updateData.teamBId = teamBInfo._id;
-            updateData.teamBPlayers = teamBInfo.players;
+            updateData.teamBPlayers = (teamBInfo.players || []).map(p => ({...p, jerseyNumber: p.jerseyNumber || p.number}));
         }
 
         // Auto-update points if Match status transitions to COMPLETED and winner is declared
@@ -203,6 +274,7 @@ exports.updateMatch = async (req, res) => {
         }
 
         match = await Model.findByIdAndUpdate(id, updateData, { new: true });
+        console.log(`[updateMatch] Saved match playerStats count:`, match.playerStats ? match.playerStats.length : 0);
 
         // Emit Socket Event for Real-time Update
         const io = req.app.get('io');
@@ -226,7 +298,7 @@ exports.deleteMatch = async (req, res) => {
         let match = await Model.findById(id);
         if (!match) return res.status(404).json({ message: 'Match not found' });
 
-        if (req.user) {
+        if (req.user && !['admin', 'super_admin', 'TH'].includes(req.user.role)) {
             const ownerId = getOwnerId(req.user);
             if (match.createdBy?.toString() !== ownerId?.toString()) {
                 return res.status(403).json({ message: 'Not authorized to delete this match' });

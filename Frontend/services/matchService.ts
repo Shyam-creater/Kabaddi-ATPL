@@ -68,10 +68,8 @@ class MatchService {
     // For this prototype, let's just stick to the list usage which is primary. 
     async getMatchById(id: string) {
         try {
-            // Try cricket first (legacy default)
-            // Ideally backend provides a single /api/matches/:id endpoint that looks up all collections.
-            // For now, let's just try cricket. If it fails, we might need a better strategy or unified ID lookup.
-            const response = await api.get(`/cricket/matches/${id}`);
+            // Use the unified endpoint
+            const response = await api.get(`/matches/${id}`);
             return response.data;
         } catch (error) {
             console.error('Error fetching match details:', error);

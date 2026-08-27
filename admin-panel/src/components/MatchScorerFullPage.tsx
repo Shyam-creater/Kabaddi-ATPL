@@ -43,8 +43,16 @@ function calculateEconomy(runs: number, overs: number): string {
     return ((runs / balls) * 6).toFixed(2);
 }
 
+const KABADDI_STATS = [
+    { label: 'Raid', field: 'raidPoints' },
+    { label: 'Tackle', field: 'tacklePoints' },
+    { label: 'Bonus', field: 'bonusPoints' },
+    { label: 'Super Tackle', field: 'superTackles' }
+];
+
 export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer }: MatchScorerFullPageProps) {
     const [activeTab, setActiveTab] = useState<'scorecard' | 'commentary' | 'settings' | 'manual'>('scorecard');
+    const [isUpdating, setIsUpdating] = useState(false);
     
     // Scorer States
     const [battingSide, setBattingSide] = useState<'A' | 'B'>(() => getAutoBattingSide(match));
@@ -296,7 +304,7 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
         }
 
         if (isLegal) {
-            let bBalls = oversToBalls(bowlerStat.overs || 0) + 1;
+            const bBalls = oversToBalls(bowlerStat.overs || 0) + 1;
             bowlerStat.overs = ballsToOvers(bBalls);
         }
 
@@ -571,7 +579,220 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
         onRefresh();
     };
 
-    // Undo action
+    // Kabaddi specific automatic team score calculation
+    const handleKabaddiPlayerStatUpdate = async (teamSide: 'A' | 'B', player: any, statField: string, delta: number) => {
+        if (isUpdating) return;
+        setIsUpdating(true);
+        try {
+            if (!match) return;
+
+            setHistory(prev => [...prev, JSON.parse(JSON.stringify(match))]);
+            const nextMatch = JSON.parse(JSON.stringify(match)) as any;
+            const existingStats = nextMatch.playerStats || [];
+            
+            const expectedTeam = teamSide === 'A' ? match.teamA.code : match.teamB.code;
+            const cleanPlayerName = (player.name || '').trim(); const statIndex = existingStats.findIndex((s: any) => (s.name || '').trim().toLowerCase() === cleanPlayerName.toLowerCase() && s.team === expectedTeam);
+            
+            let playerStat: any = { name: cleanPlayerName,
+                team: expectedTeam,
+                position: player.role || 'Player',
+                raidPoints: 0,
+                tacklePoints: 0,
+                bonusPoints: 0,
+                superTackles: 0,
+                otherPoints: 0,
+                totalPoints: 0
+            };
+
+            // Only add user if it's a valid string ID
+            if (player.user && typeof player.user === 'string' && player.user.length > 5) {
+                playerStat.user = player.user;
+            }
+
+            if (statIndex !== -1) {
+                playerStat = { ...existingStats[statIndex] };
+            }
+
+            playerStat[statField] = Math.max(0, (playerStat[statField] || 0) + delta);
+            playerStat.totalPoints = (playerStat.raidPoints || 0) + (playerStat.tacklePoints || 0) + (playerStat.bonusPoints || 0) + (playerStat.otherPoints || 0) + ((playerStat.superTackles || 0) * 2);
+
+            if (statIndex !== -1) {
+                existingStats[statIndex] = playerStat;
+            } else {
+                existingStats.push(playerStat);
+            }
+
+            nextMatch.playerStats = existingStats;
+
+            let newScoreA = 0; let newScoreB = 0;
+            let newRaidA = 0; let newRaidB = 0;
+            let newSuperTackles = 0;
+
+            existingStats.forEach((s: any) => {
+                if (s.team === match.teamA.code) {
+                    newScoreA += (s.totalPoints || 0);
+                    newRaidA += (s.raidPoints || 0) + (s.bonusPoints || 0);
+                }
+                if (s.team === match.teamB.code) {
+                    newScoreB += (s.totalPoints || 0);
+                    newRaidB += (s.raidPoints || 0) + (s.bonusPoints || 0);
+                }
+                newSuperTackles += (s.superTackles || 0);
+            });
+
+            nextMatch.scoreA = newScoreA + (nextMatch.extraPointsA || 0) + (nextMatch.allOutPointsA || 0);
+            nextMatch.scoreB = newScoreB + (nextMatch.extraPointsB || 0) + (nextMatch.allOutPointsB || 0);
+            nextMatch.raidPointsA = newRaidA;
+            nextMatch.raidPointsB = newRaidB;
+            nextMatch.superTackles = newSuperTackles;
+            
+            try {
+                await updateMatch(match._id, nextMatch, match.sport || 'kabaddi');
+                onRefresh();
+            } catch (error: any) {
+                console.error("Failed to update player stats:", error);
+                alert("Error saving stats: " + (error.response?.data?.message || error.message || "Unknown error"));
+            }
+        } catch (globalError: any) {
+            console.error("Crash in handleKabaddiPlayerStatUpdate:", globalError);
+            alert("Crash before saving: " + globalError.message);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    // Kabaddi: Add extra points or all-out points to a team directly
+    const handleKabaddiTeamExtraPoint = async (teamSide: 'A' | 'B', pointType: 'extra' | 'allOut', delta: number) => {
+        if (isUpdating) return;
+        setIsUpdating(true);
+        try {
+            if (!match) return;
+
+            setHistory(prev => [...prev, JSON.parse(JSON.stringify(match))]);
+            const nextMatch = JSON.parse(JSON.stringify(match)) as any;
+            
+            if (teamSide === 'A') {
+                if (pointType === 'allOut') {
+                    nextMatch.allOutPointsA = Math.max(0, (nextMatch.allOutPointsA || 0) + delta);
+                } else {
+                    nextMatch.extraPointsA = Math.max(0, (nextMatch.extraPointsA || 0) + delta);
+                }
+            } else {
+                if (pointType === 'allOut') {
+                    nextMatch.allOutPointsB = Math.max(0, (nextMatch.allOutPointsB || 0) + delta);
+                } else {
+                    nextMatch.extraPointsB = Math.max(0, (nextMatch.extraPointsB || 0) + delta);
+                }
+            }
+
+            // Recalculate full score
+            let newScoreA = 0; let newScoreB = 0;
+            const existingStats = nextMatch.playerStats || [];
+            existingStats.forEach((s: any) => {
+                if (s.team === match.teamA.code) newScoreA += (s.totalPoints || 0);
+                if (s.team === match.teamB.code) newScoreB += (s.totalPoints || 0);
+            });
+
+            nextMatch.scoreA = newScoreA + (nextMatch.extraPointsA || 0) + (nextMatch.allOutPointsA || 0);
+            nextMatch.scoreB = newScoreB + (nextMatch.extraPointsB || 0) + (nextMatch.allOutPointsB || 0);
+
+            try {
+                await updateMatch(match._id, nextMatch, match.sport || 'kabaddi');
+                onRefresh();
+            } catch (error: any) {
+                console.error("Failed to update team points:", error);
+                alert("Error saving stats: " + (error.response?.data?.message || error.message || "Unknown error"));
+            }
+        } catch (globalError: any) {
+            console.error("Crash in handleKabaddiTeamExtraPoint:", globalError);
+            alert("Crash before saving: " + globalError.message);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    // Kabaddi Phase Management
+    const handleFinishFirstHalf = async () => {
+        if (!confirm('Finish 1st Half? This will lock 1st half stats.')) return;
+        setIsUpdating(true);
+        try {
+            const nextMatch = JSON.parse(JSON.stringify(match)) as any;
+            nextMatch.period = 'Half Time';
+            nextMatch.firstHalfStats = {
+                scoreA: match.scoreA || 0,
+                scoreB: match.scoreB || 0,
+                extraPointsA: match.extraPointsA || 0,
+                extraPointsB: match.extraPointsB || 0,
+                allOutPointsA: match.allOutPointsA || 0,
+                allOutPointsB: match.allOutPointsB || 0,
+                raidPointsA: match.raidPointsA || 0,
+                raidPointsB: match.raidPointsB || 0,
+                superTackles: match.superTackles || 0,
+                playerStats: JSON.parse(JSON.stringify(match.playerStats || []))
+            };
+            await updateMatch(match._id, nextMatch, 'kabaddi');
+            onRefresh();
+        } catch (error: any) {
+            alert('Failed to finish 1st half: ' + error.message);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleStartSecondHalf = async () => {
+        setIsUpdating(true);
+        try {
+            const nextMatch = JSON.parse(JSON.stringify(match)) as any;
+            nextMatch.period = 'Second Half';
+            await updateMatch(match._id, nextMatch, 'kabaddi');
+            onRefresh();
+        } catch (error: any) {
+            alert('Failed to start 2nd half: ' + error.message);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleFinishMatch = async () => {
+        if (!confirm('Finish Match? This will generate 2nd half stats and lock the match.')) return;
+        setIsUpdating(true);
+        try {
+            const nextMatch = JSON.parse(JSON.stringify(match)) as any;
+            nextMatch.period = 'Completed';
+            nextMatch.status = 'COMPLETED';
+            
+            const fh = match.firstHalfStats || {};
+            nextMatch.secondHalfStats = {
+                scoreA: (match.scoreA || 0) - (fh.scoreA || 0),
+                scoreB: (match.scoreB || 0) - (fh.scoreB || 0),
+                extraPointsA: (match.extraPointsA || 0) - (fh.extraPointsA || 0),
+                extraPointsB: (match.extraPointsB || 0) - (fh.extraPointsB || 0),
+                allOutPointsA: (match.allOutPointsA || 0) - (fh.allOutPointsA || 0),
+                allOutPointsB: (match.allOutPointsB || 0) - (fh.allOutPointsB || 0),
+                raidPointsA: (match.raidPointsA || 0) - (fh.raidPointsA || 0),
+                raidPointsB: (match.raidPointsB || 0) - (fh.raidPointsB || 0),
+                superTackles: (match.superTackles || 0) - (fh.superTackles || 0),
+                playerStats: (match.playerStats || []).map((p: any) => {
+                    const fhp = (fh.playerStats || []).find((s: any) => s.user === p.user || s.name === p.name) || {};
+                    return {
+                        ...p,
+                        raidPoints: (p.raidPoints || 0) - (fhp.raidPoints || 0),
+                        tacklePoints: (p.tacklePoints || 0) - (fhp.tacklePoints || 0),
+                        superTackles: (p.superTackles || 0) - (fhp.superTackles || 0),
+                        bonusPoints: (p.bonusPoints || 0) - (fhp.bonusPoints || 0),
+                        otherPoints: (p.otherPoints || 0) - (fhp.otherPoints || 0),
+                        totalPoints: (p.totalPoints || 0) - (fhp.totalPoints || 0),
+                    };
+                })
+            };
+            await updateMatch(match._id, nextMatch, 'kabaddi');
+            onRefresh();
+        } catch (error: any) {
+            alert('Failed to finish match: ' + error.message);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
     const handleUndo = async () => {
         if (history.length === 0) return;
         const prevState = history[history.length - 1];
@@ -1053,8 +1274,173 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
                                     </div>
                                 )}
                             </>
+                        ) : match.sport === 'kabaddi' ? (
+                            /* Kabaddi Live Scoring Controls */
+                            <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm space-y-6">
+                                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-3 flex justify-between items-center">
+                                    <span>Live Kabaddi Scoring</span>
+                                    {isScorer && (
+                                        <button 
+                                            onClick={async () => {
+                                                if (confirm('Sync players from Teams? This will update the players for this match.')) {
+                                                    await updateMatch(match._id, { syncSquads: true }, match.sport || 'kabaddi');
+                                                    onRefresh();
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
+                                        >
+                                            Sync Squads
+                                        </button>
+                                    )}
+                                </h3>
+
+                                {/* Match Phase Management */}
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div>
+                                        <span className="text-sm font-bold text-blue-900 uppercase tracking-widest">
+                                            Phase: {match.period || 'First Half'}
+                                        </span>
+                                    </div>
+                                    {isScorer && (
+                                        <div className="mt-3 sm:mt-0 flex gap-2">
+                                            {(!match.period || match.period === 'First Half') && (
+                                                <button disabled={isUpdating} onClick={handleFinishFirstHalf} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg shadow hover:bg-blue-700 active:scale-95 disabled:opacity-50">
+                                                    🏁 Finish 1st Half
+                                                </button>
+                                            )}
+                                            {match.period === 'Half Time' && (
+                                                <button disabled={isUpdating} onClick={handleStartSecondHalf} className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg shadow hover:bg-green-700 active:scale-95 disabled:opacity-50">
+                                                    ▶️ Start 2nd Half
+                                                </button>
+                                            )}
+                                            {match.period === 'Second Half' && (
+                                                <button disabled={isUpdating} onClick={handleFinishMatch} className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg shadow hover:bg-red-700 active:scale-95 disabled:opacity-50">
+                                                    🏁 Finish Match
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* Team A Kabaddi Scoring Table */}
+                                    <div className="border border-indigo-100 rounded-2xl p-4 bg-indigo-50/20">
+                                        <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-3">{match.teamA.name} Players</h4>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse min-w-[500px]">
+                                                <thead>
+                                                    <tr className="bg-indigo-100/50 text-[10px] uppercase tracking-wider text-indigo-800 border-b border-indigo-100">
+                                                        <th className="p-2.5 font-bold rounded-tl-lg">Player</th>
+                                                        {KABADDI_STATS.map(s => <th key={s.field} className="p-2.5 font-bold text-center">{s.label}</th>)}
+                                                        <th className="p-2.5 font-bold text-center rounded-tr-lg">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-indigo-50/50">
+                                                    {(match.teamAPlayers || []).map((p: any) => {
+                                                        const pStat = (match.playerStats || []).find((s: any) => (s.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase() && s.team === match.teamA.code) || {};
+                                                        return (
+                                                            <tr key={p.user || p.name} className="bg-white hover:bg-indigo-50/30 transition-colors">
+                                                                <td className="p-2.5 align-middle">
+                                                                    <div className="text-xs font-bold text-gray-900 whitespace-nowrap">{p.name}</div>
+                                                                    <div className="text-[9px] text-indigo-500 uppercase font-semibold">{p.role || 'Player'}</div>
+                                                                </td>
+                                                                {KABADDI_STATS.map(stat => (
+                                                                    <td key={stat.field} className="p-2.5 text-center align-middle">
+                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                            {isScorer && <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiPlayerStatUpdate('A', p, stat.field, -1)} className="w-5 h-5 flex items-center justify-center bg-gray-100 rounded text-gray-600 hover:bg-gray-200 active:scale-95 transition-transform disabled:opacity-50">-</button>}
+                                                                            <span className="text-xs font-bold w-4 text-center inline-block">{pStat[stat.field] || 0}</span>
+                                                                            {isScorer && <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiPlayerStatUpdate('A', p, stat.field, 1)} className="w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 active:scale-95 transition-transform disabled:opacity-50">+</button>}
+                                                                        </div>
+                                                                    </td>
+                                                                ))}
+                                                                <td className="p-2.5 text-center align-middle border-l border-indigo-50">
+                                                                    <span className="text-sm font-black text-indigo-600">{pStat.totalPoints || 0}</span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {/* Team A Extra Points Panel */}
+                                        <div className="mt-4 p-3 bg-indigo-100/30 rounded-xl border border-indigo-100 flex items-center justify-between">
+                                            <div className="flex gap-4">
+                                                <div className="text-xs font-bold text-indigo-900">
+                                                    Team Points : Extra : <span className="text-indigo-700 text-sm">{match.extraPointsA || 0}</span> , All Out : <span className="text-indigo-700 text-sm">{match.allOutPointsA || 0}</span>
+                                                </div>
+                                            </div>
+                                            {isScorer && (
+                                                <div className="flex gap-2 flex-wrap justify-end">
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('A', 'extra', -1)} className="px-2.5 py-1 bg-white border border-indigo-200 text-indigo-700 rounded shadow-sm hover:bg-indigo-50 active:scale-95 text-[10px] font-bold disabled:opacity-50">-1 Extra</button>
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('A', 'extra', 1)} className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 active:scale-95 text-[10px] font-bold disabled:opacity-50">+1 Extra</button>
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('A', 'allOut', -2)} className="px-2.5 py-1 bg-white border border-indigo-200 text-indigo-700 rounded shadow-sm hover:bg-indigo-50 active:scale-95 text-[10px] font-bold disabled:opacity-50">-2 AO</button>
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('A', 'allOut', 2)} className="px-3 py-1.5 bg-indigo-600 text-white shadow-md shadow-indigo-500/20 rounded-lg hover:bg-indigo-700 active:scale-95 text-[10px] font-bold disabled:opacity-50">+2 All Out</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Team B Kabaddi Scoring Table */}
+                                    <div className="border border-amber-100 rounded-2xl p-4 bg-amber-50/20 mt-4">
+                                        <h4 className="text-xs font-black text-amber-900 uppercase tracking-widest mb-3">{match.teamB.name} Players</h4>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left border-collapse min-w-[500px]">
+                                                <thead>
+                                                    <tr className="bg-amber-100/50 text-[10px] uppercase tracking-wider text-amber-800 border-b border-amber-100">
+                                                        <th className="p-2.5 font-bold rounded-tl-lg">Player</th>
+                                                        {KABADDI_STATS.map(s => <th key={s.field} className="p-2.5 font-bold text-center">{s.label}</th>)}
+                                                        <th className="p-2.5 font-bold text-center rounded-tr-lg">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-amber-50/50">
+                                                    {(match.teamBPlayers || []).map((p: any) => {
+                                                        const pStat = (match.playerStats || []).find((s: any) => (s.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase() && s.team === match.teamB.code) || {};
+                                                        return (
+                                                            <tr key={p.user || p.name} className="bg-white hover:bg-amber-50/30 transition-colors">
+                                                                <td className="p-2.5 align-middle">
+                                                                    <div className="text-xs font-bold text-gray-900 whitespace-nowrap">{p.name}</div>
+                                                                    <div className="text-[9px] text-amber-500 uppercase font-semibold">{p.role || 'Player'}</div>
+                                                                </td>
+                                                                {KABADDI_STATS.map(stat => (
+                                                                    <td key={stat.field} className="p-2.5 text-center align-middle">
+                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                            {isScorer && <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiPlayerStatUpdate('B', p, stat.field, -1)} className="w-5 h-5 flex items-center justify-center bg-gray-100 rounded text-gray-600 hover:bg-gray-200 active:scale-95 transition-transform disabled:opacity-50">-</button>}
+                                                                            <span className="text-xs font-bold w-4 text-center inline-block">{pStat[stat.field] || 0}</span>
+                                                                            {isScorer && <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiPlayerStatUpdate('B', p, stat.field, 1)} className="w-5 h-5 flex items-center justify-center bg-amber-100 text-amber-700 rounded hover:bg-amber-200 active:scale-95 transition-transform disabled:opacity-50">+</button>}
+                                                                        </div>
+                                                                    </td>
+                                                                ))}
+                                                                <td className="p-2.5 text-center align-middle border-l border-amber-50">
+                                                                    <span className="text-sm font-black text-amber-600">{pStat.totalPoints || 0}</span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {/* Team B Extra Points Panel */}
+                                        <div className="mt-4 p-3 bg-amber-100/30 rounded-xl border border-amber-100 flex items-center justify-between">
+                                            <div className="flex gap-4">
+                                                <div className="text-xs font-bold text-amber-900">
+                                                    Team Points : Extra : <span className="text-amber-700 text-sm">{match.extraPointsB || 0}</span> , All Out : <span className="text-amber-700 text-sm">{match.allOutPointsB || 0}</span>
+                                                </div>
+                                            </div>
+                                            {isScorer && (
+                                                <div className="flex gap-2 flex-wrap justify-end">
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('B', 'extra', -1)} className="px-2.5 py-1 bg-white border border-amber-200 text-amber-700 rounded shadow-sm hover:bg-amber-50 active:scale-95 text-[10px] font-bold disabled:opacity-50">-1 Extra</button>
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('B', 'extra', 1)} className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 active:scale-95 text-[10px] font-bold disabled:opacity-50">+1 Extra</button>
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('B', 'allOut', -2)} className="px-2.5 py-1 bg-white border border-amber-200 text-amber-700 rounded shadow-sm hover:bg-amber-50 active:scale-95 text-[10px] font-bold disabled:opacity-50">-2 AO</button>
+                                                    <button disabled={isUpdating || match.period === 'Half Time' || match.period === 'Completed'} onClick={() => handleKabaddiTeamExtraPoint('B', 'allOut', 2)} className="px-3 py-1.5 bg-amber-600 text-white shadow-md shadow-amber-500/20 rounded-lg hover:bg-amber-700 active:scale-95 text-[10px] font-bold disabled:opacity-50">+2 All Out</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         ) : (
-                            /* Kabaddi / Football Controls */
+                            /* Football Controls */
                             <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm space-y-6">
                                 <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-3 flex justify-between items-center">
                                     <span>Score Adjustments ({match.sport})</span>
@@ -1110,9 +1496,6 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
                                                     <option>Yellow Card</option>
                                                     <option>Red Card</option>
                                                     <option>Substitution</option>
-                                                    <option>Raid Point</option>
-                                                    <option>Tackle Point</option>
-                                                    <option>All Out</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -1172,7 +1555,7 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
                                                                     <td className="py-2 px-3 font-bold text-gray-900">{b.name}</td>
                                                                     <td className="py-2 px-3 text-gray-400 italic">{b.dismissal || b.status}</td>
                                                                     <td className="py-2 px-3 font-black text-center text-gray-900">{b.runs || 0}</td>
-                                                                    <td className="py-2 px-3 text-center text-gray-500 font-mono">{b.balls || 0}</td>
+                                                                     <td className="py-2 px-3 text-center text-gray-500 font-mono">{b.balls || 0}</td>
                                                                     <td className="py-2 px-3 text-center text-gray-500 font-mono">{b.fours || 0}</td>
                                                                     <td className="py-2 px-3 text-center text-gray-500 font-mono">{b.sixes || 0}</td>
                                                                     <td className="py-2 px-3 text-center text-gray-500 font-mono">
@@ -1242,6 +1625,94 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
                                                 </span>
                                             </div>
                                         </>
+                                    ) : match.sport === 'kabaddi' ? (
+                                        <div className="space-y-6">
+                                            <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Player Statistics</h4>
+                                            
+                                            {/* Team A Kabaddi Player Stats */}
+                                            <div className="border border-indigo-100 rounded-2xl p-4 bg-indigo-50/20">
+                                                <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-3">{match.teamA.name} Stats</h4>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left border-collapse min-w-[500px]">
+                                                        <thead>
+                                                            <tr className="bg-indigo-100/50 text-[10px] uppercase tracking-wider text-indigo-800 border-b border-indigo-100">
+                                                                <th className="p-2.5 font-bold rounded-tl-lg">Player</th>
+                                                                <th className="p-2.5 font-bold text-center">Raid Pts</th>
+                                                                <th className="p-2.5 font-bold text-center">Tackle Pts</th>
+                                                                <th className="p-2.5 font-bold text-center">Bonus</th>
+                                                                <th className="p-2.5 font-bold text-center">Super Tackle</th>
+                                                                <th className="p-2.5 font-bold text-center rounded-tr-lg">Total</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-indigo-50/50">
+                                                            {((match.playerStats || []).filter((s: any) => s.team === match.teamA.code).length > 0) ? (
+                                                                (match.playerStats || []).filter((s: any) => s.team === match.teamA.code).map((p: any, i: number) => (
+                                                                    <tr key={i} className="bg-white hover:bg-indigo-50/30 transition-colors">
+                                                                        <td className="p-2.5 align-middle">
+                                                                            <div className="text-xs font-bold text-gray-900 whitespace-nowrap">{p.name}</div>
+                                                                            <div className="text-[9px] text-indigo-500 uppercase font-semibold">{p.position || 'Player'}</div>
+                                                                        </td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.raidPoints || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.tacklePoints || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.bonusPoints || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.superTackles || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle border-l border-indigo-50">
+                                                                            <span className="text-sm font-black text-indigo-600">{p.totalPoints || 0}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            ) : (
+                                                                <tr>
+                                                                    <td colSpan={6} className="p-6 text-center text-xs text-gray-400 font-medium">No player stats recorded yet for {match.teamA.name}.</td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            {/* Team B Kabaddi Player Stats */}
+                                            <div className="border border-amber-100 rounded-2xl p-4 bg-amber-50/20">
+                                                <h4 className="text-xs font-black text-amber-900 uppercase tracking-widest mb-3">{match.teamB.name} Stats</h4>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left border-collapse min-w-[500px]">
+                                                        <thead>
+                                                            <tr className="bg-amber-100/50 text-[10px] uppercase tracking-wider text-amber-800 border-b border-amber-100">
+                                                                <th className="p-2.5 font-bold rounded-tl-lg">Player</th>
+                                                                <th className="p-2.5 font-bold text-center">Raid Pts</th>
+                                                                <th className="p-2.5 font-bold text-center">Tackle Pts</th>
+                                                                <th className="p-2.5 font-bold text-center">Bonus</th>
+                                                                <th className="p-2.5 font-bold text-center">Super Tackle</th>
+                                                                <th className="p-2.5 font-bold text-center rounded-tr-lg">Total</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-amber-50/50">
+                                                            {((match.playerStats || []).filter((s: any) => s.team === match.teamB.code).length > 0) ? (
+                                                                (match.playerStats || []).filter((s: any) => s.team === match.teamB.code).map((p: any, i: number) => (
+                                                                    <tr key={i} className="bg-white hover:bg-amber-50/30 transition-colors">
+                                                                        <td className="p-2.5 align-middle">
+                                                                            <div className="text-xs font-bold text-gray-900 whitespace-nowrap">{p.name}</div>
+                                                                            <div className="text-[9px] text-amber-500 uppercase font-semibold">{p.position || 'Player'}</div>
+                                                                        </td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.raidPoints || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.tacklePoints || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.bonusPoints || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle text-xs font-bold text-gray-700">{p.superTackles || 0}</td>
+                                                                        <td className="p-2.5 text-center align-middle border-l border-amber-50">
+                                                                            <span className="text-sm font-black text-amber-600">{p.totalPoints || 0}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            ) : (
+                                                                <tr>
+                                                                    <td colSpan={6} className="p-6 text-center text-xs text-gray-400 font-medium">No player stats recorded yet for {match.teamB.name}.</td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
                                     ) : (
                                         /* General Sport Squad Statistics table */
                                         <div className="space-y-4">
@@ -1257,16 +1728,56 @@ export default function MatchScorerFullPage({ match, onBack, onRefresh, isScorer
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {(match.playerStats || []).map((p, i) => (
-                                                            <tr key={i} className="border-b border-gray-50 text-xs">
-                                                                <td className="py-2 px-3 font-bold text-gray-900">{p.name}</td>
-                                                                <td className="py-2 px-3 text-gray-500">{p.team}</td>
-                                                                <td className="py-2 px-3 text-center text-gray-900 font-bold">{p.goals || 0}</td>
-                                                                <td className="py-2 px-3 text-center text-gray-900 font-bold">{p.assists || 0}</td>
+                                                        {(match.playerStats || []).length > 0 ? (
+                                                            (match.playerStats || []).map((p, i) => (
+                                                                <tr key={i} className="border-b border-gray-50 text-xs">
+                                                                    <td className="py-2 px-3 font-bold text-gray-900">{p.name}</td>
+                                                                    <td className="py-2 px-3 text-gray-500">{p.team}</td>
+                                                                    <td className="py-2 px-3 text-center text-gray-900 font-bold">{p.goals || 0}</td>
+                                                                    <td className="py-2 px-3 text-center text-gray-900 font-bold">{p.assists || 0}</td>
+                                                                </tr>
+                                                            ))
+                                                        ) : (
+                                                            <tr>
+                                                                <td colSpan={4} className="py-6 px-3 text-center text-xs text-gray-400 font-medium">No player stats recorded yet.</td>
                                                             </tr>
-                                                        ))}
+                                                        )}
                                                     </tbody>
                                                 </table>
+                                            </div>
+
+                                            {/* Squad Lists */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                                                <div className="space-y-3">
+                                                    <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest">{match.teamA.name} Squad</h4>
+                                                    <div className="bg-white border border-indigo-100 rounded-2xl p-4 flex flex-wrap gap-2 shadow-sm">
+                                                        {(match.teamAPlayers || []).length > 0 ? (
+                                                            (match.teamAPlayers || []).map((p: any, i: number) => (
+                                                                <div key={i} className="px-3 py-1.5 bg-indigo-50/70 border border-indigo-100 text-indigo-800 rounded-xl text-xs font-bold flex flex-col items-center">
+                                                                    <span>{p.name || p.fullName || p.displayName}</span>
+                                                                    {p.role && <span className="text-[9px] text-indigo-500 uppercase tracking-wider">{p.role}</span>}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">No players found in this squad.</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <h4 className="text-xs font-black text-amber-900 uppercase tracking-widest">{match.teamB.name} Squad</h4>
+                                                    <div className="bg-white border border-amber-100 rounded-2xl p-4 flex flex-wrap gap-2 shadow-sm">
+                                                        {(match.teamBPlayers || []).length > 0 ? (
+                                                            (match.teamBPlayers || []).map((p: any, i: number) => (
+                                                                <div key={i} className="px-3 py-1.5 bg-amber-50/70 border border-amber-100 text-amber-800 rounded-xl text-xs font-bold flex flex-col items-center">
+                                                                    <span>{p.name || p.fullName || p.displayName}</span>
+                                                                    {p.role && <span className="text-[9px] text-amber-500 uppercase tracking-wider">{p.role}</span>}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">No players found in this squad.</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -1642,3 +2153,4 @@ function CricketManualAdjustment({ match, onSave }: CricketManualAdjustmentProps
         </div>
     );
 }
+

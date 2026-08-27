@@ -416,17 +416,33 @@ export default function Teams() {
 
                                         {/* Selected chips */}
                                         {teamPlayers.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 mb-2.5">
+                                            <div className="flex flex-col gap-1.5 mb-2.5">
                                                 {teamPlayers.map((p) => (
-                                                    <button
-                                                        key={p.user || p.name}
-                                                        type="button"
-                                                        onClick={() => removeTeamPlayer(p.user)}
-                                                        className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 pl-2.5 pr-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
-                                                    >
-                                                        {p.name}
-                                                        <X size={10} />
-                                                    </button>
+                                                    <div key={p.user || p.name} className="flex items-center justify-between bg-indigo-50/50 border border-indigo-100 px-2.5 py-1.5 rounded-lg">
+                                                        <span className="text-[11px] font-semibold text-indigo-700 flex-1 truncate mr-2">{p.name}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            {formData.sport === 'kabaddi' && (
+                                                                <select
+                                                                    value={p.role}
+                                                                    onChange={(e) => {
+                                                                        setTeamPlayers(prev => prev.map(item => item.user === p.user ? { ...item, role: e.target.value } : item));
+                                                                    }}
+                                                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-indigo-200 outline-none bg-white text-indigo-700 focus:ring-1 focus:ring-indigo-300"
+                                                                >
+                                                                    <option value="Raider">Raider</option>
+                                                                    <option value="Defender">Defender (Tackler)</option>
+                                                                    <option value="All-Rounder">All-Rounder</option>
+                                                                </select>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeTeamPlayer(p.user)}
+                                                                className="text-indigo-400 hover:text-red-500 transition-colors p-1 bg-white rounded-md border border-indigo-100 shadow-sm"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 ))}
                                             </div>
                                         )}

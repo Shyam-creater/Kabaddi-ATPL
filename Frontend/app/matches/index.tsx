@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, RefreshControl, ActivityIndicator } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import MatchService, { Match } from '../../services/matchService';
@@ -22,6 +22,7 @@ const TABS = [
 
 export default function MatchesScreen() {
     const router = useRouter();
+    const { filter } = useLocalSearchParams();
     const { user: currentUser } = useAppSelector(state => state.auth);
     const [activeTab, setActiveTab] = useState('LIVE');
     const [activeSport, setActiveSport] = useState('kabaddi');
@@ -107,8 +108,9 @@ export default function MatchesScreen() {
         const matchesSport = activeSport === 'all' || m.sport === activeSport;
         if (!matchesSport) return false;
 
-        // 2. User specific filter based on login users
-        if (!currentUser?._id) return true; // If not logged in, show all (or default)
+        // 2. User specific filter - Applied only when opened from Dashboard "My Matches"
+        if (filter !== 'my') return true;
+        if (!currentUser?._id) return true;
         
         const matchObj = m as any;
         const createdById = typeof matchObj.createdBy === 'object' ? matchObj.createdBy?._id : matchObj.createdBy;
@@ -191,6 +193,98 @@ export default function MatchesScreen() {
     );
 }
 
+const KabaddiStatBar = ({ title, valA, valB }: any) => {
+    const numA = parseFloat(valA) || 0;
+    const numB = parseFloat(valB) || 0;
+    const total = numA + numB;
+    const pctA = total > 0 ? (numA / total) * 100 : 50;
+    const pctB = total > 0 ? (numB / total) * 100 : 50;
+
+    return (
+        <View style={{ marginBottom: 15 }}>
+            <Text style={{ textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#666', marginBottom: 6 }}>{title}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#E31C25', width: 35, textAlign: 'center' }}>{valA}</Text>
+                <View style={{ flex: 1, flexDirection: 'row', height: 6, marginHorizontal: 12, borderRadius: 3, overflow: 'hidden', backgroundColor: '#eee' }}>
+                    <View style={{ width: `${pctA}%`, backgroundColor: '#E31C25' }} />
+                    <View style={{ width: 2, backgroundColor: '#fff' }} />
+                    <View style={{ flex: 1, backgroundColor: '#7E22CE' }} />
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#7E22CE', width: 35, textAlign: 'center' }}>{valB}</Text>
+            </View>
+        </View>
+    );
+};
+
+const KabaddiStats = ({ match }: any) => {
+    const [halfFilter, setHalfFilter] = useState<'1st Half' | '2nd Half'>('1st Half');
+
+    let activeStats = match;
+    if (halfFilter === '1st Half' && match.firstHalfStats) {
+        activeStats = match.firstHalfStats;
+    } else if (halfFilter === '2nd Half' && match.secondHalfStats) {
+        activeStats = match.secondHalfStats;
+    } else if (halfFilter === '1st Half') {
+        activeStats = match;
+    } else if (halfFilter === '2nd Half' && !match.secondHalfStats) {
+        if (match.period === 'Second Half' && match.firstHalfStats) {
+            activeStats = {
+                scoreA: (match.scoreA || 0) - (match.firstHalfStats.scoreA || 0),
+                scoreB: (match.scoreB || 0) - (match.firstHalfStats.scoreB || 0),
+                raidPointsA: (match.raidPointsA || 0) - (match.firstHalfStats.raidPointsA || 0),
+                raidPointsB: (match.raidPointsB || 0) - (match.firstHalfStats.raidPointsB || 0),
+                extraPointsA: (match.extraPointsA || 0) - (match.firstHalfStats.extraPointsA || 0),
+                extraPointsB: (match.extraPointsB || 0) - (match.firstHalfStats.extraPointsB || 0),
+                allOutPointsA: (match.allOutPointsA || 0) - (match.firstHalfStats.allOutPointsA || 0),
+                allOutPointsB: (match.allOutPointsB || 0) - (match.firstHalfStats.allOutPointsB || 0),
+                tacklePointsA: ((match.scoreA || 0) - (match.raidPointsA || 0) - (match.extraPointsA || 0) - (match.allOutPointsA || 0)) - ((match.firstHalfStats.scoreA || 0) - (match.firstHalfStats.raidPointsA || 0) - (match.firstHalfStats.extraPointsA || 0) - (match.firstHalfStats.allOutPointsA || 0)),
+                tacklePointsB: ((match.scoreB || 0) - (match.raidPointsB || 0) - (match.extraPointsB || 0) - (match.allOutPointsB || 0)) - ((match.firstHalfStats.scoreB || 0) - (match.firstHalfStats.raidPointsB || 0) - (match.firstHalfStats.extraPointsB || 0) - (match.firstHalfStats.allOutPointsB || 0)),
+            };
+        } else {
+            activeStats = { scoreA: 0, scoreB: 0, raidPointsA: 0, raidPointsB: 0, tacklePointsA: 0, tacklePointsB: 0, extraPointsA: 0, extraPointsB: 0, allOutPointsA: 0, allOutPointsB: 0 };
+        }
+    }
+
+    const tackleA = activeStats.tacklePointsA ?? ((activeStats.scoreA || 0) - (activeStats.raidPointsA || 0) - (activeStats.extraPointsA || 0) - (activeStats.allOutPointsA || 0));
+    const tackleB = activeStats.tacklePointsB ?? ((activeStats.scoreB || 0) - (activeStats.raidPointsB || 0) - (activeStats.extraPointsB || 0) - (activeStats.allOutPointsB || 0));
+
+    return (
+        <View style={{ marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#f0f0f0' }}>
+            <View style={[styles.kTabsContainer, { marginBottom: 20 }]}>
+                <TouchableOpacity 
+                    onPress={() => setHalfFilter('1st Half')}
+                    style={[styles.kTabBtn, halfFilter === '1st Half' && styles.kTabBtnActive]}
+                >
+                    <Text style={[styles.kTabTxt, halfFilter === '1st Half' && styles.kTabTxtActive]}>First Half</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={() => setHalfFilter('2nd Half')}
+                    style={[styles.kTabBtn, halfFilter === '2nd Half' && styles.kTabBtnActive]}
+                >
+                    <Text style={[styles.kTabTxt, halfFilter === '2nd Half' && styles.kTabTxtActive]}>Second Half</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1a1a1a', textAlign: 'center' }}>{match.teamA.code}</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>Half Comparison</Text>
+                </View>
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1a1a1a', textAlign: 'center' }}>{match.teamB.code}</Text>
+                </View>
+            </View>
+
+            <KabaddiStatBar title="Total Points" valA={String(activeStats.scoreA || 0)} valB={String(activeStats.scoreB || 0)} />
+            <KabaddiStatBar title="Raid Points" valA={String(activeStats.raidPointsA || 0)} valB={String(activeStats.raidPointsB || 0)} />
+            <KabaddiStatBar title="Tackle Points" valA={String(Math.max(0, tackleA))} valB={String(Math.max(0, tackleB))} />
+            <KabaddiStatBar title="All out Points" valA={String(activeStats.allOutPointsA || 0)} valB={String(activeStats.allOutPointsB || 0)} />
+            <KabaddiStatBar title="Extra Points" valA={String(activeStats.extraPointsA || 0)} valB={String(activeStats.extraPointsB || 0)} />
+        </View>
+    );
+};
 
 const MatchCard = ({ match }: { match: Match }) => {
     const router = useRouter();
@@ -288,6 +382,10 @@ const MatchCard = ({ match }: { match: Match }) => {
                             />
                             <Text style={[styles.videoCtaText, { color: videoMeta.color }]}>{videoMeta.label}</Text>
                         </TouchableOpacity>
+                    )}
+
+                    {match.sport === 'kabaddi' && match.status === 'COMPLETED' && (
+                        <KabaddiStats match={match} />
                     )}
                 </View>
             </TouchableOpacity>
@@ -480,4 +578,10 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         letterSpacing: 0.3,
     },
+    // Kabaddi Stats Toggle Styles
+    kTabsContainer: { flexDirection: 'row', backgroundColor: '#f0f0f0', borderRadius: 25, padding: 4, marginTop: 10, alignSelf: 'center' },
+    kTabBtn: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 },
+    kTabBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
+    kTabTxt: { fontSize: 13, fontWeight: '700', color: '#666' },
+    kTabTxtActive: { color: '#E31C25' },
 });

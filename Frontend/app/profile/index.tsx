@@ -149,7 +149,7 @@ export default function ProfilePage() {
             icon: 'trophy-outline',
             title: 'My Matches',
             subtitle: 'History of your games',
-            action: () => router.push('/matches' as any),
+            action: () => router.push({ pathname: '/matches', params: { filter: 'my' } } as any),
             color: '#FFA726',
             hide: false
         },

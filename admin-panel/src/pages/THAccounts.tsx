@@ -17,10 +17,13 @@ export default function THAccounts() {
 
     const fetchTHAccounts = async () => {
         try {
+            setError(null);
             const response = await api.get('/admin/th-accounts');
-            setThAccounts(response.data.data);
+            const data = response.data?.data || (Array.isArray(response.data) ? response.data : []);
+            setThAccounts(Array.isArray(data) ? data : []);
             setLoading(false);
         } catch (err: any) {
+            console.error('Failed to fetch TH accounts:', err);
             setError(err.response?.data?.message || 'Failed to fetch TH accounts');
             setLoading(false);
         }

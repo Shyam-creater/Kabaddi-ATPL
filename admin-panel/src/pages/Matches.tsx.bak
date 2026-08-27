@@ -43,27 +43,17 @@ export default function Matches() {
         totalPoints: ''
     });
 
-    const [selectedSport, setSelectedSport] = useState('kabaddi');
-
     // Form State
     const [formData, setFormData] = useState({
         title: '',
         series: '',
         venue: 'TPL Stadium',
-        sport: 'kabaddi',
+        sport: 'cricket',
         teamA: { name: '', code: '', logo: '' },
         teamB: { name: '', code: '', logo: '' }
     });
 
-    useEffect(() => {
-        loadTeams(selectedSport);
-    }, [selectedSport]);
 
-    const filteredMatches = useMemo(() => {
-        return matches.filter(m => (m.sport || 'kabaddi').toLowerCase() === selectedSport.toLowerCase());
-    }, [matches, selectedSport]);
-
-    
 
     const loadMatches = async () => {
         try {
@@ -228,14 +218,14 @@ export default function Matches() {
 
     const saveVideoForStatus = async (url: string = '', ytId: string = '', hUrl: string = '') => {
         if (!selectedMatch) return;
-        
+
         const updates: any = {};
-        
+
         // Handle standard status-based URL
         if (url.trim()) {
             const field = videoType === 'live' ? 'liveStreamUrl' :
-                          videoType === 'preview' ? 'previewVideoUrl' :
-                          'recordedVideoUrl';
+                videoType === 'preview' ? 'previewVideoUrl' :
+                    'recordedVideoUrl';
             updates[field] = url.trim();
         }
 
@@ -365,7 +355,7 @@ export default function Matches() {
         if (match.status === 'LIVE') return {
             field: 'liveStreamUrl' as const,
             current: match.liveStreamUrl,
-            label: '🔴 Live Stream URL',
+            label: 'ðŸ”´ Live Stream URL',
             placeholder: 'YouTube Live, HLS stream, or any live URL...',
             badge: 'Live',
             icon: <Wifi size={10} />,
@@ -376,7 +366,7 @@ export default function Matches() {
         if (match.status === 'UPCOMING') return {
             field: 'previewVideoUrl' as const,
             current: match.previewVideoUrl,
-            label: '📅 Preview / Teaser URL',
+            label: 'ðŸ“… Preview / Teaser URL',
             placeholder: 'YouTube promo, teaser clip URL...',
             badge: 'Preview',
             icon: <Radio size={10} />,
@@ -387,7 +377,7 @@ export default function Matches() {
         return {
             field: 'recordedVideoUrl' as const,
             current: match.recordedVideoUrl,
-            label: '🎬 Highlights / Full Match URL',
+            label: 'ðŸŽ¬ Highlights / Full Match URL',
             placeholder: 'YouTube highlights, full match recording URL...',
             badge: 'Watch',
             icon: <Film size={10} />,
@@ -430,7 +420,7 @@ export default function Matches() {
 
     return (
         <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
-            {/* Header matching Teams.tsx pattern */}
+            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
@@ -438,28 +428,9 @@ export default function Matches() {
                     </h1>
                     <p className="text-xs font-medium text-gray-500 mt-0.5">Live games & schedule</p>
                 </div>
-
-                <div className="flex items-center gap-2 bg-white/70 backdrop-blur-lg p-1 rounded-xl border border-white/60 shadow-sm">
-                    {['kabaddi', 'cricket', 'football'].map(s => (
-                        <button
-                            key={s}
-                            onClick={() => setSelectedSport(s)}
-                            className={`px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${selectedSport === s
-                                ? 'bg-gray-900 text-white shadow-md'
-                                : 'text-gray-500 hover:bg-white/60'
-                                }`}
-                        >
-                            {s}
-                        </button>
-                    ))}
-                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
-                    <button
-                        onClick={() => { setFormData(f => ({ ...f, sport: selectedSport })); loadTeams(selectedSport); setShowCreate(true); }}
-                        className="flex items-center gap-1.5 bg-indigo-600 text-white px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all"
-                    >
-                        <Plus size={13} /> New Match
-                    </button>
-                </div>
+                <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]">
+                    <Plus size={14} /> New Match
+                </button>
             </div>
 
             {/* Matches Grid */}
@@ -468,19 +439,19 @@ export default function Matches() {
                     <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 animate-pulse">
                         <Trophy size={24} className="text-gray-300" />
                     </div>
-                    <div className="text-xs font-bold text-gray-400">Loading matches…</div>
+                    <div className="text-xs font-bold text-gray-400">Loading matchesâ€¦</div>
                 </div>
-            ) : filteredMatches.length === 0 ? (
+            ) : matches.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24">
                     <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
                         <Trophy size={28} className="text-gray-300" />
                     </div>
                     <p className="text-sm font-bold text-gray-400 mb-1">No matches yet</p>
-                    <p className="text-xs text-gray-400">Create your first {selectedSport} match to get started.</p>
+                    <p className="text-xs text-gray-400">Create your first match to get started.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredMatches.map((match, idx) => (
+                    {matches.map((match, idx) => (
                         <div
                             key={match._id}
                             onClick={() => openScorer(match)}
@@ -580,92 +551,92 @@ export default function Matches() {
                         </div>
 
                         <form onSubmit={handleCreate} className="flex-1 overflow-y-auto">
-                          <div className="p-6 space-y-5">
-                            {/* Sport Tabs */}
-                            <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-100 rounded-xl">
-                                {['cricket', 'kabaddi', 'football'].map(s => (
-                                    <button
-                                        type="button"
-                                        key={s}
-                                        onClick={() => setFormData({ ...formData, sport: s })}
-                                        className={`py-2 rounded-lg text-[11px] font-bold capitalize transition-all duration-200 ${formData.sport === s
-                                            ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
-                                            : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
-                                            }`}
-                                    >
-                                        {s}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Title + Venue side by side */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Match Title</label>
-                                    <input placeholder="e.g. Final" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400" required />
+                            <div className="p-6 space-y-5">
+                                {/* Sport Tabs */}
+                                <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-100 rounded-xl">
+                                    {['cricket', 'kabaddi', 'football'].map(s => (
+                                        <button
+                                            type="button"
+                                            key={s}
+                                            onClick={() => setFormData({ ...formData, sport: s })}
+                                            className={`py-2 rounded-lg text-[11px] font-bold capitalize transition-all duration-200 ${formData.sport === s
+                                                ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200'
+                                                : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+                                                }`}
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
                                 </div>
-                                <div>
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Venue</label>
-                                    <input placeholder="Stadium name" value={formData.venue} onChange={e => setFormData({ ...formData, venue: e.target.value })} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400" required />
-                                </div>
-                            </div>
 
-                            {/* Teams side by side */}
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* Team A */}
-                                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/30 space-y-2.5">
-                                    <label className="text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1 block">Team A</label>
-                                    <select value={selectedTeamAId} onChange={e => selectExistingTeam('A', e.target.value)} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all">
-                                        <option value="">Select or enter manually</option>
-                                        {teams.length > 0 ? teams.map(team => (
-                                            <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
-                                        )) : <option value="">No existing teams found</option>}
-                                    </select>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <input placeholder="Full Name" value={formData.teamA.name} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="col-span-2 w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-gray-400" required />
-                                        <input placeholder="Code" value={formData.teamA.code} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, code: e.target.value } }); }} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-gray-400 uppercase" required />
+                                {/* Title + Venue side by side */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Match Title</label>
+                                        <input placeholder="e.g. Final" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400" required />
                                     </div>
-                                    {selectedTeamAId && (
-                                        <div className="pt-1">
-                                            <div className="text-[10px] font-bold text-gray-500 mb-1">Squad ({teams.find(t => t._id === selectedTeamAId)?.players?.length || 0})</div>
-                                            <div className="flex gap-1.5 flex-wrap">
-                                                {teams.find(t => t._id === selectedTeamAId)?.players?.slice(0,6).map((p: any) => (
-                                                    <span key={p.user || p._id} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-medium">{p.name || p.fullName || p.displayName || 'Player'}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                {/* Team B */}
-                                <div className="p-4 rounded-xl border border-orange-100 bg-orange-50/30 space-y-2.5">
-                                    <label className="text-[11px] font-bold text-orange-700 uppercase tracking-wider mb-1 block">Team B</label>
-                                    <select value={selectedTeamBId} onChange={e => selectExistingTeam('B', e.target.value)} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
-                                        <option value="">Select or enter manually</option>
-                                        {teams.length > 0 ? teams.map(team => (
-                                            <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
-                                        )) : <option value="">No existing teams found</option>}
-                                    </select>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <input placeholder="Full Name" value={formData.teamB.name} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="col-span-2 w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-gray-400" required />
-                                        <input placeholder="Code" value={formData.teamB.code} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, code: e.target.value } }); }} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-gray-400 uppercase" required />
+                                    <div>
+                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Venue</label>
+                                        <input placeholder="Stadium name" value={formData.venue} onChange={e => setFormData({ ...formData, venue: e.target.value })} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-gray-400" required />
                                     </div>
-                                    {selectedTeamBId && (
-                                        <div className="pt-1">
-                                            <div className="text-[10px] font-bold text-gray-500 mb-1">Squad ({teams.find(t => t._id === selectedTeamBId)?.players?.length || 0})</div>
-                                            <div className="flex gap-1.5 flex-wrap">
-                                                {teams.find(t => t._id === selectedTeamBId)?.players?.slice(0,6).map((p: any) => (
-                                                    <span key={p.user || p._id} className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-medium">{p.name || p.fullName || p.displayName || 'Player'}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
-                            </div>
 
-                          </div>
-                          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex-shrink-0">
-                            <button type="submit" className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-black transition-all duration-200 shadow-lg shadow-gray-900/15 active:scale-[0.98]">Create Match</button>
-                          </div>
+                                {/* Teams side by side */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Team A */}
+                                    <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/30 space-y-2.5">
+                                        <label className="text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1 block">Team A</label>
+                                        <select value={selectedTeamAId} onChange={e => selectExistingTeam('A', e.target.value)} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all">
+                                            <option value="">Select or enter manually</option>
+                                            {teams.length > 0 ? teams.map(team => (
+                                                <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
+                                            )) : <option value="">No existing teams found</option>}
+                                        </select>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <input placeholder="Full Name" value={formData.teamA.name} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="col-span-2 w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-gray-400" required />
+                                            <input placeholder="Code" value={formData.teamA.code} onChange={e => { setSelectedTeamAId(''); setFormData({ ...formData, teamA: { ...formData.teamA, code: e.target.value } }); }} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-gray-400 uppercase" required />
+                                        </div>
+                                        {selectedTeamAId && (
+                                            <div className="pt-1">
+                                                <div className="text-[10px] font-bold text-gray-500 mb-1">Squad ({teams.find(t => t._id === selectedTeamAId)?.players?.length || 0})</div>
+                                                <div className="flex gap-1.5 flex-wrap">
+                                                    {teams.find(t => t._id === selectedTeamAId)?.players?.slice(0, 6).map((p: any) => (
+                                                        <span key={p.user || p._id} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-medium">{p.name || p.fullName || p.displayName || 'Player'}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Team B */}
+                                    <div className="p-4 rounded-xl border border-orange-100 bg-orange-50/30 space-y-2.5">
+                                        <label className="text-[11px] font-bold text-orange-700 uppercase tracking-wider mb-1 block">Team B</label>
+                                        <select value={selectedTeamBId} onChange={e => selectExistingTeam('B', e.target.value)} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all">
+                                            <option value="">Select or enter manually</option>
+                                            {teams.length > 0 ? teams.map(team => (
+                                                <option key={team._id} value={team._id}>{team.code} - {team.name}</option>
+                                            )) : <option value="">No existing teams found</option>}
+                                        </select>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <input placeholder="Full Name" value={formData.teamB.name} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, name: e.target.value, code: e.target.value.substring(0, 3).toUpperCase() } }); }} className="col-span-2 w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-gray-400" required />
+                                            <input placeholder="Code" value={formData.teamB.code} onChange={e => { setSelectedTeamBId(''); setFormData({ ...formData, teamB: { ...formData.teamB, code: e.target.value } }); }} className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all placeholder:text-gray-400 uppercase" required />
+                                        </div>
+                                        {selectedTeamBId && (
+                                            <div className="pt-1">
+                                                <div className="text-[10px] font-bold text-gray-500 mb-1">Squad ({teams.find(t => t._id === selectedTeamBId)?.players?.length || 0})</div>
+                                                <div className="flex gap-1.5 flex-wrap">
+                                                    {teams.find(t => t._id === selectedTeamBId)?.players?.slice(0, 6).map((p: any) => (
+                                                        <span key={p.user || p._id} className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-medium">{p.name || p.fullName || p.displayName || 'Player'}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex-shrink-0">
+                                <button type="submit" className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-black transition-all duration-200 shadow-lg shadow-gray-900/15 active:scale-[0.98]">Create Match</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -688,11 +659,11 @@ export default function Matches() {
                                         videoMatch.status === 'UPCOMING' ? 'bg-orange-500 text-white' :
                                             'bg-indigo-600 text-white'
                                         }`}>
-                                        {videoMatch.status === 'LIVE' ? '🔴 Live Stream' : videoMatch.status === 'UPCOMING' ? '📅 Preview' : '🎬 Highlights'}
+                                        {videoMatch.status === 'LIVE' ? 'ðŸ”´ Live Stream' : videoMatch.status === 'UPCOMING' ? 'ðŸ“… Preview' : 'ðŸŽ¬ Highlights'}
                                     </span>
                                 </div>
                                 <h2 className="text-white font-black text-lg">{videoMatch.teamA.code} vs {videoMatch.teamB.code}</h2>
-                                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">{videoMatch.series} · {videoMatch.venue}</p>
+                                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">{videoMatch.series} Â· {videoMatch.venue}</p>
                             </div>
                             <div className="flex gap-2">
                                 <a

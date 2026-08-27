@@ -62,7 +62,7 @@ export default function LoginScreen() {
                 const payload = res.payload as string;
                 Alert.alert('Login Failed', payload || 'An error occurred during login');
             }
-        } else {
+        } /* else {
             if (!atplId) {
                 Alert.alert('Required', 'Please enter your ATPL ID');
                 return;
@@ -86,7 +86,7 @@ export default function LoginScreen() {
                 const payload = res.payload as string;
                 Alert.alert('Login Failed', payload || 'An error occurred during login');
             }
-        }
+        } */
     };
 
     return (
@@ -127,6 +127,7 @@ export default function LoginScreen() {
                         <Text style={styles.instructionText}>Please sign in to continue</Text>
 
                         {/* Tab Selector */}
+                        {/*
                         <View style={styles.toggleContainer}>
                             <TouchableOpacity
                                 onPress={() => setLoginMethod('email')}
@@ -145,6 +146,7 @@ export default function LoginScreen() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                        */}
 
                         {/* Mobile Number or Email Input */}
                         {loginMethod === 'email' && (
@@ -167,6 +169,7 @@ export default function LoginScreen() {
                         )}
 
                         {/* ATPL ID Input */}
+                        {/*
                         {loginMethod === 'atplId' && (
                             <View style={styles.inputWrapper}>
                                 <LinearGradient
@@ -185,6 +188,7 @@ export default function LoginScreen() {
                                 </LinearGradient>
                             </View>
                         )}
+                        */}
 
                         {/* Password Input (Only for Email) */}
                         {loginMethod === 'email' && (

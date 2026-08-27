@@ -7,7 +7,7 @@ export default function AuctionManager() {
     const [filteredPlayers, setFilteredPlayers] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
-    const [sportFilter, setSportFilter] = useState('Cricket');
+    const [sportFilter, setSportFilter] = useState('Kabaddi');
     const [showAddModal, setShowAddModal] = useState(false);
     const [liveAuctionPlayer, setLiveAuctionPlayer] = useState<any>(null);
     const [currentBid, setCurrentBid] = useState(0);
@@ -15,19 +15,35 @@ export default function AuctionManager() {
     const [selectedTeam, setSelectedTeam] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
 
+    const getRolesForSport = (sport: string) => {
+        if (sport === 'Kabaddi') return ['Raider', 'Defender', 'All-Rounder'];
+        if (sport === 'Football') return ['Forward', 'Midfielder', 'Defender', 'Goalkeeper'];
+        return ['Batsman', 'Bowler', 'All-Rounder', 'Wicket Keeper'];
+    };
+
     // Form data
     const [formData, setFormData] = useState({
         name: '',
-        role: 'Batsman',
+        role: 'Raider',
         basePrice: 500,
         category: 'A',
         image: '',
-        sport: 'Cricket'
+        sport: 'Kabaddi'
     });
 
     useEffect(() => {
         fetchPlayers();
     }, [sportFilter]);
+
+    const handleSportChange = (sport: string) => {
+        setSportFilter(sport);
+        const roles = getRolesForSport(sport);
+        setFormData(curr => ({
+            ...curr,
+            sport: sport,
+            role: roles[0]
+        }));
+    };
 
     const fetchPlayers = async () => {
         try {
@@ -35,8 +51,8 @@ export default function AuctionManager() {
                 api.get(`/players?sport=${sportFilter}`),
                 api.get(`/teams?sport=${sportFilter}`)
             ]);
-            setPlayers(playersRes.data);
-            setTeams(teamsRes.data.map((t: any) => t.code));
+            setPlayers(Array.isArray(playersRes.data) ? playersRes.data : []);
+            setTeams(Array.isArray(teamsRes.data) ? teamsRes.data.map((t: any) => t.code || t.name) : []);
         } catch (error) {
             console.error("Failed to fetch data", error);
         }
@@ -56,17 +72,19 @@ export default function AuctionManager() {
     const handleAddPlayer = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const payload = { ...formData, sport: sportFilter };
             if (editingId) {
-                await api.put(`/players/${editingId}`, { ...formData, sport: sportFilter });
+                await api.put(`/players/${editingId}`, payload);
             } else {
-                await api.post('/players', { ...formData, sport: sportFilter });
+                await api.post('/players', payload);
             }
             fetchPlayers();
             setShowAddModal(false);
             setEditingId(null);
-            setFormData({ name: '', role: 'Batsman', basePrice: 500, category: 'A', image: '', sport: sportFilter });
-        } catch (error) {
-            alert('Failed to save player');
+            const defaultRole = getRolesForSport(sportFilter)[0];
+            setFormData({ name: '', role: defaultRole, basePrice: 500, category: 'A', image: '', sport: sportFilter });
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Failed to save player');
         }
     };
 
@@ -99,56 +117,60 @@ export default function AuctionManager() {
         setCurrentBid(player.basePrice);
         setSelectedTeam('');
         try {
-            await api.put(`/players/${player._id}`, { auctionStatus: 'LIVE' });
-        } catch (error) { }
+            await api.put(`/players/${player._id}`, { auctionStatus: 'LIVE', sport: sportFilter });
+            fetchPlayers();
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const placeBid = async (amount: number) => {
-        setCurrentBid(prev => prev + amount);
+    const placeBid = (increment: number) => {
+        setCurrentBid(prev => prev + increment);
     };
 
     const sellPlayer = async () => {
-        if (!selectedTeam) return alert('Select a team!');
+        if (!selectedTeam) return alert("Please select a winning team!");
         try {
             await api.put(`/players/${liveAuctionPlayer._id}`, {
                 auctionStatus: 'SOLD',
                 soldPrice: currentBid,
-                team: selectedTeam
+                teamName: selectedTeam,
+                sport: sportFilter
             });
-            fetchPlayers();
-            setLiveAuctionPlayer(null);
-        } catch (error) {
             setLiveAuctionPlayer(null);
             fetchPlayers();
+        } catch (e) {
+            alert("Failed to sell player");
         }
     };
 
     const cancelAuction = async () => {
         if (liveAuctionPlayer) {
-            try {
-                await api.put(`/players/${liveAuctionPlayer._id}`, { auctionStatus: 'UPCOMING' });
-            } catch (error) { }
+            await api.put(`/players/${liveAuctionPlayer._id}`, { auctionStatus: 'UPCOMING', sport: sportFilter });
             setLiveAuctionPlayer(null);
+            fetchPlayers();
         }
     };
 
+    const currentRoles = getRolesForSport(sportFilter);
+
     return (
-        <div className="space-y-8 px-4 md:px-8 xl:px-12 pb-20 animate-fade-in">
+        <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-100 pb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
                         Auction <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">Pro</span>
                     </h1>
-                    <p className="text-xs font-semibold text-gray-500 mt-2 uppercase tracking-wide">Live bidding & player management</p>
+                    <p className="text-xs font-semibold text-gray-500 mt-2 uppercase tracking-wide">Live bidding & player management ({sportFilter} Category)</p>
                 </div>
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
-                        {['Cricket', 'Kabaddi', 'Football'].map(s => (
+                        {['Kabaddi', 'Cricket', 'Football'].map(s => (
                             <button
                                 key={s}
-                                onClick={() => setSportFilter(s)}
+                                onClick={() => handleSportChange(s)}
                                 className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wide transition-all ${sportFilter === s ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-50'
                                     }`}
                             >
@@ -157,10 +179,15 @@ export default function AuctionManager() {
                         ))}
                     </div>
                     <button
-                        onClick={() => { setEditingId(null); setFormData(curr => ({ ...curr, sport: sportFilter, name: '', image: '' })); setShowAddModal(true); }}
+                        onClick={() => {
+                            setEditingId(null);
+                            const defaultRole = getRolesForSport(sportFilter)[0];
+                            setFormData({ name: '', role: defaultRole, basePrice: 500, category: 'A', image: '', sport: sportFilter });
+                            setShowAddModal(true);
+                        }}
                         className="bg-gray-900 text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wide hover:bg-black shadow-xl shadow-gray-900/20 active:scale-95 transition-all flex items-center gap-2"
                     >
-                        <Plus size={16} /> Add Player
+                        <Plus size={16} /> Add {sportFilter} Player
                     </button>
                 </div>
             </div>
@@ -171,132 +198,117 @@ export default function AuctionManager() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
                     <input
                         type="text"
-                        placeholder="Search players..."
+                        placeholder={`Search ${sportFilter} players...`}
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
                     />
                 </div>
 
-                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Category:</span>
                     {['All', 'A', 'B', 'C', 'Icon'].map(cat => (
                         <button
                             key={cat}
                             onClick={() => setCategoryFilter(cat)}
-                            className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${categoryFilter === cat
-                                ? 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-sm'
-                                : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${categoryFilter === cat ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-sm' : 'text-gray-500 hover:bg-white hover:text-gray-900'
                                 }`}
                         >
-                            {cat === 'All' ? 'All Cats' : `Cat ${cat}`}
+                            {cat}
                         </button>
                     ))}
                 </div>
             </div>
 
             {/* Players Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredPlayers.map((player, idx) => (
-                    <div
-                        key={player._id}
-                        style={{ animationDelay: `${idx * 0.05}s` }}
-                        className="group relative bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hover:shadow-2xl hover:border-indigo-100 transition-all duration-300 hover:-translate-y-1 animate-scale-in overflow-hidden"
-                    >
-                        {/* Status Strip */}
-                        <div className={`absolute top-0 inset-x-0 h-1.5 ${player.auctionStatus === 'SOLD' ? 'bg-emerald-500' :
-                            player.auctionStatus === 'LIVE' ? 'bg-red-500 animate-pulse' : 'bg-gray-200'
-                            }`} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredPlayers.map((player) => (
+                    <div key={player._id} className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm hover:shadow-xl transition-all duration-300 group relative flex flex-col justify-between overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-50/50 to-transparent rounded-bl-full -z-0" />
 
-                        <div className="absolute top-5 right-5 z-20 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
-                            <button onClick={() => handleEdit(player)} className="w-8 h-8 flex items-center justify-center bg-white text-indigo-600 rounded-full shadow-lg hover:scale-110 transition-transform border border-gray-100"><Edit2 size={12} /></button>
-                            <button onClick={() => handleDelete(player._id)} className="w-8 h-8 flex items-center justify-center bg-white text-red-500 rounded-full shadow-lg hover:scale-110 transition-transform border border-gray-100"><Trash2 size={12} /></button>
-                        </div>
-
-                        <div className="flex flex-col items-center pt-4 mb-4">
-                            <div className="relative mb-4">
-                                <div className={`w-24 h-24 rounded-2xl rotate-3 group-hover:rotate-0 transition-all duration-500 overflow-hidden shadow-lg border-4 ${player.auctionStatus === 'SOLD' ? 'border-emerald-100' :
-                                    player.auctionStatus === 'LIVE' ? 'border-red-100' : 'border-white'
+                        <div>
+                            {/* Top Badges */}
+                            <div className="flex justify-between items-center mb-4 relative z-10">
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-wider uppercase ${player.auctionStatus === 'SOLD' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                    player.auctionStatus === 'LIVE' ? 'bg-rose-50 text-rose-600 border border-rose-100 animate-pulse' :
+                                        'bg-gray-50 text-gray-500 border border-gray-100'
                                     }`}>
+                                    {player.auctionStatus}
+                                </span>
+                                <span className="px-2.5 py-1 bg-gray-900 text-white rounded-full text-[9px] font-black uppercase tracking-wider">
+                                    Cat {player.category}
+                                </span>
+                            </div>
+
+                            {/* Player Media */}
+                            <div className="w-24 h-24 mx-auto mb-4 relative group-hover:scale-105 transition-transform duration-500">
+                                <div className="w-full h-full rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center shadow-inner">
                                     {player.image ? (
-                                        <img src={player.image} alt={player.name} className="w-full h-full object-cover scale-110 group-hover:scale-100 transition-transform duration-700" />
+                                        <img src={player.image} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><User size={32} /></div>
+                                        <User className="text-gray-300" size={32} />
                                     )}
                                 </div>
-                                {player.auctionStatus !== 'UPCOMING' && (
-                                    <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm border whitespace-nowrap z-10 ${player.auctionStatus === 'SOLD' ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-red-500 text-white border-red-600 animate-pulse'
-                                        }`}>
-                                        {player.auctionStatus}
-                                    </div>
-                                )}
                             </div>
 
-                            <h3 className="text-lg font-black text-gray-900 text-center leading-tight mb-1">{player.name}</h3>
-                            <div className="flex gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                <span>{player.role}</span>
-                                <span className="w-px h-3 bg-gray-300 my-auto" />
-                                <span>Cat {player.category}</span>
+                            {/* Info */}
+                            <div className="text-center space-y-1 mb-6">
+                                <h3 className="font-black text-gray-900 text-base leading-tight group-hover:text-indigo-600 transition-colors">{player.name}</h3>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{player.role}</p>
                             </div>
                         </div>
 
-                        <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 space-y-3">
+                        {/* Price & Action */}
+                        <div className="pt-4 border-t border-gray-50 space-y-3">
                             <div className="flex justify-between items-center text-xs">
-                                <span className="font-bold text-gray-400 uppercase tracking-wider">Base Price</span>
-                                <span className="font-black text-gray-900 text-base">₹{player.basePrice}</span>
+                                <span className="font-bold text-gray-400">Base Price</span>
+                                <span className="font-black text-gray-900">₹{player.basePrice}</span>
                             </div>
 
-                            {player.auctionStatus === 'SOLD' ? (
-                                <div className="bg-white rounded-xl p-3 border border-emerald-100 shadow-sm text-center">
-                                    <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-0.5">Sold To</div>
-                                    <div className="font-black text-gray-900 text-sm">{player.team || 'Team'}</div>
-                                    <div className="text-xs font-bold text-gray-400 mt-1">₹{player.soldPrice}</div>
+                            {player.auctionStatus === 'SOLD' && (
+                                <div className="flex justify-between items-center text-xs bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
+                                    <span className="font-bold text-emerald-700">Sold ({player.team?.code || player.teamName})</span>
+                                    <span className="font-black text-emerald-700">₹{player.soldPrice}</span>
                                 </div>
-                            ) : player.auctionStatus === 'LIVE' ? (
-                                <button onClick={() => setLiveAuctionPlayer(player)} className="w-full bg-red-500 text-white py-3 rounded-xl text-xs font-black uppercase tracking-wide hover:bg-red-600 shadow-lg shadow-red-500/30 animate-pulse flex items-center justify-center gap-2">
-                                    <MonitorPlay size={14} /> Resume Auction
-                                </button>
-                            ) : (
-                                <button onClick={() => startAuction(player)} className="w-full bg-gray-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-wide hover:bg-black shadow-lg shadow-gray-900/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] group-hover:translate-y-0 translate-y-2 opacity-0 group-hover:opacity-100">
-                                    <Gavel size={14} /> Start Bidding
-                                </button>
                             )}
+
+                            <div className="flex gap-2">
+                                {player.auctionStatus !== 'SOLD' && (
+                                    <button
+                                        onClick={() => startAuction(player)}
+                                        className="flex-1 bg-gray-900 hover:bg-black text-white text-[10px] font-black py-2.5 rounded-xl shadow-lg shadow-gray-900/10 active:scale-95 transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                                    >
+                                        <MonitorPlay size={13} /> Start Bid
+                                    </button>
+                                )}
+                                <button onClick={() => handleEdit(player)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"><Edit2 size={14} /></button>
+                                <button onClick={() => handleDelete(player._id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"><Trash2 size={14} /></button>
+                            </div>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* LIVE AUCTION MODAL - DARK MODE */}
+            {/* LIVE AUCTION STAGE MODAL */}
             {liveAuctionPlayer && (
-                <div
-                    className="fixed inset-0 bg-black/90 backdrop-blur-xl flex justify-center items-center md:pl-72 z-[999] p-4"
-                >
-                    <div
-                        className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-gray-900 rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 relative max-h-[90vh] overflow-y-auto animate-scale-in"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/* Left: Player Visual */}
-                        <div className="relative p-10 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-gray-900">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-xl flex justify-center items-center z-[9999] p-4 animate-fade-in">
+                    <div className="bg-gray-950 border border-gray-800 rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 relative">
+
+                        {/* Left: Player Stage */}
+                        <div className="p-10 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-800/80 bg-gradient-to-b from-indigo-950/20 to-transparent relative">
                             <div className="absolute top-6 left-6 flex items-center gap-2">
-                                <span className="flex h-3 w-3 relative">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                </span>
-                                <span className="text-red-500 text-xs font-black uppercase tracking-widest">Live Now</span>
+                                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                                <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">LIVE AUCTION ({sportFilter})</span>
                             </div>
 
-                            <div className="relative w-64 h-64 md:w-80 md:h-80 mb-8 z-10">
-                                <div className="absolute inset-0 bg-indigo-500/30 rounded-full blur-3xl animate-pulse" />
-                                <div className="w-full h-full rounded-full border-4 border-white/10 p-2 relative">
-                                    <div className="w-full h-full rounded-full overflow-hidden bg-gray-800">
-                                        {liveAuctionPlayer.image ? (
-                                            <img src={liveAuctionPlayer.image} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <User className="w-full h-full p-12 text-gray-700" />
-                                        )}
-                                    </div>
-                                    <div className="absolute bottom-0 right-10 bg-white text-gray-900 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg transform rotate-3">
-                                        Cat {liveAuctionPlayer.category}
-                                    </div>
+                            <div className="w-48 h-48 rounded-3xl bg-gray-900 border-2 border-indigo-500/30 overflow-hidden shadow-2xl shadow-indigo-500/10 mb-6 p-2 relative group">
+                                {liveAuctionPlayer.image ? (
+                                    <img src={liveAuctionPlayer.image} className="w-full h-full object-cover rounded-2xl" />
+                                ) : (
+                                    <User className="w-full h-full text-gray-700 p-8" />
+                                )}
+                                <div className="absolute bottom-3 right-3 bg-gray-950/80 backdrop-blur text-white text-[9px] font-black px-2.5 py-1 rounded-full border border-gray-800">
+                                    Cat {liveAuctionPlayer.category}
                                 </div>
                             </div>
 
@@ -367,12 +379,12 @@ export default function AuctionManager() {
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-6 border-b border-gray-100 bg-gray-50/80 flex justify-between items-center flex-shrink-0">
-                            <h2 className="text-lg font-black text-gray-900 tracking-tight">{editingId ? 'Edit Player' : 'Add New Player'}</h2>
+                            <h2 className="text-lg font-black text-gray-900 tracking-tight">{editingId ? 'Edit Player' : `Add ${sportFilter} Player`}</h2>
                             <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-2 hover:bg-gray-200 rounded-full"><XCircle size={20} /></button>
                         </div>
 
                         <div className="p-8 overflow-y-auto flex-1">
-                           <form onSubmit={handleAddPlayer} className="space-y-6 pb-[5px]">
+                            <form onSubmit={handleAddPlayer} className="space-y-6 pb-[5px]">
                                 {/* Image Upload */}
                                 <div className="flex justify-center">
                                     <div className="relative group cursor-pointer w-28 h-28 rounded-2xl bg-gray-50 flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300 hover:border-gray-900 hover:bg-white transition-all shadow-inner">
@@ -404,7 +416,7 @@ export default function AuctionManager() {
                                     <div>
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Player Name</label>
                                         <input
-                                            placeholder="e.g. Virat Kohli"
+                                            placeholder="e.g. Player Name"
                                             value={formData.name}
                                             onChange={e => setFormData({ ...formData, name: e.target.value })}
                                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white rounded-xl text-sm font-bold text-gray-900 placeholder-gray-400 outline-none focus:border-gray-900 transition-all"
@@ -414,15 +426,14 @@ export default function AuctionManager() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Role</label>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Role ({sportFilter})</label>
                                             <div className="relative">
                                                 <select
                                                     value={formData.role}
                                                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 focus:bg-white rounded-xl text-xs font-bold text-gray-900 outline-none focus:border-gray-900 transition-all appearance-none cursor-pointer"
                                                 >
-                                                    <option>Batsman</option><option>Bowler</option><option>All-Rounder</option><option>Wicket Keeper</option>
-                                                    <option>Raider</option><option>Defender</option><option>Goal Keeper</option><option>Striker</option>
+                                                    {currentRoles.map(r => <option key={r} value={r}>{r}</option>)}
                                                 </select>
                                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><ChevronDown size={14} /></div>
                                             </div>
@@ -458,13 +469,13 @@ export default function AuctionManager() {
                                     </div>
                                 </div>
 
-<button
-    type="submit"
-    className="w-full bg-gray-900 text-white py-3.5 rounded-xl text-xs font-black hover:bg-black shadow-lg shadow-gray-900/10 active:scale-[0.99] transition-all uppercase tracking-wider flex items-center justify-center gap-2 mb-[5px]"
->
-    <Plus size={16} />
-    {editingId ? 'Update Player' : 'Add to Pool'}
-</button>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-gray-900 text-white py-3.5 rounded-xl text-xs font-black hover:bg-black shadow-lg shadow-gray-900/10 active:scale-[0.99] transition-all uppercase tracking-wider flex items-center justify-center gap-2 mb-[5px]"
+                                >
+                                    <Plus size={16} />
+                                    {editingId ? 'Update Player' : `Add ${sportFilter} Player`}
+                                </button>
                             </form>
                         </div>
                     </div>

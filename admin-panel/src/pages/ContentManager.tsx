@@ -4,6 +4,7 @@ import { Trash2, Plus, Users, Briefcase, BarChart2, Newspaper, Edit2, Quote as Q
 
 export default function ContentManager() {
     const [activeTab, setActiveTab] = useState<'partners' | 'trending' | 'polls' | 'news' | 'quotes' | 'highlights' | 'ads' | 'social' | 'trivia' | 'banners' | 'blogs'>('partners');
+    const [selectedSport, setSelectedSport] = useState<string>('Kabaddi'); // Default to Kabaddi
     const [loading, setLoading] = useState(true);
 
     // Data
@@ -77,7 +78,6 @@ export default function ContentManager() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Videos can be slightly larger for demo
         if (type === 'highlight-video' && file.size > 50 * 1024 * 1024) return alert('Video too large (Max 50MB)');
         else if (type !== 'highlight-video' && file.size > 10 * 1024 * 1024) return alert('File too large (Max 10MB)');
 
@@ -97,19 +97,21 @@ export default function ContentManager() {
         reader.readAsDataURL(file);
     };
 
-    // Helper: Generic Submit
+    // Generic Submit: Binds created item to selectedSport
     const handleSubmit = async (e: React.FormEvent, apiFuncs: any, form: any, reset: any, setForm: any) => {
         e.preventDefault();
         try {
-            if (editingId) await apiFuncs.update(editingId, form);
-            else await apiFuncs.create(form);
+            const targetSport = selectedSport === 'All' ? 'Kabaddi' : selectedSport;
+            const payload = { ...form, sport: editingId ? (form.sport || targetSport) : targetSport };
+
+            if (editingId) await apiFuncs.update(editingId, payload);
+            else await apiFuncs.create(payload);
             setForm(reset);
             setEditingId(null);
             loadData();
         } catch (error) { alert('Operation failed'); }
     };
 
-    // Submit Handlers
     const submitPartner = (e: any) => handleSubmit(e, { create: contentService.createPartner, update: contentService.updatePartner }, partnerForm, { name: '', logo: '', link: '' }, setPartnerForm);
     const submitPlayer = (e: any) => handleSubmit(e, { create: contentService.createTrendingPlayer, update: contentService.updateTrendingPlayer }, playerForm, { name: '', role: '', image: '', type: 'image', rank: 1 }, setPlayerForm);
     const submitPoll = (e: any) => handleSubmit(e, { create: contentService.createPoll, update: contentService.updatePoll }, pollForm, { question: '', optionA: '', optionB: '', active: true }, setPollForm);
@@ -160,14 +162,58 @@ export default function ContentManager() {
         setHighlightForm({ title: '', duration: '', image: '', videoUrl: '', uploadType: 'url' });
         setAdForm({ text: '', buttonText: 'Play Now', link: '', active: true });
         setSocialForm({ user: '', content: '', image: '', likes: '0', platform: 'twitter' });
-
         setTriviaForm({ fact: '' });
         setBannerForm({ title: '', text: '', image: '', active: true, link: '/tournament' });
         setBlogForm({ title: '', excerpt: '', content: '', image: '', author: '', category: '', tags: '' });
     };
 
+    // Filter helper
+    const filterBySport = (items: any[]) => {
+        if (selectedSport === 'All') return items;
+        return items.filter(item => (item.sport || 'Kabaddi') === selectedSport || item.sport === 'All');
+    };
+
+    // Helper count per sport for current tab
+    const getCurrentTabItems = () => {
+        switch (activeTab) {
+            case 'partners': return partners;
+            case 'trending': return players;
+            case 'polls': return polls;
+            case 'news': return news;
+            case 'quotes': return quotes;
+            case 'highlights': return highlights;
+            case 'ads': return ads;
+            case 'social': return socials;
+            case 'trivia': return trivia;
+            case 'banners': return banners;
+            case 'blogs': return blogs;
+            default: return [];
+        }
+    };
+
+    const currentItems = getCurrentTabItems();
+    const countAll = currentItems.length;
+    const countKabaddi = currentItems.filter(i => (i.sport || 'Kabaddi') === 'Kabaddi' || i.sport === 'All').length;
+    const countCricket = currentItems.filter(i => i.sport === 'Cricket' || i.sport === 'All').length;
+    const countFootball = currentItems.filter(i => i.sport === 'Football' || i.sport === 'All').length;
+
+    // Sport badge helper
+    const renderSportBadge = (sport?: string) => {
+        const s = sport || 'Kabaddi';
+        const badgeStyles: Record<string, string> = {
+            Kabaddi: 'bg-amber-50 text-amber-700 border-amber-200',
+            Cricket: 'bg-blue-50 text-blue-700 border-blue-200',
+            Football: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            All: 'bg-purple-50 text-purple-700 border-purple-200'
+        };
+        return (
+            <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${badgeStyles[s] || badgeStyles.Kabaddi}`}>
+                {s}
+            </span>
+        );
+    };
+
     // UI Classes
-    // UI Classes - Refined for Compactness & Visibility
     const labelClass = "block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1";
     const inputClass = "w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 outline-none transition-all text-sm font-semibold text-gray-900 placeholder-gray-400";
     const btnClass = "w-full bg-gray-900 hover:bg-black text-white text-xs font-black py-3.5 rounded-xl shadow-lg shadow-gray-900/20 transition-all hover:-translate-y-0.5 mt-2 active:scale-95 uppercase tracking-wider";
@@ -198,29 +244,66 @@ export default function ContentManager() {
         { id: 'blogs', label: 'Blogs', icon: BookOpen },
     ];
 
+    const sportsOptions = [
+        { id: 'Kabaddi', label: 'Kabaddi', icon: '🤼', count: countKabaddi, activeClass: 'bg-amber-600 text-white shadow-md shadow-amber-600/20' },
+        { id: 'Cricket', label: 'Cricket', icon: '🏏', count: countCricket, activeClass: 'bg-blue-600 text-white shadow-md shadow-blue-600/20' },
+        { id: 'Football', label: 'Football', icon: '⚽', count: countFootball, activeClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' },
+        { id: 'All', label: 'All Sports', icon: '🌐', count: countAll, activeClass: 'bg-gray-900 text-white shadow-md shadow-gray-900/20' },
+    ];
+
+    const currentSportBadge = sportsOptions.find(s => s.id === selectedSport) || sportsOptions[0];
+
     return (
         <div className="w-full space-y-6 md:space-y-8 pb-12 animate-fade-in">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-100 pb-8">
+            {/* Header matching Teams.tsx pattern */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
                         Home Content <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide">CMS</span>
                     </h1>
-                    <p className="text-xs font-semibold text-gray-500 mt-2 uppercase tracking-wide">Manage app homepage sections & featured content</p>
+                    <p className="text-xs font-medium text-gray-500 mt-0.5">Select sport category first, then manage & create app content</p>
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 w-[calc(100%+2rem)] md:w-auto md:mx-0 md:pb-0 scrollbar-hide">
-                    <div className="flex bg-gray-50/80 backdrop-blur p-1.5 rounded-2xl border border-gray-200">
-                        {sections.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => { setActiveTab(tab.id as any); cancelEdit(); }}
-                                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-gray-900 shadow-md transform scale-[1.02]' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
-                                    }`}
-                            >
-                                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-indigo-500' : ''}`} /> {tab.label}
-                            </button>
-                        ))}
-                    </div>
+
+                {/* Sport Category Pills Header (Identical UX pattern to Teams.tsx) */}
+                <div className="flex items-center gap-2 bg-white/70 backdrop-blur-lg p-1.5 rounded-xl border border-gray-200/80 shadow-sm">
+                    {sportsOptions.map(sp => (
+                        <button
+                            key={sp.id}
+                            onClick={() => setSelectedSport(sp.id)}
+                            className={`px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${
+                                selectedSport === sp.id
+                                    ? `${sp.activeClass} shadow-md`
+                                    : 'text-gray-500 hover:bg-gray-100'
+                            }`}
+                        >
+                            <span>{sp.icon}</span>
+                            <span>{sp.label}</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                selectedSport === sp.id ? 'bg-white/20 text-white' : 'bg-gray-200/70 text-gray-700'
+                            }`}>
+                                {sp.count}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Section Navigation Tabs Bar */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-200/80 w-full sm:w-auto">
+                    {sections.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => { setActiveTab(tab.id as any); cancelEdit(); }}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                                activeTab === tab.id
+                                    ? 'bg-white text-gray-900 shadow-md transform scale-[1.02]'
+                                    : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-indigo-500' : ''}`} /> {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -230,10 +313,20 @@ export default function ContentManager() {
                     <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-100/50 border border-gray-100 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-bl-[100px] -z-0 opacity-50" />
 
-                        <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center justify-between relative z-10">
-                            <span className="flex items-center gap-2"><div className="p-1.5 bg-gray-900 text-white rounded-lg"><Plus className="w-4 h-4" /></div> {editingId ? 'Edit' : 'Add'} Content</span>
+                        <div className="flex items-center justify-between mb-4 relative z-10">
+                            <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                                <div className="p-1.5 bg-gray-900 text-white rounded-lg"><Plus className="w-4 h-4" /></div> {editingId ? 'Edit' : 'Add'} Content
+                            </h3>
                             {editingId && <button onClick={cancelEdit} className="text-[10px] bg-red-50 text-red-500 hover:bg-red-100 px-3 py-1.5 rounded-full font-bold transition-colors uppercase tracking-wider">Cancel Editing</button>}
-                        </h3>
+                        </div>
+
+                        {/* Selected Sport Category Banner */}
+                        <div className="mb-6 p-3 bg-gray-50 border border-gray-200/80 rounded-2xl flex items-center justify-between relative z-10">
+                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Creating for Sport:</span>
+                            <span className="text-xs font-black flex items-center gap-1.5 text-gray-900">
+                                <span>{currentSportBadge.icon}</span> {currentSportBadge.label}
+                            </span>
+                        </div>
 
                         {activeTab === 'partners' && (
                             <form onSubmit={submitPartner} className="space-y-4 relative z-10">
@@ -278,7 +371,7 @@ export default function ContentManager() {
                         {activeTab === 'news' && (
                             <form onSubmit={submitNews} className="space-y-4 relative z-10">
                                 <div><label className={labelClass}>Headline</label><textarea required value={newsForm.title} onChange={e => setNewsForm({ ...newsForm, title: e.target.value })} className={inputClass} rows={2} /></div>
-                                <div><label className={labelClass}>Category Tag</label><input required value={newsForm.category} onChange={e => setNewsForm({ ...newsForm, category: e.target.value })} className={inputClass} placeholder="e.g. CRICKET" /></div>
+                                <div><label className={labelClass}>Category Tag</label><input required value={newsForm.category} onChange={e => setNewsForm({ ...newsForm, category: e.target.value })} className={inputClass} placeholder="e.g. KABADDI" /></div>
                                 <div><label className={labelClass}>Cover Image</label><input type="file" onChange={(e) => handleFileUpload(e, 'news')} className="text-xs w-full" /></div>
                                 <div><label className={labelClass}>Article Link</label><input value={newsForm.link} onChange={e => setNewsForm({ ...newsForm, link: e.target.value })} className={inputClass} /></div>
                                 <button type="submit" className={btnClass}>{editingId ? 'Update Article' : 'Publish Article'}</button>
@@ -352,7 +445,7 @@ export default function ContentManager() {
                         {activeTab === 'banners' && (
                             <form onSubmit={submitBanner} className="space-y-4 relative z-10">
                                 <div><label className={labelClass}>Banner Title</label><input required value={bannerForm.title} onChange={e => setBannerForm({ ...bannerForm, title: e.target.value })} className={inputClass} placeholder="Register for Season 5!" /></div>
-                                <div><label className={labelClass}>One Line Text</label><input required value={bannerForm.text} onChange={e => setBannerForm({ ...bannerForm, text: e.target.value })} className={inputClass} placeholder="Join the biggest cricket tournament this year." /></div>
+                                <div><label className={labelClass}>One Line Text</label><input required value={bannerForm.text} onChange={e => setBannerForm({ ...bannerForm, text: e.target.value })} className={inputClass} placeholder="Join the tournament this year." /></div>
                                 <div><label className={labelClass}>Background Image</label><input type="file" onChange={(e) => handleFileUpload(e, 'banner')} className="text-xs w-full" /></div>
                                 <div><label className={labelClass}>Target Link</label><input value={bannerForm.link} onChange={e => setBannerForm({ ...bannerForm, link: e.target.value })} className={inputClass} placeholder="/tournament or specific URL" /></div>
                                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer" onClick={() => setBannerForm({ ...bannerForm, active: !bannerForm.active })}>
@@ -372,7 +465,7 @@ export default function ContentManager() {
                                 <div><label className={labelClass}>Category</label><input required value={blogForm.category} onChange={e => setBlogForm({ ...blogForm, category: e.target.value })} className={inputClass} /></div>
                                 <div><label className={labelClass}>Excerpt</label><textarea required value={blogForm.excerpt} onChange={e => setBlogForm({ ...blogForm, excerpt: e.target.value })} className={inputClass} rows={2} /></div>
                                 <div><label className={labelClass}>Full Content</label><textarea required value={blogForm.content} onChange={e => setBlogForm({ ...blogForm, content: e.target.value })} className={inputClass} rows={5} /></div>
-                                <div><label className={labelClass}>Tags (comma-separated)</label><input value={Array.isArray(blogForm.tags) ? blogForm.tags.join(', ') : blogForm.tags} onChange={e => setBlogForm({ ...blogForm, tags: e.target.value })} className={inputClass} placeholder="e.g. cricket, tips" /></div>
+                                <div><label className={labelClass}>Tags (comma-separated)</label><input value={Array.isArray(blogForm.tags) ? blogForm.tags.join(', ') : blogForm.tags} onChange={e => setBlogForm({ ...blogForm, tags: e.target.value })} className={inputClass} placeholder="e.g. tips, highlights" /></div>
                                 <div><label className={labelClass}>Cover Image</label><input type="file" onChange={(e) => handleFileUpload(e, 'blog')} className="text-xs w-full" /></div>
                                 <button type="submit" className={btnClass}>{editingId ? 'Update Blog' : 'Publish Blog'}</button>
                             </form>
@@ -380,13 +473,14 @@ export default function ContentManager() {
                     </div>
                 </div>
 
-                {/* LIST COLUMN - NOW GRID */}
+                {/* LIST COLUMN - GRID */}
                 <div className="lg:col-span-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                         {/* Partners List */}
-                        {activeTab === 'partners' && partners.map((p, idx) => (
+                        {activeTab === 'partners' && filterBySport(partners).map((p, idx) => (
                             <div key={p._id} className={cardClass} style={{ animationDelay: `${idx * 0.05}s` }}>
                                 <div className="p-6 flex flex-col items-center text-center gap-5 h-full">
+                                    <div className="w-full flex justify-end">{renderSportBadge(p.sport)}</div>
                                     <div className="w-24 h-24 p-4 bg-gray-50/50 rounded-2xl flex items-center justify-center border border-gray-100 shadow-inner group-hover:scale-110 transition-transform duration-500">
                                         <img src={p.logo} className="w-full h-full object-contain" />
                                     </div>
@@ -403,12 +497,15 @@ export default function ContentManager() {
                         ))}
 
                         {/* Trending List */}
-                        {activeTab === 'trending' && players.map(p => (
+                        {activeTab === 'trending' && filterBySport(players).map(p => (
                             <div key={p._id} className={cardClass}>
                                 <div className="relative w-full aspect-[4/3] bg-gray-100 mb-0 overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10" />
                                     <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                    <div className="absolute top-3 right-3 z-20 bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-white/20">{p.type}</div>
+                                    <div className="absolute top-3 right-3 z-20 flex gap-1.5 items-center">
+                                        {renderSportBadge(p.sport)}
+                                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border border-white/20">{p.type}</span>
+                                    </div>
                                     <div className="absolute -bottom-1 -left-4 text-9xl font-black text-white/10 z-0 italic select-none">{p.rank}</div>
 
                                     <div className="absolute bottom-4 left-4 z-20 text-white">
@@ -424,14 +521,17 @@ export default function ContentManager() {
                         ))}
 
                         {/* Polls List */}
-                        {activeTab === 'polls' && polls.map(p => (
+                        {activeTab === 'polls' && filterBySport(polls).map(p => (
                             <div key={p._id} className={`${cardClass} ${p.active ? 'ring-2 ring-gray-900 ring-offset-2' : ''}`}>
                                 <div className="p-6 h-full flex flex-col">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
                                             <BarChart2 size={14} /> Poll
                                         </div>
-                                        {p.active && <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
+                                        <div className="flex items-center gap-2">
+                                            {renderSportBadge(p.sport)}
+                                            {p.active && <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
+                                        </div>
                                     </div>
                                     <div className="font-black text-xl text-gray-900 leading-tight mb-6">{p.question}</div>
                                     <div className="flex-1 flex flex-col gap-3">
@@ -453,11 +553,14 @@ export default function ContentManager() {
                         ))}
 
                         {/* News List */}
-                        {activeTab === 'news' && news.map(n => (
+                        {activeTab === 'news' && filterBySport(news).map(n => (
                             <div key={n._id} className={cardClass}>
                                 <div className="w-full aspect-video bg-gray-100 mb-0 overflow-hidden relative">
                                     <img src={n.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-lg">{n.category}</div>
+                                    <div className="absolute top-3 left-3 flex gap-1.5">
+                                        <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-lg">{n.category}</span>
+                                        {renderSportBadge(n.sport)}
+                                    </div>
                                 </div>
                                 <div className="p-5">
                                     <h3 className="font-black text-gray-900 line-clamp-2 leading-snug text-lg mb-4">{n.title}</h3>
@@ -470,7 +573,7 @@ export default function ContentManager() {
                         ))}
 
                         {/* Quotes List */}
-                        {activeTab === 'quotes' && quotes.map(p => (
+                        {activeTab === 'quotes' && filterBySport(quotes).map(p => (
                             <div key={p._id} className={cardClass}>
                                 {p.image && (
                                     <div className="absolute inset-0 z-0">
@@ -479,7 +582,10 @@ export default function ContentManager() {
                                     </div>
                                 )}
                                 <div className="p-8 h-full flex flex-col w-full relative z-10">
-                                    <QuoteIcon className="w-8 h-8 text-indigo-500 mb-4 opacity-50" />
+                                    <div className="flex justify-between items-start mb-4">
+                                        <QuoteIcon className="w-8 h-8 text-indigo-500 opacity-50" />
+                                        {renderSportBadge(p.sport)}
+                                    </div>
                                     <div className="font-serif italic text-xl text-gray-800 leading-relaxed flex-1 mb-6">"{p.text}"</div>
                                     <div className="flex items-center gap-3">
                                         <div className="h-0.5 flex-1 bg-gray-100" />
@@ -494,10 +600,11 @@ export default function ContentManager() {
                         ))}
 
                         {/* Highlights List */}
-                        {activeTab === 'highlights' && highlights.map(p => (
+                        {activeTab === 'highlights' && filterBySport(highlights).map(p => (
                             <div key={p._id} className={cardClass}>
                                 <div className="relative w-full aspect-video bg-gray-900 mb-0 overflow-hidden group-hover:scale-[1.02] transition-transform origin-bottom duration-300">
                                     <img src={p.image} className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity" />
+                                    <div className="absolute top-3 left-3 z-10">{renderSportBadge(p.sport)}</div>
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                                             <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
@@ -516,11 +623,14 @@ export default function ContentManager() {
                         ))}
 
                         {/* Ads List */}
-                        {activeTab === 'ads' && ads.map(p => (
+                        {activeTab === 'ads' && filterBySport(ads).map(p => (
                             <div key={p._id} className="relative rounded-2xl p-6 bg-gradient-to-br from-gray-900 to-black text-white shadow-xl overflow-hidden group hover:-translate-y-1 transition-transform">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16" />
                                 <div className="relative z-10 flex flex-col h-full items-center text-center gap-4">
-                                    <div className="text-[9px] font-black tracking-[0.2em] text-white/40 bg-white/5 px-3 py-1.5 rounded-lg uppercase">SPONSORED AD</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-[9px] font-black tracking-[0.2em] text-white/40 bg-white/5 px-3 py-1.5 rounded-lg uppercase">SPONSORED AD</div>
+                                        {renderSportBadge(p.sport)}
+                                    </div>
                                     <div className="font-black text-xl leading-tight flex-1 py-4">{p.text}</div>
                                     <button className="px-6 py-3 bg-white text-black text-xs font-black rounded-xl w-full uppercase tracking-wider hover:bg-gray-200 transition-colors">{p.buttonText}</button>
 
@@ -534,18 +644,21 @@ export default function ContentManager() {
                         ))}
 
                         {/* Social List */}
-                        {activeTab === 'social' && socials.map(p => (
+                        {activeTab === 'social' && filterBySport(socials).map(p => (
                             <div key={p._id} className={cardClass}>
                                 {p.image && <div className="w-full h-36 mb-0 bg-cover bg-center" style={{ backgroundImage: `url(${p.image})` }} />}
                                 <div className="p-5">
-                                    <div className="flex items-center gap-3 mb-3 -mt-10 relative z-10">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg border-2 border-white ${p.platform === 'instagram' ? 'bg-gradient-to-bl from-purple-600 to-orange-500' : 'bg-black'}`}>
-                                            <Share2 className="w-5 h-5" />
+                                    <div className="flex items-center justify-between gap-3 mb-3 -mt-10 relative z-10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg border-2 border-white ${p.platform === 'instagram' ? 'bg-gradient-to-bl from-purple-600 to-orange-500' : 'bg-black'}`}>
+                                                <Share2 className="w-5 h-5" />
+                                            </div>
+                                            <div className="mt-6">
+                                                <div className="font-black text-sm text-gray-900">{p.user}</div>
+                                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{p.likes} Likes</div>
+                                            </div>
                                         </div>
-                                        <div className="mt-6">
-                                            <div className="font-black text-sm text-gray-900">{p.user}</div>
-                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{p.likes} Likes</div>
-                                        </div>
+                                        <div className="mt-6">{renderSportBadge(p.sport)}</div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-600 mb-4 line-clamp-3 leading-relaxed">"{p.content}"</div>
                                     <div className="flex gap-2 w-full pt-3 border-t border-gray-100">
@@ -557,11 +670,14 @@ export default function ContentManager() {
                         ))}
 
                         {/* Trivia List */}
-                        {activeTab === 'trivia' && trivia.map(p => (
+                        {activeTab === 'trivia' && filterBySport(trivia).map(p => (
                             <div key={p._id} className={`${cardClass} bg-yellow-50/50 border-yellow-200/50`}>
                                 <div className="p-6 flex flex-col h-full gap-4">
-                                    <div className="flex items-center gap-2 text-yellow-700 font-black text-xs uppercase tracking-widest">
-                                        <Lightbulb className="w-4 h-4" /> Did You Know?
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-2 text-yellow-700 font-black text-xs uppercase tracking-widest">
+                                            <Lightbulb className="w-4 h-4" /> Did You Know?
+                                        </div>
+                                        {renderSportBadge(p.sport)}
                                     </div>
                                     <div className="font-bold text-gray-800 text-lg leading-snug flex-1">{p.fact}</div>
                                     <div className="flex gap-2 w-full pt-4 mt-2 border-t border-yellow-200/50">
@@ -573,10 +689,11 @@ export default function ContentManager() {
                         ))}
 
                         {/* Banners List */}
-                        {activeTab === 'banners' && banners.map(p => (
+                        {activeTab === 'banners' && filterBySport(banners).map(p => (
                             <div key={p._id} className={`${cardClass} overflow-hidden`}>
                                 <div className="relative w-full aspect-[2/1] bg-gray-900">
                                     <img src={p.image} className="w-full h-full object-cover opacity-60" />
+                                    <div className="absolute top-2 left-2 z-10">{renderSportBadge(p.sport)}</div>
                                     <div className="absolute inset-0 p-4 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent">
                                         <div className="font-black text-white text-sm uppercase leading-tight mb-1">{p.title}</div>
                                         <div className="text-[10px] text-gray-300 font-bold line-clamp-1">{p.text}</div>
@@ -591,11 +708,14 @@ export default function ContentManager() {
                         ))}
 
                         {/* Blogs List */}
-                        {activeTab === 'blogs' && blogs.map(p => (
+                        {activeTab === 'blogs' && filterBySport(blogs).map(p => (
                             <div key={p._id} className={cardClass}>
                                 <div className="w-full h-40 bg-gray-100 mb-0 overflow-hidden relative">
                                     <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute top-3 left-3 bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">{p.category}</div>
+                                    <div className="absolute top-3 left-3 flex gap-1.5">
+                                        <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">{p.category}</span>
+                                        {renderSportBadge(p.sport)}
+                                    </div>
                                 </div>
                                 <div className="p-5">
                                     <h3 className="font-black text-gray-900 line-clamp-2 leading-snug text-lg mb-2">{p.title}</h3>

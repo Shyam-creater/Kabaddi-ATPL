@@ -5,7 +5,8 @@ import api from '../services/api';
 import { jsPDF } from 'jspdf';
 
 // Build correct image URL from stored path
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://back.aattumtpl.com/api').replace('/api', '');
+const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const API_BASE = (isLocal ? 'http://localhost:6899/api' : (import.meta.env.VITE_API_URL || 'https://back.aattumtpl.com/api')).replace('/api', '');
 const getImageUrl = (url: string) => {
     if (!url) return '';
     // If it's a data: URI, return as-is

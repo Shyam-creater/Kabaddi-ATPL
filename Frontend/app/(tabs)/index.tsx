@@ -67,6 +67,8 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function HomeScreen() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { user: currentUser } = useAppSelector(state => state.auth);
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
@@ -141,9 +143,6 @@ export default function HomeScreen() {
   const [hubTab, setHubTab] = useState<'players' | 'teams'>('players');
   const [loadingHub, setLoadingHub] = useState(true);
 
-
-
-
   const normalizeLeaderboardStat = (p: any, tab: 'runs' | 'wickets' | 'goals') => {
     if (!p) return 0;
     if (tab === 'goals') return p.goals ?? p.value ?? 0;
@@ -151,7 +150,6 @@ export default function HomeScreen() {
     const n = typeof v === 'number' ? v : Number(v);
     return Number.isFinite(n) ? n : 0;
   };
-
 
   const getRankTeamCode = (p: any) => {
     return p?.team?.code || p?.teamCode || p?.teamName || p?.franchise?.code || p?.franchise?.name || 'Free Agent';
@@ -163,10 +161,6 @@ export default function HomeScreen() {
 
   const topList = (leaderboardTab === 'runs' ? topBatsmen : leaderboardTab === 'wickets' ? topBowlers : topFootballers);
   const displayedTopPlayers = Array.isArray(topList) ? topList : [];
-
-
-
-
 
   useEffect(() => {
     if (!activeBanner) return;
@@ -204,8 +198,7 @@ export default function HomeScreen() {
     fetchAllSuggested();
   }, []);
 
-
-  // Fetch Data
+  // Fetch Data (Team Member's Updated Logic)
   const fetchData = async () => {
     setLoadingMatches(true);
 
@@ -264,7 +257,6 @@ export default function HomeScreen() {
       if (data.length > 0) setActiveBanner(data[0]);
     });
     fetchItem('/content/polls', (data) => {
-      // Show the active poll, fall back to first
       const active = data.find((p: any) => p.active) || data[0] || null;
       setActivePoll(active);
     });
@@ -350,7 +342,6 @@ export default function HomeScreen() {
     setLoadingMatches(false);
   };
 
-
   useEffect(() => {
     fetchData();
 
@@ -379,7 +370,6 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Refresh user profile on mount to ensure follow lists are accurate
     if (currentUser) {
       dispatch(fetchProfile());
     }
@@ -421,9 +411,7 @@ export default function HomeScreen() {
   const animatedStyleA = useAnimatedStyle(() => ({ width: `${pollWidthA.value}%` }));
   const animatedStyleB = useAnimatedStyle(() => ({ width: `${pollWidthB.value}%` }));
 
-  // --- Improved Follow System Logic ---
-  const dispatch = useAppDispatch();
-  const { user: currentUser } = useAppSelector(state => state.auth);
+  // Team Member's Improved Follow System Logic
   const [followLoading, setFollowLoading] = useState<string | null>(null);
 
   const getFollowStatus = (userId: string): 'none' | 'pending' | 'accepted' | 'rejected' => {
@@ -487,7 +475,6 @@ export default function HomeScreen() {
       dispatch(updateFollowStatus({ userId, status: currentStatus }));
       const errorMsg = error.response?.data?.message || 'Failed to update follow status';
       if (errorMsg === "Already following or requested") {
-        // Silently sync if backend says we are already there
         dispatch(updateFollowStatus({ userId, status: 'pending' }));
       } else {
         Alert.alert('Error', errorMsg);
@@ -547,6 +534,7 @@ export default function HomeScreen() {
             </Animated.View>
           )
         )}
+
         {/* --- 0. PREMIUM PROMOTION BANNER --- */}
         {activeBanner && bannerVisible && (
           <Animated.View entering={FadeInDown.duration(800).springify().damping(14)} style={styles.notificationBannerContainer}>
@@ -561,7 +549,6 @@ export default function HomeScreen() {
                 locations={[0.5, 1]}
                 style={styles.bannerGradient}
               >
-                {/* Premium Inner Border & Layout */}
                 <View style={{ flex: 1, padding: 12 }}>
                   <View style={styles.bannerHeader}>
                     <Animated.View entering={FadeInDown.delay(300).springify()}>
@@ -684,10 +671,10 @@ export default function HomeScreen() {
         </Modal>
 
         {/* --- 1. HERO CAROUSEL (Live & Recent Matches) --- */}
-        <Animated.View entering={FadeInDown.delay(50).duration(500)} style={styles.sectionContainer}>
+        <Animated.View entering={FadeInDown.delay(50).duration(500)} style={styles.horizontalSectionContainer}>
           <TouchableOpacity 
             activeOpacity={0.95}
-            style={styles.titleCard}
+            style={[styles.titleCard, { marginHorizontal: 16, marginBottom: 10 }]}
             onPress={() => router.push('/matches')}
           >
             <View style={styles.titleCardLeft}>
@@ -710,39 +697,35 @@ export default function HomeScreen() {
               <Ionicons name="chevron-forward" size={16} color="#888" />
             </View>
           </TouchableOpacity>
-        </Animated.View>
 
-        <View style={[styles.carouselContainer, { marginTop: 5 }]}>
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.carouselScroll}>
-            {liveMatches.length > 0 ? (
-              liveMatches.map((match) => (
-                <View key={match._id} style={{ width: width - 30, marginRight: 15 }}>
-                  <LiveMatchCard
-                    match={match}
-                    onPress={() => router.push(`/matches/details/${match._id}` as any)}
-                  />
+          <View style={styles.carouselContainer}>
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.carouselScroll}>
+              {liveMatches.length > 0 ? (
+                liveMatches.map((match) => (
+                  <View key={match._id} style={{ width: width - 30, marginRight: 15 }}>
+                    <LiveMatchCard
+                      match={match}
+                      onPress={() => router.push(`/matches/details/${match._id}` as any)}
+                    />
+                  </View>
+                ))
+              ) : (
+                <View style={[styles.heroSlide, { justifyContent: 'center', alignItems: 'center' }]}>
+                  <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.emptyMatchCard}>
+                    <MaterialCommunityIcons name="cricket" size={50} color="rgba(255,255,255,0.3)" />
+                    <Text style={styles.emptyMatchText}>No Live Matches</Text>
+                    <Text style={styles.emptyMatchSubtext}>Check schedule for upcoming games</Text>
+                  </LinearGradient>
                 </View>
-              ))
-            ) : (
-              <View style={[styles.heroSlide, { justifyContent: 'center', alignItems: 'center' }]}>
-                <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.emptyMatchCard}>
-                  <MaterialCommunityIcons name="cricket" size={50} color="rgba(255,255,255,0.3)" />
-                  <Text style={styles.emptyMatchText}>No Live Matches</Text>
-                  <Text style={styles.emptyMatchSubtext}>Check schedule for upcoming games</Text>
-                </LinearGradient>
-              </View>
-            )}
-          </ScrollView>
-        </View>
+              )}
+            </ScrollView>
+          </View>
+        </Animated.View>
 
         {/* --- DETAILED MATCH SCOREBOARD SECTION --- */}
         {liveMatches.length > 0 && (
           <Animated.View entering={FadeInDown.delay(150).duration(600)} style={styles.sectionContainer}>
-            <TouchableOpacity 
-              activeOpacity={0.95}
-              style={styles.titleCard}
-              onPress={() => router.push(`/matches/details/${liveMatches[0]._id}` as any)}
-            >
+            <View style={styles.titleCard}>
               <View style={styles.titleCardLeft}>
                 <LinearGradient
                   colors={liveMatches[0].status === 'LIVE' ? ['#E31C25', '#FF4081'] : ['#4A90E2', '#357ABD']}
@@ -761,169 +744,13 @@ export default function HomeScreen() {
                   <Text style={styles.titleCardSubtitle}>Real-time scoreboard details</Text>
                 </View>
               </View>
-              <View style={styles.titleCardRight}>
-                <Ionicons name="chevron-forward" size={16} color="#888" />
-              </View>
-            </TouchableOpacity>
+            </View>
             <DetailedMatchCard
               match={liveMatches[0]}
               onPress={() => router.push(`/matches/details/${liveMatches[0]._id}` as any)}
             />
           </Animated.View>
         )}
-
-        {/* --- PREMIUM PERFORMANCE HUB --- */}
-        <Animated.View entering={FadeInDown.delay(180).duration(600).springify()} style={styles.sectionContainer}>
-          <TouchableOpacity 
-            activeOpacity={0.95}
-            style={styles.titleCard}
-            onPress={() => router.push(hubTab === 'players' ? '/profile/stats' : '/points-table')}
-          >
-            <View style={styles.titleCardLeft}>
-              <LinearGradient
-                colors={['#FF9800', '#FFB74D']}
-                style={styles.titleIconContainer}
-              >
-                <MaterialCommunityIcons name="trophy-award" size={16} color="#fff" />
-              </LinearGradient>
-              <View style={styles.titleCardTextContainer}>
-                <Text style={styles.titleCardTitle}>Season Elite Performers</Text>
-                <Text style={styles.titleCardSubtitle}>Top Players & Team Standings</Text>
-              </View>
-            </View>
-            <View style={styles.titleCardRight}>
-              <Ionicons name="chevron-forward" size={16} color="#888" />
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.performanceHubCard}>
-            <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.performanceHubGradient}>
-              {/* Header Tab Switcher */}
-              <View style={styles.hubTabs}>
-                <TouchableOpacity
-                  onPress={() => setHubTab('players')}
-                  style={[styles.hubTab, hubTab === 'players' && styles.activeHubTab]}
-                >
-                  <Ionicons name="people" size={16} color={hubTab === 'players' ? '#FFD700' : '#888'} />
-                  <Text style={[styles.hubTabText, hubTab === 'players' && styles.activeHubTabText]}>Player High Scores</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setHubTab('teams')}
-                  style={[styles.hubTab, hubTab === 'teams' && styles.activeHubTab]}
-                >
-                  <Ionicons name="shield-checkmark" size={16} color={hubTab === 'teams' ? '#FFD700' : '#888'} />
-                  <Text style={[styles.hubTabText, hubTab === 'teams' && styles.activeHubTabText]}>Top Teams</Text>
-                </TouchableOpacity>
-              </View>
-
-              {loadingHub ? (
-                <ActivityIndicator size="small" color="#FFD700" style={{ marginVertical: 20 }} />
-              ) : hubTab === 'players' ? (
-                <View style={styles.hubList}>
-                  {topHighScores.map((player: any, idx: number) => (
-                    <TouchableOpacity
-                      key={player._id || idx}
-                      style={[
-                        styles.hubRow,
-                        idx === 0 && { borderColor: 'rgba(255, 215, 0, 0.25)', backgroundColor: 'rgba(255, 215, 0, 0.05)' }
-                      ]}
-                      onPress={() => router.push(`/profile/view/${player._id}` as any)}
-                    >
-                      {idx === 0 ? (
-                        <View style={[styles.hubRankBadge, { backgroundColor: '#FFD700' }]}>
-                          <MaterialCommunityIcons name="crown" size={10} color="#1A1A1A" />
-                        </View>
-                      ) : idx === 1 ? (
-                        <View style={[styles.hubRankBadge, { backgroundColor: '#C0C0C0' }]}>
-                          <Text style={styles.hubRankBadgeText}>2</Text>
-                        </View>
-                      ) : idx === 2 ? (
-                        <View style={[styles.hubRankBadge, { backgroundColor: '#CD7F32' }]}>
-                          <Text style={styles.hubRankBadgeText}>3</Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.hubRankBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                          <Text style={[styles.hubRankBadgeText, { color: '#aaa' }]}>{idx + 1}</Text>
-                        </View>
-                      )}
-                      <Image source={{ uri: getRankAvatarUri(player) }} style={styles.hubAvatar} />
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.hubPlayerName}>{player.name}</Text>
-                        <Text style={styles.hubPlayerTeam}>{player.team}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.hubScoreValue}>{player.highScore}</Text>
-                        <Text style={styles.hubScoreLabel}>HIGH SCORE</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                  {topHighScores.length === 0 && (
-                    <Text style={styles.emptyHubText}>No batsman high score data available</Text>
-                  )}
-                </View>
-              ) : (
-                <View style={styles.hubList}>
-                  {topTeams.map((team: any, idx: number) => (
-                    <TouchableOpacity
-                      key={team._id || idx}
-                      style={[
-                        styles.hubRow,
-                        idx === 0 && { borderColor: 'rgba(255, 215, 0, 0.25)', backgroundColor: 'rgba(255, 215, 0, 0.05)' }
-                      ]}
-                      onPress={() => router.push('/points-table')}
-                    >
-                      {idx === 0 ? (
-                        <View style={[styles.hubRankBadge, { backgroundColor: '#FFD700' }]}>
-                          <MaterialCommunityIcons name="crown" size={10} color="#1A1A1A" />
-                        </View>
-                      ) : idx === 1 ? (
-                        <View style={[styles.hubRankBadge, { backgroundColor: '#C0C0C0' }]}>
-                          <Text style={styles.hubRankBadgeText}>2</Text>
-                        </View>
-                      ) : idx === 2 ? (
-                        <View style={[styles.hubRankBadge, { backgroundColor: '#CD7F32' }]}>
-                          <Text style={styles.hubRankBadgeText}>3</Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.hubRankBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                          <Text style={[styles.hubRankBadgeText, { color: '#aaa' }]}>{idx + 1}</Text>
-                        </View>
-                      )}
-                      {team.logo ? (
-                        <Image source={{ uri: team.logo }} style={styles.hubAvatar} />
-                      ) : (
-                        <View style={[styles.hubAvatar, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                          <Ionicons name="shield" size={16} color="#fff" />
-                        </View>
-                      )}
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.hubPlayerName}>{team.name}</Text>
-                        <Text style={styles.hubPlayerTeam}>{team.sport ? team.sport.toUpperCase() : 'CRICKET'}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.hubScoreValue}>{team.points || 0}</Text>
-                        <Text style={styles.hubScoreLabel}>POINTS</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                  {topTeams.length === 0 && (
-                    <Text style={styles.emptyHubText}>No team standings data available</Text>
-                  )}
-                </View>
-              )}
-
-              {/* View History CTA */}
-              <TouchableOpacity
-                style={styles.hubCtaBtn}
-                onPress={() => router.push(hubTab === 'players' ? '/profile/stats' : '/points-table')}
-              >
-                <Text style={styles.hubCtaBtnText}>View Standings & Entire History</Text>
-                <Ionicons name="arrow-forward" size={16} color="#FFD700" />
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </Animated.View>
 
         {/* --- 2. QUICK ACTIONS GRID (PREMIUM) --- */}
         <Animated.View entering={FadeInDown.delay(100).duration(500).springify().damping(12)} style={styles.sectionContainer}>
@@ -990,7 +817,6 @@ export default function HomeScreen() {
                       </View>
                     </LinearGradient>
 
-
                     {player.type === 'video' && (
                       <View style={styles.storyVideoIcon}>
                         <Ionicons name="play" size={10} color="#fff" />
@@ -1007,17 +833,14 @@ export default function HomeScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* --- 4. KABADDI PROFILES SECTION --- */}
+        {/* --- 4. KABADDI PROFILES SECTION (Attack Version Cards) --- */}
         <RenderProfileSection
           title="Kabaddi Professionals"
           profiles={kabaddiProfiles}
           color="#FF9800"
           delay={400}
+          onFollow={handleFollowAction}
         />
-
-        {/* Hub moved above */}
-
-
 
         {/* --- 4. FAN POLL (Premium Design) --- */}
         {activePoll && (
@@ -1114,55 +937,16 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* --- 6. SPONSORS (Premium Partners) --- */}
-        <Animated.View entering={FadeInDown.delay(600).duration(500)} style={styles.sponsorContainer}>
-          <View style={styles.sponsorHeaderRow}>
-            <View style={styles.sponsorDivider} />
-            <Text style={styles.sponsorTitle}>PARTNERED WITH</Text>
-            <View style={styles.sponsorDivider} />
-          </View>
-          <View style={styles.marqueeContainer}>
-            <MarqueeRow sponsors={sponsors} />
-          </View>
-        </Animated.View>
-
-        {/* --- 7. QUOTE OF THE DAY --- */}
-        {quotesData.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(700).duration(500).springify()} style={styles.quoteContainer}>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => setQuoteIndex(prev => (prev + 1) % quotesData.length)}
-            >
-              <ImageBackground
-                source={{ uri: quotesData[quoteIndex % quotesData.length]?.image || 'https://images.unsplash.com/photo-1593341646261-1e961917f699?w=800&q=80' }}
-                style={styles.quoteBackground}
-                imageStyle={{ borderRadius: 20 }}
-              >
-                <LinearGradient colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']} style={styles.quoteGradient}>
-                  <View style={styles.quoteIconContainer}>
-                    <FontAwesome5 name="quote-left" size={28} color="#FFD700" />
-                  </View>
-<Text style={styles.quoteText}>“{quotesData[quoteIndex % quotesData.length]?.text}”</Text>
-
-
-                  <View style={styles.quoteAuthorRow}>
-                    <View style={styles.quoteAuthorLine} />
-                    <Text style={styles.quoteAuthor}>{quotesData[quoteIndex % quotesData.length]?.author}</Text>
-                  </View>
-                  {quotesData.length > 1 && (
-                    <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 6 }}>
-                      {quotesData.map((_: any, i: number) => (
-                        <View key={i} style={{
-                          width: i === quoteIndex % quotesData.length ? 18 : 6,
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor: i === quoteIndex % quotesData.length ? '#FFD700' : 'rgba(255,255,255,0.4)',
-                        }} />
-                      ))}
-                    </View>
-                  )}
-                </LinearGradient>
-              </ImageBackground>
-            </TouchableOpacity>
+        {sponsors && sponsors.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(600).duration(500)} style={styles.sponsorContainer}>
+            <View style={styles.sponsorHeaderRow}>
+              <View style={styles.sponsorDivider} />
+              <Text style={styles.sponsorTitle}>PARTNERED WITH</Text>
+              <View style={styles.sponsorDivider} />
+            </View>
+            <View style={styles.marqueeContainer}>
+              <MarqueeRow sponsors={sponsors} />
+            </View>
           </Animated.View>
         )}
 
@@ -1214,6 +998,46 @@ export default function HomeScreen() {
                 </Animated.View>
               ))}
             </ScrollView>
+          </Animated.View>
+        )}
+
+        {/* --- 7. QUOTE OF THE DAY --- */}
+        {quotesData.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(700).duration(500).springify()} style={styles.quoteContainer}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setQuoteIndex(prev => (prev + 1) % quotesData.length)}
+            >
+              <ImageBackground
+                source={{ uri: quotesData[quoteIndex % quotesData.length]?.image || 'https://images.unsplash.com/photo-1593341646261-1e961917f699?w=800&q=80' }}
+                style={styles.quoteBackground}
+                imageStyle={{ borderRadius: 20 }}
+              >
+                <LinearGradient colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']} style={styles.quoteGradient}>
+                  <View style={styles.quoteIconContainer}>
+                    <FontAwesome5 name="quote-left" size={28} color="#FFD700" />
+                  </View>
+                  <Text style={styles.quoteText}>“{quotesData[quoteIndex % quotesData.length]?.text}”</Text>
+
+                  <View style={styles.quoteAuthorRow}>
+                    <View style={styles.quoteAuthorLine} />
+                    <Text style={styles.quoteAuthor}>{quotesData[quoteIndex % quotesData.length]?.author}</Text>
+                  </View>
+                  {quotesData.length > 1 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 6 }}>
+                      {quotesData.map((_: any, i: number) => (
+                        <View key={i} style={{
+                          width: i === quoteIndex % quotesData.length ? 18 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: i === quoteIndex % quotesData.length ? '#FFD700' : 'rgba(255,255,255,0.4)',
+                        }} />
+                      ))}
+                    </View>
+                  )}
+                </LinearGradient>
+              </ImageBackground>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -1280,22 +1104,6 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* --- 11. ADVERTISEMENT BANNER --- */}
-        {adData && (
-          <Animated.View entering={FadeInDown.delay(1100).duration(500).springify()} style={styles.adContainer}>
-            <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.adBanner}>
-              <View style={styles.adBadgeContainer}>
-                <Text style={styles.adBadge}>Sponsored</Text>
-              </View>
-              <Text style={styles.adText}>{adData.text}</Text>
-              <TouchableOpacity style={styles.adButton} onPress={() => { if (adData.link) router.push(adData.link as any) }}>
-                <Text style={styles.adButtonText}>{adData.buttonText}</Text>
-                <MaterialCommunityIcons name="arrow-right" size={14} color="#4CAF50" />
-              </TouchableOpacity>
-            </LinearGradient>
-          </Animated.View>
-        )}
-
         {/* --- 12. SOCIAL WALL (Premium) --- */}
         <Animated.View entering={FadeInDown.delay(1200).duration(500).springify()} style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
@@ -1338,7 +1146,7 @@ export default function HomeScreen() {
 
         {/* --- 13. BLOGS SECTION --- */}
         {blogsData.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(1300).duration(500).springify()} style={styles.horizontalSectionContainer}>
+          <Animated.View entering={FadeInDown.delay(1300).duration(500).springify()} style={[styles.horizontalSectionContainer, { marginBottom: 50 }]}>
             <View style={styles.horizontalSectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <View style={[styles.premiumHeaderBar, { backgroundColor: '#7C3AED' }]} />
@@ -1402,7 +1210,6 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* --- STORY MODAL --- */}
@@ -1460,7 +1267,7 @@ export default function HomeScreen() {
 // --- MARQUEE COMPONENT ---
 const MarqueeRow = ({ sponsors }: { sponsors: any[] }) => {
   const offset = useSharedValue(0);
-  const CARD_WIDTH = 170; // 150 (width) + 20 (margin)
+  const CARD_WIDTH = 170;
   const list = [...sponsors, ...sponsors, ...sponsors, ...sponsors, ...sponsors];
 
   useEffect(() => {
@@ -1469,7 +1276,7 @@ const MarqueeRow = ({ sponsors }: { sponsors: any[] }) => {
 
     offset.value = withRepeat(
       withTiming(-totalWidth, {
-        duration: 10000 + (sponsors.length * 1500), // Slightly slower for more premium feel
+        duration: 10000 + (sponsors.length * 1500),
         easing: Easing.linear,
       }),
       -1,
@@ -1512,14 +1319,209 @@ const MarqueeRow = ({ sponsors }: { sponsors: any[] }) => {
   );
 };
 
+// --- REUSABLE COMPONENTS ---
+function RenderProfileSection({ title, profiles, color, delay, onFollow }: any) {
+  const router = useRouter();
+  if (profiles.length === 0) return null;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).duration(500).springify()} style={styles.trendingContainer}>
+      <View style={[styles.sectionHeader, { paddingRight: 16, marginBottom: 12 }]}>
+        <View style={styles.sectionTitleRow}>
+          <LinearGradient
+            colors={['#FF3B30', '#FF9500']}
+            style={[styles.premiumHeaderBar, { width: 5, borderRadius: 3 }]}
+          />
+          <MaterialCommunityIcons name="lightning-bolt-circle" size={24} color="#FF3B30" style={{ marginRight: 6 }} />
+          <Text style={[styles.sectionTitle, { fontSize: 19, fontWeight: '900', color: '#1A1A1A' }]}>{title}</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/players')}>
+          <LinearGradient
+            colors={['#FF3B30', '#FF9500']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}
+          >
+            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 }}>VIEW ALL</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.trendingScroll}
+        contentContainerStyle={{ paddingRight: 20, paddingBottom: 12 }}
+      >
+        {profiles.map((player: any, index: number) => (
+          <ProfileSquareCard key={player._id} player={player} index={index} onFollow={onFollow} />
+        ))}
+      </ScrollView>
+    </Animated.View>
+  );
+}
+
+function ProfileSquareCard({ player, index, onFollow }: any) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { user: currentUser } = useAppSelector(state => state.auth);
+  const [followLoading, setFollowLoading] = useState<string | null>(null);
+
+  const getStatus = (userId: string) => {
+    if (!currentUser || !currentUser.following) return 'none';
+    const entry = currentUser.following.find((f: any) => {
+      const id = typeof f === 'string' ? f : (f.user?._id || f.user);
+      return id === userId;
+    });
+    return entry ? entry.status : 'none';
+  };
+
+  const handleFollow = async (userId: string) => {
+    if (onFollow) {
+      await onFollow(userId);
+      return;
+    }
+    if (!currentUser) return;
+    const status = getStatus(userId);
+    setFollowLoading(userId);
+    try {
+      if (status === 'none' || status === 'rejected') {
+        dispatch(updateFollowStatus({ userId, status: 'pending' }));
+        await userService.followUser(userId);
+      } else if (status === 'pending') {
+        dispatch(updateFollowStatus({ userId, status: 'none' }));
+        await userService.unfollowUser(userId);
+      }
+    } catch (e) {
+      console.error('Action failed', e);
+      dispatch(updateFollowStatus({ userId, status }));
+    } finally {
+      setFollowLoading(null);
+    }
+  };
+
+  const status = getStatus(player._id);
+  const isLoading = followLoading === player._id;
+
+  // Real Database Field Resolvers
+  const playerName = player.name || player.fullName || player.username || 'Player';
+  const playerImage = player.profilePicture || player.image || player.avatar || player.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(playerName)}&background=1C1917&color=FF9500&bold=true`;
+  const playerRole = player.role || player.playerProfile?.role || player.playerProfile?.primaryRole || (Array.isArray(player.sports) && player.sports.length > 0 ? player.sports[0] : 'Kabaddi Raider');
+  const playerCity = player.city || player.location || player.state || 'IND';
+
+  const roleLower = (playerRole || '').toLowerCase();
+  const isRaider = roleLower.includes('raid') || roleLower.includes('attack');
+  const isDefender = roleLower.includes('defen') || roleLower.includes('tackle') || roleLower.includes('corner') || roleLower.includes('cover');
+
+  return (
+    <Animated.View
+      entering={FadeInRight.delay(index * 100)}
+      style={styles.attackProfileCard}
+    >
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => router.push(`/profile/view/${player._id}` as any)}
+        style={{ flex: 1 }}
+      >
+        {/* Top Aggressive Header Bar */}
+        <LinearGradient
+          colors={['#FF3B30', '#FF9500']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.attackCardTopBar}
+        >
+          <View style={styles.attackBadgeContainer}>
+            <MaterialCommunityIcons 
+              name={(isRaider ? "lightning-bolt" : isDefender ? "shield-half-full" : "fire") as any} 
+              size={12} 
+              color="#FFF" 
+            />
+            <Text style={styles.attackBadgeText}>
+              {isRaider ? "POWER RAIDER" : isDefender ? "IRON DEFENDER" : "PRO ATHLETE"}
+            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* Player Image with Gradient Overlay & Real Location Badge */}
+        <View style={styles.attackImageWrapper}>
+          <Image
+            source={{ uri: playerImage }}
+            style={styles.attackProfileImage}
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(18,18,26,0.95)']}
+            style={styles.attackImageOverlay}
+          />
+
+          <View style={styles.attackLocationBadge}>
+            <Ionicons name="location-sharp" size={10} color="#FF9500" />
+            <Text style={styles.attackLocationText}>{playerCity}</Text>
+          </View>
+        </View>
+
+        {/* Content Details (Real Name & Real Role from DB) */}
+        <View style={styles.attackCardContent}>
+          <Text style={styles.attackPlayerName} numberOfLines={1}>{playerName}</Text>
+
+          <View style={styles.attackRoleContainer}>
+            <LinearGradient
+              colors={['rgba(255,149,0,0.15)', 'rgba(255,59,48,0.15)']}
+              style={styles.attackRoleBadge}
+            >
+              <MaterialCommunityIcons name="target" size={12} color="#FF9500" style={{ marginRight: 4 }} />
+              <Text style={styles.attackRoleText} numberOfLines={1}>{playerRole}</Text>
+            </LinearGradient>
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Aggressive Action Button */}
+      <View style={{ paddingHorizontal: 10, paddingBottom: 10, paddingTop: 4 }}>
+        <TouchableOpacity
+          onPress={() => handleFollow(player._id)}
+          disabled={isLoading}
+          activeOpacity={0.8}
+        >
+          {status === 'accepted' ? (
+            <View style={styles.followingAttackBtn}>
+              <Ionicons name="checkmark-circle" size={14} color="#888" />
+              <Text style={styles.followingAttackBtnText}>Following</Text>
+            </View>
+          ) : status === 'pending' ? (
+            <View style={styles.pendingAttackBtn}>
+              <Ionicons name="time" size={14} color="#FF9500" />
+              <Text style={styles.pendingAttackBtnText}>Requested</Text>
+            </View>
+          ) : (
+            <LinearGradient
+              colors={['#FF3B30', '#E31C25']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.followAttackBtn}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="lightning-bolt" size={14} color="#FFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.followAttackBtnText}>ATTACK / FOLLOW</Text>
+                </>
+              )}
+            </LinearGradient>
+          )}
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F4F6F9',
-
   },
   scrollContent: {
-    paddingBottom: 10,
+    paddingBottom: 60,
   },
   featuredVideoContainer: {
     paddingHorizontal: 16,
@@ -1622,11 +1624,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-
   // Carousel
   carouselContainer: {
-    marginTop: 15,
-    marginBottom: 30,
+    marginTop: 0,
+    marginBottom: 0,
     height: 220,
   },
   carouselScroll: {
@@ -1662,29 +1663,29 @@ const styles = StyleSheet.create({
   // Section Headers
   sectionContainer: {
     paddingHorizontal: 16,
-    marginBottom: 28,
+    marginBottom: 18,
   },
   horizontalSectionContainer: {
-    marginBottom: 28,
+    marginBottom: 18,
   },
   horizontalSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 10,
     paddingHorizontal: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 10,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   sectionTitleWrapper: {
     flexDirection: 'row',
@@ -1776,7 +1777,7 @@ const styles = StyleSheet.create({
 
   // Trending Players
   trendingContainer: {
-    marginBottom: 28,
+    marginBottom: 18,
     paddingLeft: 16,
   },
   trendingScroll: {
@@ -1966,7 +1967,7 @@ const styles = StyleSheet.create({
 
   // News
   newsSectionContainer: {
-    marginBottom: 28,
+    marginBottom: 18,
   },
   newsScrollContent: {
     paddingLeft: 16,
@@ -2027,15 +2028,15 @@ const styles = StyleSheet.create({
 
   // Sponsors
   sponsorContainer: {
-    paddingVertical: 36,
-    marginBottom: 20,
+    paddingVertical: 14,
+    marginBottom: 18,
     backgroundColor: '#fff',
   },
   sponsorHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 28,
+    marginBottom: 12,
     paddingHorizontal: 30,
   },
   sponsorDivider: {
@@ -2085,7 +2086,7 @@ const styles = StyleSheet.create({
   // Quote
   quoteContainer: {
     marginHorizontal: 16,
-    marginBottom: 28,
+    marginBottom: 18,
     height: 200,
     borderRadius: 20,
     overflow: 'hidden',
@@ -2191,8 +2192,8 @@ const styles = StyleSheet.create({
 
   // TPL Store
   storeContainer: {
-    paddingVertical: 24,
-    marginBottom: 28,
+    paddingVertical: 14,
+    marginBottom: 18,
     borderRadius: 0,
   },
   storeScroll: {
@@ -2282,70 +2283,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Ad Banner
-  adContainer: {
-    marginHorizontal: 16,
-    marginBottom: 28,
-  },
-  adBanner: {
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  adBadgeContainer: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-  },
-  adBadge: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    color: '#fff',
-    fontSize: 9,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    fontWeight: '600',
-  },
-  adText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 18,
-    marginTop: 10,
-    width: '85%',
-    lineHeight: 24,
-  },
-  adButton: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 30,
-    gap: 8,
-  },
-  adButtonText: {
-    color: '#4CAF50',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-
   // Social Wall
   socialCard: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 18,
-    marginBottom: 14,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F5F5F5',
+    borderColor: '#F0F0F0',
   },
   socialHeader: {
     flexDirection: 'row',
@@ -2355,22 +2305,23 @@ const styles = StyleSheet.create({
   socialPlatformIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
   socialUserInfo: {
-    marginLeft: 12,
+    flex: 1,
   },
   socialUser: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#1A1A1A',
   },
   socialPlatformText: {
     fontSize: 11,
     color: '#888',
-    marginTop: 2,
+    fontWeight: '500',
   },
   socialContent: {
     fontSize: 14,
@@ -2386,8 +2337,11 @@ const styles = StyleSheet.create({
   },
   socialFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+    paddingTop: 12,
   },
   socialLikeBtn: {
     flexDirection: 'row',
@@ -2396,395 +2350,86 @@ const styles = StyleSheet.create({
   },
   socialLikes: {
     fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#555',
   },
   socialShareBtn: {
-    padding: 8,
+    padding: 4,
   },
 
-  // Blog Section
+  // Blogs
   blogCard: {
-    width: width * 0.72,
-    marginLeft: 16,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    elevation: 5,
-    marginBottom: 4,
-    overflow: 'hidden',
+    width: 260,
+    marginRight: 16,
   },
   blogThumb: {
     width: '100%',
-    height: 180,
+    height: 150,
     justifyContent: 'flex-end',
+    marginBottom: 10,
   },
   blogOverlay: {
+    padding: 12,
     borderRadius: 16,
-    padding: 14,
-    paddingTop: 60,
-    justifyContent: 'flex-end',
   },
   blogCategoryBadge: {
     backgroundColor: '#7C3AED',
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
     marginBottom: 6,
   },
   blogCategory: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '800',
     color: '#fff',
-    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   blogTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#fff',
-    lineHeight: 21,
+    lineHeight: 18,
     marginBottom: 6,
   },
   blogAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   blogAuthor: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.8)',
-    fontWeight: '600',
   },
   blogExcerpt: {
-    fontSize: 13,
-    color: '#555',
-    lineHeight: 19,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 6,
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 18,
+    marginBottom: 8,
   },
   blogTagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingBottom: 14,
   },
   blogTag: {
-    backgroundColor: '#EDE9FE',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   blogTagText: {
-    fontSize: 11,
-    color: '#7C3AED',
-    fontWeight: '700',
-  },
-
-  // Story Modal
-  storyModalContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-  },
-  storyProgressBarContainer: {
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    marginHorizontal: 10,
-    borderRadius: 2,
-    marginBottom: 15,
-  },
-  storyProgressBar: {
-    height: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 2,
-  },
-  storyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    marginBottom: 20,
-    zIndex: 10,
-  },
-  storyHeaderAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  storyHeaderName: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    flex: 1,
-  },
-  storyCloseBtn: {
-    padding: 5,
-  },
-  storyContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  storyImage: {
-    width: width,
-    height: '80%',
-  },
-  storyVideo: {
-    width: width,
-    height: '100%',
-  },
-  storyFooter: {
-    position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  storyRole: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  storyRankBadge: {
-    backgroundColor: '#E31C25',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  storyRankText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-
-  fullscreenContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-
-  fullscreenBg: {
-    flex: 1,
-  },
-
-  fullscreenGradient: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-  },
-
-  fullscreenClose: {
-    alignSelf: 'flex-end',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  fullscreenContent: {
-    gap: 16,
-  },
-
-  exclusiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,215,0,0.3)',
-  },
-
-  exclusiveText: {
-    color: '#FFD700',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-
-  fullscreenTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#fff',
-    lineHeight: 38,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 10,
-  },
-
-  fullscreenDesc: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.9)',
-    lineHeight: 24,
-  },
-
-  fullscreenBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E31C25',
-    paddingVertical: 18,
-    borderRadius: 14,
-    gap: 10,
-    marginTop: 8,
-  },
-
-  fullscreenBtnText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-
-  // Suggested Profiles New Styles
-  profileSquareCard: {
-    width: 160,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    marginRight: 16,
-    padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
-  profileSquareImage: {
-    width: '100%',
-    height: 140,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-  },
-  locationBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  locationText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#444',
-    textTransform: 'uppercase',
-  },
-  profileCardContent: {
-    paddingHorizontal: 6,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  profileSquareName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  profileRoleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 6,
-  },
-  roleDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#4CAF50',
-  },
-  profileSquareRole: {
-    fontSize: 11,
-    fontWeight: '600',
     color: '#666',
-  },
-  followBtnSquare: {
-    backgroundColor: '#E31C25',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 14,
-    shadowColor: '#E31C25',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  followingBtnSquare: {
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#E31C25',
-    shadowOpacity: 0,
-  },
-  pendingBtnSquare: {
-    backgroundColor: '#F5F5F5',
-    shadowOpacity: 0,
-  },
-  followBtnTextSquare: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  followingBtnTextSquare: {
-    color: '#E31C25',
-  },
-  emptySuggestedContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 40,
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    borderRadius: 24,
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#E0E0E0',
-  },
-  emptySuggestedText: {
-    color: '#999',
-    marginTop: 12,
-    fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
   },
 
-  // Profile Alert Banner
+  // Banners
   profileAlertBanner: {
     marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 12,
     borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#E31C25',
@@ -2808,25 +2453,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    marginRight: 14,
   },
   profileAlertTextContainer: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 10,
+  },
+  profileProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
   },
   profileAlertTitle: {
+    fontSize: 16,
+    fontWeight: '800',
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.5,
   },
   profileAlertDesc: {
+    fontSize: 12,
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+    fontWeight: '500',
   },
   profileAlertBtn: {
     backgroundColor: '#fff',
@@ -2835,43 +2481,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 4,
   },
   profileAlertBtnText: {
-    color: '#E31C25',
     fontSize: 12,
     fontWeight: '800',
-    marginRight: 2,
-  },
-  profileProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  progressBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    marginLeft: 8,
-  },
-  progressBadgeText: {
-    color: '#fff',
-    fontSize: 8,
-    fontWeight: '800',
+    color: '#E31C25',
   },
 
-  // Premium Banner Styles
   notificationBannerContainer: {
     marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 12,
     borderRadius: 24,
     overflow: 'hidden',
     height: 280,
@@ -2890,82 +2511,63 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 18,
   },
-  bannerInnerBorder: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-  },
   bannerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   notificationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,215,0,0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   notificationBadgeText: {
     color: '#1A1A1A',
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   bannerCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
   bannerContent: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 6,
+    marginTop: 'auto',
   },
   bannerTitle: {
     color: '#fff',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 6,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   bannerSubtitle: {
-    color: 'rgba(255,255,255,0.95)',
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 2,
-    marginBottom: 16,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   bannerActionBtn: {
-    alignSelf: 'flex-start',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   bannerActionGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    gap: 6,
   },
   bannerActionText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
-    marginRight: 8,
   },
   actionIconWrapper: {
     width: 20,
@@ -2975,412 +2577,78 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Leaderboard Styles
-  leaderboardTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 4,
-    marginVertical: 14,
-    gap: 8,
-  },
-  leaderboardTab: {
+
+  // Fullscreen Modal
+  fullscreenContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
+    backgroundColor: '#000',
   },
-  activeLeaderboardTab: {
-    backgroundColor: '#E31C25',
-    elevation: 3,
-    shadowColor: '#E31C25',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  leaderboardTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#666',
-  },
-  activeLeaderboardTabText: {
-    color: '#fff',
-  },
-  leaderboardList: {
-    gap: 12,
-  },
-  leaderboardCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-  },
-  leaderboardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  fullscreenBg: {
     flex: 1,
-    gap: 12,
-  },
-  leaderboardRankBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goldRank: {
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
-  },
-  silverRank: {
-    backgroundColor: '#9CA3AF',
-  },
-  bronzeRank: {
-    backgroundColor: '#D97706',
-  },
-  rankNumberText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#4B5563',
-  },
-  leaderboardAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-  },
-  leaderboardInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  leaderboardName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  leaderboardTeam: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  leaderboardRight: {
-    alignItems: 'flex-end',
-  },
-  leaderboardStatValue: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#E31C25',
-  },
-  leaderboardStatLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#9CA3AF',
-    marginTop: 1,
-  },
-  emptyLeaderboardText: {
-    textAlign: 'center',
-    color: '#9CA3AF',
-    fontStyle: 'italic',
-    paddingVertical: 16,
-  },
-  podiumContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    marginVertical: 20,
-    paddingHorizontal: 8,
-    gap: 12,
-  },
-  podiumColumn: {
-    flex: 1,
-    alignItems: 'center',
     justifyContent: 'flex-end',
   },
-  podiumAvatarWrapper: {
-    position: 'relative',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  podiumCrown: {
-    marginBottom: -4,
-    zIndex: 2,
-  },
-  podiumAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#F3F4F6',
-  },
-  podiumAvatarFirst: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 2.5,
-    borderColor: '#FFD700',
-  },
-  podiumAvatarSecond: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: '#B0BEC5',
-  },
-  podiumAvatarThird: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 1.5,
-    borderColor: '#CA7F35',
-  },
-  podiumRankBadge: {
-    position: 'absolute',
-    bottom: -4,
-    alignSelf: 'center',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#fff',
-    zIndex: 3,
-  },
-  podiumRankText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  podiumName: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
-    marginTop: 4,
-    width: '90%',
-  },
-  podiumTeam: {
-    fontSize: 9,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  podiumPedestal: {
-    width: '100%',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: -1 },
-  },
-  podiumStatVal: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#111827',
-  },
-  podiumStatLabel: {
-    fontSize: 7,
-    fontWeight: '800',
-    color: '#555',
-    marginTop: 1,
-  },
-  miniLeaderboardList: {
-    marginTop: 10,
-    gap: 8,
-  },
-  miniLeaderboardCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  miniRankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6B7280',
-    width: 20,
-    textAlign: 'center',
-  },
-  miniAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginLeft: 6,
-    backgroundColor: '#F3F4F6',
-  },
-  miniInfo: {
+  fullscreenGradient: {
     flex: 1,
-    marginLeft: 10,
+    justifyContent: 'space-between',
+    padding: 24,
+  },
+  fullscreenClose: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginTop: 40,
   },
-  miniName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1F2937',
+  fullscreenContent: {
+    marginBottom: 40,
   },
-  miniTeam: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  miniRight: {
-    alignItems: 'flex-end',
-  },
-  miniStatVal: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#E31C25',
-  },
-  miniStatLabel: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#9CA3AF',
-    marginTop: 1,
-  },
-  
-  // Performance Hub Styles
-  performanceHubCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  performanceHubGradient: {
-    padding: 16,
-  },
-  hubTabs: {
+  exclusiveBadge: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,215,0,0.2)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
-    padding: 3,
     marginBottom: 16,
     gap: 6,
   },
-  hubTab: {
-    flex: 1,
+  exclusiveText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  fullscreenTitle: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 12,
+  },
+  fullscreenDesc: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  fullscreenBtn: {
+    backgroundColor: '#E31C25',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 6,
-  },
-  activeHubTab: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  hubTabText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#888',
-  },
-  activeHubTabText: {
-    color: '#FFD700',
-  },
-  hubList: {
+    paddingVertical: 16,
+    borderRadius: 16,
     gap: 10,
   },
-  hubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.02)',
-  },
-  hubRankBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  hubRankBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
+  fullscreenBtnText: {
     color: '#fff',
-  },
-  hubAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  hubPlayerName: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  hubPlayerTeam: {
-    fontSize: 10,
-    color: '#aaa',
-    marginTop: 2,
-  },
-  hubScoreValue: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFD700',
-  },
-  hubScoreLabel: {
-    fontSize: 7,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#888',
-    marginTop: 1,
   },
-  emptyHubText: {
-    textAlign: 'center',
-    color: '#888',
-    fontStyle: 'italic',
-    paddingVertical: 16,
-  },
-  hubCtaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.2)',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 16,
-    gap: 8,
-  },
-  hubCtaBtnText: {
-    color: '#FFD700',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
+
   titleCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -3396,7 +2664,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 3,
-    marginBottom: 14,
+    marginBottom: 6,
   },
   titleCardLeft: {
     flexDirection: 'row',
@@ -3445,145 +2713,250 @@ const styles = StyleSheet.create({
     backgroundColor: '#E31C25',
   },
   liveIndicatorText: {
-    fontSize: 9,
-    fontWeight: 'bold',
     color: '#E31C25',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  // Attack Version Kabaddi Profile Cards
+  attackProfileCard: {
+    width: 170,
+    backgroundColor: '#12121A',
+    borderRadius: 22,
+    marginRight: 16,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 149, 0, 0.35)',
+    shadowColor: '#FF4500',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  attackCardTopBar: {
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attackBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  attackBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FFF',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  attackImageWrapper: {
+    width: '100%',
+    height: 145,
+    position: 'relative',
+    backgroundColor: '#1C1917',
+  },
+  attackProfileImage: {
+    width: '100%',
+    height: '100%',
+  },
+  attackImageOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+  },
+  attackLocationBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,149,0,0.4)',
+  },
+  attackLocationText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FF9500',
+    textTransform: 'uppercase',
+  },
+  attackCardContent: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  attackPlayerName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  attackRoleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  attackRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 149, 0, 0.4)',
+  },
+  attackRoleText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FF9500',
+    textTransform: 'uppercase',
+  },
+  followAttackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 12,
+    shadowColor: '#E31C25',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  followAttackBtnText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  followingAttackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    gap: 4,
+  },
+  followingAttackBtnText: {
+    color: '#AAA',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  pendingAttackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 149, 0, 0.3)',
+    gap: 4,
+  },
+  pendingAttackBtnText: {
+    color: '#FF9500',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  // Story Modal
+  storyModalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+  },
+  storyProgressBarContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    zIndex: 10,
+    overflow: 'hidden',
+  },
+  storyProgressBar: {
+    height: '100%',
+    backgroundColor: '#E31C25',
+  },
+  storyHeader: {
+    position: 'absolute',
+    top: 65,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  storyHeaderAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  storyHeaderName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  storyCloseBtn: {
+    padding: 4,
+  },
+  storyContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storyVideo: {
+    width: width,
+    height: height * 0.7,
+  },
+  storyImage: {
+    width: width,
+    height: height * 0.7,
+  },
+  storyFooter: {
+    position: 'absolute',
+    bottom: 50,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  storyRole: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  storyRankBadge: {
+    backgroundColor: 'rgba(255,215,0,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  storyRankText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
-
-
-// --- REUSABLE COMPONENTS ---
-
-function RenderProfileSection({ title, profiles, color, delay }: any) {
-  const router = useRouter();
-  // Access Redux inside functional components if needed, but here we pass props
-  // We'll use a local component for the individual cards to handle logic
-  if (profiles.length === 0) return null;
-
-  return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(500).springify()} style={styles.trendingContainer}>
-      <View style={[styles.sectionHeader, { paddingRight: 16, marginBottom: 15 }]}>
-        <View style={styles.sectionTitleRow}>
-          <View style={[styles.premiumHeaderBar, { backgroundColor: color }]} />
-          {title.includes('Cricket') && (
-            <MaterialCommunityIcons name="cricket" size={22} color={color} style={{ marginRight: 6 }} />
-          )}
-          {title.includes('Kabaddi') && (
-            <MaterialCommunityIcons name="shield-half-full" size={22} color={color} style={{ marginRight: 6 }} />
-          )}
-          {title.includes('Football') && (
-            <Ionicons name="football" size={22} color={color} style={{ marginRight: 6 }} />
-          )}
-          <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
-        <TouchableOpacity onPress={() => router.push('/players')}>
-          <Text style={[styles.seeAll, { color }]}>See All</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.trendingScroll}
-        contentContainerStyle={{ paddingRight: 20, paddingBottom: 10 }}
-      >
-        {profiles.map((player: any, index: number) => (
-          <ProfileSquareCard key={player._id} player={player} index={index} />
-        ))}
-      </ScrollView>
-    </Animated.View>
-  );
-}
-
-function ProfileSquareCard({ player, index }: any) {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { user: currentUser } = useAppSelector(state => state.auth);
-  const [followLoading, setFollowLoading] = useState<string | null>(null);
-
-  const getStatus = (userId: string) => {
-    if (!currentUser || !currentUser.following) return 'none';
-    const entry = currentUser.following.find((f: any) => {
-      const id = typeof f === 'string' ? f : (f.user?._id || f.user);
-      return id === userId;
-    });
-    return entry ? entry.status : 'none';
-  };
-
-  const handleFollow = async (userId: string) => {
-    if (!currentUser) return;
-    const status = getStatus(userId);
-    setFollowLoading(userId);
-    try {
-      if (status === 'none' || status === 'rejected') {
-        dispatch(updateFollowStatus({ userId, status: 'pending' }));
-        await userService.followUser(userId);
-      } else if (status === 'pending') {
-        dispatch(updateFollowStatus({ userId, status: 'none' }));
-        await userService.unfollowUser(userId);
-      }
-    } catch (e) {
-      console.error('Action failed', e);
-      dispatch(updateFollowStatus({ userId, status }));
-    } finally {
-      setFollowLoading(null);
-    }
-  };
-
-  const status = getStatus(player._id);
-  const isLoading = followLoading === player._id;
-
-  return (
-    <Animated.View
-      entering={FadeInRight.delay(index * 100)}
-      style={styles.profileSquareCard}
-    >
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => router.push(`/profile/view/${player._id}` as any)}
-        style={{ flex: 1 }}
-      >
-        <View style={styles.locationBadge}>
-          <Ionicons name="location" size={10} color="#E31C25" />
-          <Text style={styles.locationText}>{player.city || 'IND'}</Text>
-        </View>
-
-        <Image
-          source={{ uri: player.image || 'https://via.placeholder.com/150' }}
-          style={styles.profileSquareImage}
-        />
-
-        <View style={styles.profileCardContent}>
-          <Text style={styles.profileSquareName} numberOfLines={1}>{player.name}</Text>
-          <View style={styles.profileRoleRow}>
-            <View style={styles.roleDot} />
-            <Text style={styles.profileSquareRole} numberOfLines={1}>{player.role}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      <View style={{ paddingHorizontal: 6, paddingBottom: 8 }}>
-        <TouchableOpacity
-          onPress={() => handleFollow(player._id)}
-          disabled={isLoading}
-          style={[
-            styles.followBtnSquare,
-            status === 'accepted' && styles.followingBtnSquare,
-            status === 'pending' && styles.pendingBtnSquare
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={status === 'accepted' ? '#E31C25' : '#fff'} />
-          ) : (
-            <Text style={[
-              styles.followBtnTextSquare,
-              status === 'accepted' && styles.followingBtnTextSquare
-            ]}>
-              {status === 'accepted' ? 'Following' : (status === 'pending' ? 'Requested' : 'Follow')}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-}

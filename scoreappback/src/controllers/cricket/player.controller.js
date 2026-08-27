@@ -11,20 +11,19 @@ exports.getPlayers = async (req, res) => {
 
         if (status) query.auctionStatus = status;
         if (teamId) query.team = teamId;
-        if (category) query.category = category;
-        if (sport) query.sport = sport;
+        if (sport) {
+            if (sport === 'Cricket') {
+                query.$or = [{ sport: 'Cricket' }, { sport: { $exists: false } }, { sport: null }];
+            } else {
+                query.sport = sport;
+            }
+        }
 
         if (top === 'batsman') sort = { runs: -1 };
         if (top === 'bowler') sort = { wickets: -1 };
 
-        // First attempt with filters
+        // Query players with sport filter
         let players = await Player.find(query).populate('team').lean();
-
-        // If sport filter yields no players, retry without sport filter
-        if (sport && players.length === 0) {
-            delete query.sport;
-            players = await Player.find(query).populate('team').lean();
-        }
 
         // If requested top batsman/bowler leaderboard, aggregate stats from CricketMatch dynamically
         if (top) {

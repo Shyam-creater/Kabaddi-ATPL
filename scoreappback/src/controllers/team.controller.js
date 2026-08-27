@@ -17,7 +17,7 @@ const getTHUserFromToken = async (req) => {
                 if (thUser && thUser.role === 'TH') return thUser;
             }
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 };
 
@@ -28,9 +28,9 @@ const getOwnerId = (user) => {
 };
 
 const teamSizeLimits = {
-    cricket: 11,
-    football: 11,
-    kabaddi: 7
+    cricket: 25,
+    football: 25,
+    kabaddi: 25
 };
 
 const normalizePlayers = async (players = [], sport) => {
@@ -180,7 +180,7 @@ exports.updateTeam = async (req, res) => {
         let team = await Model.findById(req.params.id);
         if (!team) return res.status(404).json({ message: 'Team not found' });
 
-        if (req.user) {
+        if (req.user && !['admin', 'super_admin'].includes(req.user.role)) {
             const ownerId = getOwnerId(req.user);
             if (team.createdBy?.toString() !== ownerId?.toString()) {
                 return res.status(403).json({ message: 'Not authorized to update this team' });
@@ -221,7 +221,7 @@ exports.deleteTeam = async (req, res) => {
         let team = await Model.findById(req.params.id);
         if (!team) return res.status(404).json({ message: 'Team not found' });
 
-        if (req.user) {
+        if (req.user && !['admin', 'super_admin'].includes(req.user.role)) {
             const ownerId = getOwnerId(req.user);
             if (team.createdBy?.toString() !== ownerId?.toString()) {
                 return res.status(403).json({ message: 'Not authorized to delete this team' });

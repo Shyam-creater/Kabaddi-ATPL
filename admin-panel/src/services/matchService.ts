@@ -20,10 +20,21 @@ export interface Match {
 
     scoreA?: any;
     scoreB?: any;
+    extraPointsA?: number;
+    extraPointsB?: number;
+    allOutPointsA?: number;
+    allOutPointsB?: number;
+    raidPointsA?: number;
+    raidPointsB?: number;
+    superTackles?: number;
+
+    period?: string;
+    firstHalfStats?: any;
+    secondHalfStats?: any;
 
     goalScorers?: Array<{ player: string; minute?: number; type?: string; team?: string }>;
     possession?: { teamA?: number; teamB?: number };
-    playerStats?: Array<{ user?: string; name?: string; team?: string; position?: string; goals?: number; assists?: number }>; 
+    playerStats?: Array<{ user?: string; name?: string; team?: string; position?: string; goals?: number; assists?: number; raidPoints?: number; tacklePoints?: number; bonusPoints?: number; otherPoints?: number; totalPoints?: number; [key: string]: any }>;
 
     target?: number;
     statusText?: string;

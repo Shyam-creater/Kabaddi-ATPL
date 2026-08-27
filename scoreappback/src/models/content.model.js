@@ -1,9 +1,16 @@
 const mongoose = require('mongoose');
 
+const sportSchemaField = {
+    type: String,
+    enum: ['All', 'Cricket', 'Kabaddi', 'Football'],
+    default: 'Kabaddi'
+};
+
 const PartnerSchema = new mongoose.Schema({
     name: { type: String, required: true },
     logo: { type: String, required: true }, // URL or base64
     link: { type: String, default: '' },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -13,6 +20,7 @@ const TrendingPlayerSchema = new mongoose.Schema({
     image: { type: String, required: true }, // URL or base64 (acts as thumbnail for video)
     type: { type: String, enum: ['image', 'video'], default: 'image' },
     rank: { type: Number, default: 0 },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -23,6 +31,7 @@ const PollSchema = new mongoose.Schema({
     votesA: { type: Number, default: 0 },
     votesB: { type: Number, default: 0 },
     active: { type: Boolean, default: true }, // Only one active poll usually
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -30,15 +39,17 @@ const NewsSchema = new mongoose.Schema({
     title: { type: String, required: true },
     category: { type: String, required: true },
     image: { type: String, required: true },
-    time: { type: String, default: 'Just now' }, // You might want to calculate this dynamically
-    link: { type: String, default: '' }, // For full article
+    time: { type: String, default: 'Just now' },
+    link: { type: String, default: '' },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
 const QuoteSchema = new mongoose.Schema({
     text: { type: String, required: true },
     author: { type: String, required: true },
-    image: { type: String, default: '' }, // Background image
+    image: { type: String, default: '' },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -47,6 +58,7 @@ const HighlightSchema = new mongoose.Schema({
     duration: { type: String, required: true },
     image: { type: String, default: '' },
     videoUrl: { type: String, default: '' },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -55,6 +67,7 @@ const AdSchema = new mongoose.Schema({
     buttonText: { type: String, default: 'Play Now' },
     link: { type: String, default: '' },
     active: { type: Boolean, default: true },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -63,12 +76,14 @@ const SocialSchema = new mongoose.Schema({
     content: { type: String, required: true },
     image: { type: String, default: '' },
     likes: { type: String, default: '0' },
-    platform: { type: String, default: 'twitter' }, // twitter, instagram
+    platform: { type: String, default: 'twitter' },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
 const TriviaSchema = new mongoose.Schema({
     fact: { type: String, required: true },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -81,15 +96,17 @@ const BlogSchema = new mongoose.Schema({
     category: { type: String, default: 'General' },
     tags: [{ type: String }],
     published: { type: Boolean, default: true },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
 const BannerSchema = new mongoose.Schema({
     title: { type: String, required: true },
     text: { type: String, required: true },
-    image: { type: String, required: true }, // background
+    image: { type: String, required: true },
     active: { type: Boolean, default: true },
     link: { type: String, default: '/tournament' },
+    sport: sportSchemaField,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -106,4 +123,3 @@ const Blog = mongoose.model('Blog', BlogSchema);
 const Banner = mongoose.model('Banner', BannerSchema);
 
 module.exports = { Partner, TrendingPlayer, Poll, News, Quote, Highlight, Ad, Social, Trivia, Blog, Banner };
-

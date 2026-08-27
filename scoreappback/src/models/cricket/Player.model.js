@@ -8,7 +8,6 @@ const playerSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Batsman', 'Bowler', 'All-Rounder', 'Wicket Keeper'],
         required: true
     },
     battingStyle: String, // Right Handed Bat

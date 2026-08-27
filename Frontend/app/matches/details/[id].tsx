@@ -8,6 +8,8 @@ import {
     ActivityIndicator,
     SafeAreaView,
     Dimensions,
+    Platform,
+    StatusBar,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -513,22 +515,7 @@ export default function MatchDetailsScreen() {
                                 />
                             </>
                         ) : (
-                            <>
-                                <StatBar
-                                    title="Raid Points"
-                                    valA={String(match.raidPointsA || 0)}
-                                    valB={String(match.raidPointsB || 0)}
-                                    teamA={match.teamA.code}
-                                    teamB={match.teamB.code}
-                                />
-                                <StatBar
-                                    title="Total Points"
-                                    valA={String(match.scoreA || 0)}
-                                    valB={String(match.scoreB || 0)}
-                                    teamA={match.teamA.code}
-                                    teamB={match.teamB.code}
-                                />
-                            </>
+                            <KabaddiStats match={match} />
                         )}
                     </View>
                 )}
@@ -616,21 +603,86 @@ const FootballScorecard = ({ match }: any) => {
 
 // KabaddiScorecard Component
 const KabaddiScorecard = ({ match }: any) => {
+    const [activeTeamTab, setActiveTeamTab] = useState<'A' | 'B'>('A');
+    const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+
+    const activeTeamCode = activeTeamTab === 'A' ? match.teamA.code : match.teamB.code;
+    const activeTeamName = activeTeamTab === 'A' ? match.teamA.name : match.teamB.name;
+    const activeTeamPlayers = (match.playerStats || []).filter((ps: any) => ps.team === activeTeamCode && (ps.raidPoints > 0 || ps.tacklePoints > 0 || ps.bonusPoints > 0 || ps.totalPoints > 0));
+
+    const renderPlayerCard = (ps: any, idx: number) => {
+        const isExpanded = expandedPlayerId === ps.name;
+
+        return (
+            <View key={`${activeTeamCode}-${idx}`} style={[styles.kPlayerCard, isExpanded && styles.kPlayerCardExpanded]}>
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.kPlayerHeader}
+                    onPress={() => setExpandedPlayerId(isExpanded ? null : ps.name)}
+                >
+                    <View style={styles.kPlayerAvatar}>
+                        <Ionicons name="person" size={24} color="#ccc" />
+                    </View>
+                    <View style={styles.kPlayerInfo}>
+                        <Text style={styles.kPlayerName} numberOfLines={1}>{ps.name}</Text>
+                        <Text style={styles.kPlayerRole}>{ps.position || 'Raider'}</Text>
+                    </View>
+                    <View style={styles.kPlayerTotalBox}>
+                        <Text style={styles.kPlayerTotalLabel}>Pts</Text>
+                        <Text style={styles.kPlayerTotalVal}>{ps.totalPoints || 0}</Text>
+                    </View>
+                    <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#666" style={{ marginLeft: 8 }} />
+                </TouchableOpacity>
+
+                {isExpanded && (
+                    <View style={styles.kPlayerExpandedContent}>
+                        <View style={styles.kStatRow}>
+                            <View style={styles.kStatItem}>
+                                <Text style={styles.kStatLabel}>Total Pts</Text>
+                                <Text style={[styles.kStatValue, { color: '#4a148c' }]}>{ps.totalPoints || 0}</Text>
+                            </View>
+                            <View style={styles.kStatItem}>
+                                <Text style={styles.kStatLabel}>Touch Pts</Text>
+                                <Text style={[styles.kStatValue, { color: '#E31C25' }]}>{ps.raidPoints || 0}</Text>
+                            </View>
+                            <View style={styles.kStatItem}>
+                                <Text style={styles.kStatLabel}>Bonus Pts</Text>
+                                <Text style={[styles.kStatValue, { color: '#E31C25' }]}>{ps.bonusPoints || 0}</Text>
+                            </View>
+                            <View style={styles.kStatItem}>
+                                <Text style={styles.kStatLabel}>Tackle Pts</Text>
+                                <Text style={[styles.kStatValue, { color: '#2e7d32' }]}>{ps.tacklePoints || 0}</Text>
+                            </View>
+                            <View style={styles.kStatItem}>
+                                <Text style={styles.kStatLabel}>Super Tackle</Text>
+                                <Text style={[styles.kStatValue, { color: '#2e7d32' }]}>{ps.superTackles || 0}</Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+            </View>
+        );
+    };
+
     return (
         <View style={styles.scorecardContainer}>
             <Text style={styles.sectionHeaderTitleDetails}>Points Summary</Text>
             <View style={styles.statsSummaryGrid}>
                 <View style={styles.statsSummaryItem}>
                     <Text style={styles.statsSummaryLabel}>Raid Points</Text>
-                    <Text style={styles.statsSummaryValue}>{match.raidPointsA || 0} - {match.raidPointsB || 0}</Text>
+                    <Text style={styles.statsSummaryValue}>{activeTeamTab === 'A' ? (match.raidPointsA || 0) : (match.raidPointsB || 0)}</Text>
                 </View>
                 <View style={styles.statsSummaryItem}>
                     <Text style={styles.statsSummaryLabel}>Super Tackles</Text>
-                    <Text style={styles.statsSummaryValue}>{match.superTackles || 0}</Text>
+                    <Text style={styles.statsSummaryValue}>{(match.playerStats || []).filter((s: any) => s.team === (activeTeamTab === 'A' ? match.teamA.code : match.teamB.code)).reduce((acc: number, curr: any) => acc + (curr.superTackles || 0), 0)}</Text>
                 </View>
                 <View style={styles.statsSummaryItem}>
-                    <Text style={styles.statsSummaryLabel}>All Out</Text>
-                    <Text style={styles.statsSummaryValue}>{match.allOut ? 'Yes' : 'No'}</Text>
+                    <Text style={styles.statsSummaryLabel}>Team Extras</Text>
+                    <Text style={styles.statsSummaryValue}>{activeTeamTab === 'A' ? (match.extraPointsA || 0) : (match.extraPointsB || 0)}</Text>
+                </View>
+                <View style={styles.statsSummaryItem}>
+                    <Text style={styles.statsSummaryLabel}>All Out Pts</Text>
+                    <Text style={styles.statsSummaryValue}>{activeTeamTab === 'A' ? (match.allOutPointsA || 0) : (match.allOutPointsB || 0)}</Text>
                 </View>
             </View>
 
@@ -650,31 +702,148 @@ const KabaddiScorecard = ({ match }: any) => {
                 </>
             )}
 
-            <Text style={[styles.sectionHeaderTitleDetails, { marginTop: 24 }]}>Player Performance</Text>
-            <View style={styles.tableHeaderRow}>
-                <Text style={[styles.tableColHeader, { flex: 4 }]}>Player</Text>
-                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Raid Pts</Text>
-                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Tackle Pts</Text>
-                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'center' }]}>Sup Tack</Text>
-                <Text style={[styles.tableColHeader, { flex: 1.5, textAlign: 'right' }]}>High 5s</Text>
+            <View style={styles.kTabsContainer}>
+                <TouchableOpacity
+                    style={[styles.kTabBtn, activeTeamTab === 'A' && styles.kTabBtnActive]}
+                    onPress={() => { setActiveTeamTab('A'); setExpandedPlayerId(null); }}
+                >
+                    <Text style={[styles.kTabTxt, activeTeamTab === 'A' && styles.kTabTxtActive]}>{match.teamA.name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.kTabBtn, activeTeamTab === 'B' && styles.kTabBtnActive]}
+                    onPress={() => { setActiveTeamTab('B'); setExpandedPlayerId(null); }}
+                >
+                    <Text style={[styles.kTabTxt, activeTeamTab === 'B' && styles.kTabTxtActive]}>{match.teamB.name}</Text>
+                </TouchableOpacity>
             </View>
 
-            {match.playerStats && match.playerStats.length > 0 ? (
-                match.playerStats.map((ps: any, idx: number) => (
-                    <View key={idx} style={styles.tableDataRow}>
-                        <View style={{ flex: 4 }}>
-                            <Text style={[styles.tableDataText, { fontWeight: '600' }]} numberOfLines={1}>{ps.name}</Text>
-                            <Text style={{ fontSize: 9, color: '#888' }}>{ps.team === 'A' ? match.teamA.code : match.teamB.code} • {ps.position || 'Player'}</Text>
-                        </View>
-                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center', fontWeight: 'bold' }]}>{ps.raidPoints || 0}</Text>
-                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center' }]}>{ps.tacklePoints || 0}</Text>
-                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'center' }]}>{ps.superTackles || 0}</Text>
-                        <Text style={[styles.tableDataText, { flex: 1.5, textAlign: 'right', color: '#666' }]}>{ps.highFives || 0}</Text>
-                    </View>
-                ))
-            ) : (
-                <Text style={styles.emptyTableText}>No player performance stats recorded yet</Text>
-            )}
+            <View style={{ marginTop: 16 }}>
+                {activeTeamPlayers.length > 0 ? (
+                    activeTeamPlayers.map(renderPlayerCard)
+                ) : (
+                    <Text style={styles.emptyTableText}>No points recorded for {activeTeamName} yet</Text>
+                )}
+            </View>
+        </View>
+    );
+};
+
+// KabaddiStatBar Component
+const KabaddiStatBar = ({ title, valA, valB }: any) => {
+    const numA = parseFloat(valA) || 0;
+    const numB = parseFloat(valB) || 0;
+    const total = numA + numB;
+    const pctA = total > 0 ? (numA / total) * 100 : 50;
+    const pctB = total > 0 ? (numB / total) * 100 : 50;
+
+    return (
+        <View style={{ marginBottom: 20 }}>
+            <Text style={{ textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#666', marginBottom: 6 }}>{title}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#E31C25', width: 45, textAlign: 'center' }}>{valA}</Text>
+                <View style={{ flex: 1, flexDirection: 'row', height: 6, marginHorizontal: 12, borderRadius: 3, overflow: 'hidden', backgroundColor: '#eee' }}>
+                    <View style={{ width: `${pctA}%`, backgroundColor: '#E31C25' }} />
+                    <View style={{ width: 2, backgroundColor: '#fff' }} />
+                    <View style={{ flex: 1, backgroundColor: '#7E22CE' }} />
+                </View>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#7E22CE', width: 45, textAlign: 'center' }}>{valB}</Text>
+            </View>
+        </View>
+    );
+};
+
+// KabaddiStats Component
+const KabaddiStats = ({ match }: any) => {
+    const [halfFilter, setHalfFilter] = useState<'1st Half' | '2nd Half'>('1st Half');
+
+    let activeStats = match;
+    if (halfFilter === '1st Half' && match.firstHalfStats) {
+        activeStats = match.firstHalfStats;
+    } else if (halfFilter === '2nd Half' && match.secondHalfStats) {
+        activeStats = match.secondHalfStats;
+    } else if (halfFilter === '1st Half') {
+        // If they ask for 1st half and there is no 1st half snapshot, they are IN the first half. Use match.
+        activeStats = match;
+    } else if (halfFilter === '2nd Half' && !match.secondHalfStats) {
+        // If they ask for 2nd half and there is no snapshot, but period is Second Half, they are IN the second half.
+        // But match object contains total, and firstHalfStats contains 1st half.
+        if (match.period === 'Second Half' && match.firstHalfStats) {
+            activeStats = {
+                scoreA: (match.scoreA || 0) - (match.firstHalfStats.scoreA || 0),
+                scoreB: (match.scoreB || 0) - (match.firstHalfStats.scoreB || 0),
+                raidPointsA: (match.raidPointsA || 0) - (match.firstHalfStats.raidPointsA || 0),
+                raidPointsB: (match.raidPointsB || 0) - (match.firstHalfStats.raidPointsB || 0),
+                extraPointsA: (match.extraPointsA || 0) - (match.firstHalfStats.extraPointsA || 0),
+                extraPointsB: (match.extraPointsB || 0) - (match.firstHalfStats.extraPointsB || 0),
+                allOutPointsA: (match.allOutPointsA || 0) - (match.firstHalfStats.allOutPointsA || 0),
+                allOutPointsB: (match.allOutPointsB || 0) - (match.firstHalfStats.allOutPointsB || 0),
+                tacklePointsA: ((match.scoreA || 0) - (match.raidPointsA || 0) - (match.extraPointsA || 0) - (match.allOutPointsA || 0)) - ((match.firstHalfStats.scoreA || 0) - (match.firstHalfStats.raidPointsA || 0) - (match.firstHalfStats.extraPointsA || 0) - (match.firstHalfStats.allOutPointsA || 0)),
+                tacklePointsB: ((match.scoreB || 0) - (match.raidPointsB || 0) - (match.extraPointsB || 0) - (match.allOutPointsB || 0)) - ((match.firstHalfStats.scoreB || 0) - (match.firstHalfStats.raidPointsB || 0) - (match.firstHalfStats.extraPointsB || 0) - (match.firstHalfStats.allOutPointsB || 0)),
+            };
+        } else {
+            // Not in second half yet
+            activeStats = { scoreA: 0, scoreB: 0, raidPointsA: 0, raidPointsB: 0, tacklePointsA: 0, tacklePointsB: 0, extraPointsA: 0, extraPointsB: 0, allOutPointsA: 0, allOutPointsB: 0 };
+        }
+    }
+
+    // Tackle points derived
+    const tackleA = activeStats.tacklePointsA ?? ((activeStats.scoreA || 0) - (activeStats.raidPointsA || 0) - (activeStats.extraPointsA || 0) - (activeStats.allOutPointsA || 0));
+    const tackleB = activeStats.tacklePointsB ?? ((activeStats.scoreB || 0) - (activeStats.raidPointsB || 0) - (activeStats.extraPointsB || 0) - (activeStats.allOutPointsB || 0));
+
+    return (
+        <View>
+            <View style={[styles.kTabsContainer, { marginBottom: 20 }]}>
+                <TouchableOpacity 
+                    onPress={() => setHalfFilter('1st Half')}
+                    style={[styles.kTabBtn, halfFilter === '1st Half' && styles.kTabBtnActive]}
+                >
+                    <Text style={[styles.kTabTxt, halfFilter === '1st Half' && styles.kTabTxtActive]}>First Half</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={() => setHalfFilter('2nd Half')}
+                    style={[styles.kTabBtn, halfFilter === '2nd Half' && styles.kTabBtnActive]}
+                >
+                    <Text style={[styles.kTabTxt, halfFilter === '2nd Half' && styles.kTabTxtActive]}>Second Half</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, paddingHorizontal: 16 }}>
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1a1a1a', textAlign: 'center' }}>{match.teamA.name}</Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#888', textAlign: 'center' }}>Half Wise Comparison</Text>
+                </View>
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1a1a1a', textAlign: 'center' }}>{match.teamB.name}</Text>
+                </View>
+            </View>
+
+            <KabaddiStatBar
+                title="Total Points"
+                valA={String(activeStats.scoreA || 0)}
+                valB={String(activeStats.scoreB || 0)}
+            />
+            <KabaddiStatBar
+                title="Raid Points"
+                valA={String(activeStats.raidPointsA || 0)}
+                valB={String(activeStats.raidPointsB || 0)}
+            />
+            <KabaddiStatBar
+                title="Tackle Points"
+                valA={String(Math.max(0, tackleA))}
+                valB={String(Math.max(0, tackleB))}
+            />
+            <KabaddiStatBar
+                title="All out Points"
+                valA={String(activeStats.allOutPointsA || 0)}
+                valB={String(activeStats.allOutPointsB || 0)}
+            />
+            <KabaddiStatBar
+                title="Extra Points"
+                valA={String(activeStats.extraPointsA || 0)}
+                valB={String(activeStats.extraPointsB || 0)}
+            />
         </View>
     );
 };
@@ -850,7 +1019,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#E31C25',
-        paddingVertical: 15,
+        paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 15 : 15,
+        paddingBottom: 15,
         paddingHorizontal: 16,
         elevation: 4,
         shadowColor: '#000',
@@ -1366,5 +1536,113 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 9,
         fontWeight: '800',
+    },
+    kTabsContainer: {
+        flexDirection: 'row',
+        marginTop: 20,
+        backgroundColor: '#f5f5f5',
+        borderRadius: 8,
+        padding: 4,
+    },
+    kTabBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 6,
+    },
+    kTabBtnActive: {
+        backgroundColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    kTabTxt: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#666',
+    },
+    kTabTxtActive: {
+        color: '#E31C25',
+    },
+    kPlayerCard: {
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#eee',
+        overflow: 'hidden',
+    },
+    kPlayerCardExpanded: {
+        borderColor: '#E31C25',
+        shadowColor: '#E31C25',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    kPlayerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+    },
+    kPlayerAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f9f9f9',
+        marginRight: 12,
+    },
+    kPlayerInfo: {
+        flex: 1,
+    },
+    kPlayerName: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    kPlayerRole: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 2,
+    },
+    kPlayerTotalBox: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    kPlayerTotalLabel: {
+        fontSize: 10,
+        color: '#888',
+        marginBottom: 2,
+    },
+    kPlayerTotalVal: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    kPlayerExpandedContent: {
+        padding: 16,
+        backgroundColor: '#fafafa',
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
+    kStatRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    kStatItem: {
+        alignItems: 'center',
+    },
+    kStatLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 4,
+    },
+    kStatValue: {
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
