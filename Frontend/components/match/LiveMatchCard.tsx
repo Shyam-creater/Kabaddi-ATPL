@@ -80,7 +80,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = ({ match, onPress }) => {
 
             <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.cardContainer}>
                 <ImageBackground
-                    source={{ uri: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800&q=80' }}
+                    source={{ uri: 'https://static.chaseyoursport.com/blogImage/880x600/1697471989866-43088.webp' }}
                     style={styles.backgroundImage}
                     imageStyle={{ borderRadius: 16 }}
                 >

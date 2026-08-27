@@ -1,23 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text, TextInput } from 'react-native';
 
-// Force font scaling off across the entire app for perfect display size control
-interface TextWithDefaultProps extends Text {
-    defaultProps?: { allowFontScaling?: boolean };
-}
-interface TextInputWithDefaultProps extends TextInput {
-    defaultProps?: { allowFontScaling?: boolean };
-}
-
-if (!(Text as unknown as TextWithDefaultProps).defaultProps) {
-    (Text as unknown as TextWithDefaultProps).defaultProps = {};
-}
-(Text as unknown as TextWithDefaultProps).defaultProps!.allowFontScaling = false;
-
-if (!(TextInput as unknown as TextInputWithDefaultProps).defaultProps) {
-    (TextInput as unknown as TextInputWithDefaultProps).defaultProps = {};
-}
-(TextInput as unknown as TextInputWithDefaultProps).defaultProps!.allowFontScaling = false;
+// Font scaling modifications using defaultProps were removed as they are not supported in React 19 and crash React Native Web's LogBox.
 import { Stack, Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
