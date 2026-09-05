@@ -32,12 +32,12 @@ async function testPut() {
 
         console.log("Sending payload with playerStats length:", payload.playerStats.length);
         
-        const response = await axios.put(`http://localhost:6899/api/matches/${match._id}`, payload, {
+        const response = await axios.put(`https://back.aattumtpl.com/api/matches/${match._id}`, payload, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
         });
-        
+         
         console.log("Response scoreA:", response.data.scoreA);
         console.log("Response playerStats length:", response.data.playerStats ? response.data.playerStats.length : 0);
         

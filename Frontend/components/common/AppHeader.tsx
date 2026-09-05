@@ -184,7 +184,7 @@ export default function AppHeader() {
                     />
                   </View>
                   <View style={styles.textStack}>
-                    <Text style={styles.mainTitle}>ATPL</Text>
+                    <Text style={styles.mainTitle}>Kabaddi</Text>
                     <Text style={styles.subTitle}>SCORE</Text>
                    
                   </View>

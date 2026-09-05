@@ -117,7 +117,7 @@ export default function LoginScreen() {
                                     resizeMode="contain"
                                 />
                             </View>
-                            <Text style={styles.brandTitle}>ATPL SCORE</Text>
+                            <Text style={styles.brandTitle}>KABADDI SCORE</Text>
                         </View>
                         <Text style={styles.subtitle}>Play • Score • Connect</Text>
                     </Animated.View>
